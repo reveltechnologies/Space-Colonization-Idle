@@ -17,7 +17,7 @@ wiki_sync: # Sync docs/ to GitHub Wiki (create a Home page under Wiki tab first)
   source_directory: docs/
 
 documentation_sync: # Sync docs, workflows, and metadata across branches
-  enabled: true
+  enabled: false
   sync_items:
     - config.yaml
     - update.json
