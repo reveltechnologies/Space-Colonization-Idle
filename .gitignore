@@ -7,9 +7,27 @@ desktop.ini
 
 # Editors & IDEs
 .idea/
+.vscode/
 *.swp
 *.swo
 *~
+
+# Node / Build Tooling
+node_modules/
+dist/
+build/
+.cache/
+
+# Android / Google Play App Bundle
+android/
+*.apk
+*.aab
+*.ap_
+*.dex
+.gradle/
+local.properties
+*.keystore
+*.jks
 
 # Environment & Secrets
 .env
