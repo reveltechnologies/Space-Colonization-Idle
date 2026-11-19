@@ -97,8 +97,8 @@
     crater:    { id: "crater",    name: "Crater",    terrains: ["solid", "mountainous"], accent: "#7c8ba8", badgeBg: "#eceff8", iconSrc: "./assets/ui/biome-crater.svg" },
     forest:    { id: "forest",    name: "Forest",    terrains: ["solid", "surface"],     accent: "#22c55e", badgeBg: "#e8fce9", iconSrc: "./assets/ui/biome-forest.svg" },
     plains:    { id: "plains",    name: "Plains",    terrains: ["solid", "surface"],     accent: "#84e148", badgeBg: "#f2ffe4", iconSrc: "./assets/ui/biome-plains.svg" },
-    ocean:     { id: "ocean",     name: "Ocean",     terrains: [],                       accent: "#37a8ff", badgeBg: "#e3f5ff", iconSrc: "./assets/ui/biome-ocean.svg" },
-    lava:      { id: "lava",      name: "Lava",      terrains: [],                       accent: "#ff8c2a", badgeBg: "#fff0dc", iconSrc: "./assets/ui/biome-lava.svg" },
+    ocean:     { id: "ocean",     name: "Ocean",     terrains: [],                       accent: "#37a8ff", badgeBg: "#e3f5ff", iconSrc: "./assets/ui/biome-ocean.svg", unbuildableHint: "Cannot build on deep water — select a solid land tile" },
+    lava:      { id: "lava",      name: "Lava",      terrains: [],                       accent: "#ff8c2a", badgeBg: "#fff0dc", iconSrc: "./assets/ui/biome-lava.svg", unbuildableHint: "Cannot build on molten lava — select a solid land tile" },
     volcano:   { id: "volcano",   name: "Volcano",   terrains: ["solid", "mountainous"], accent: "#ff5a4d", badgeBg: "#ffe8e6", iconSrc: "./assets/ui/biome-volcano.svg" },
     canyon:    { id: "canyon",    name: "Canyon",    terrains: ["solid", "mountainous"], accent: "#e87d3e", badgeBg: "#ffefe3", iconSrc: "./assets/ui/biome-canyon.svg" },
     ashlands:  { id: "ashlands",  name: "Ashlands",  terrains: ["solid", "surface"],     accent: "#8d7ab8", badgeBg: "#f0ecf9", iconSrc: "./assets/ui/biome-ashlands.svg" }
@@ -150,7 +150,11 @@
   const biomeBadgeEl = document.getElementById("build-biome-badge");
   const biomeIconEl = document.getElementById("build-biome-icon");
   const titleEl = document.getElementById("build-tile-title");
+  const biomeTraitsEl = document.getElementById("build-biome-traits");
+  const unbuildableBannerEl = document.getElementById("build-unbuildable-banner");
   const categoriesEl = document.getElementById("build-categories");
+  const shelfPrevBtn = document.getElementById("btn-shelf-prev");
+  const shelfNextBtn = document.getElementById("btn-shelf-next");
   const listEl = document.getElementById("build-list");
   const closeBtn = document.getElementById("btn-close-build");
   const removeBtn = document.getElementById("btn-remove-building");
@@ -166,6 +170,87 @@
     onRemove: null,
     onClose: null
   };
+
+  function isCompactRightMode() {
+    return window.innerWidth > window.innerHeight && window.innerHeight <= 520;
+  }
+
+  function renderBiomeTraits(biome) {
+    if (!biomeTraitsEl) return;
+    biomeTraitsEl.innerHTML = "";
+
+    const terrains = biome && biome.terrains ? biome.terrains : [];
+    if (terrains.length === 0) {
+      const pill = document.createElement("span");
+      pill.className = "build-trait-pill is-unbuildable";
+      pill.textContent = "Not Buildable";
+      biomeTraitsEl.appendChild(pill);
+
+      if (unbuildableBannerEl) {
+        unbuildableBannerEl.textContent =
+          (biome && biome.unbuildableHint) ||
+          ("Cannot build on " + (biome ? biome.name : "this") + " tiles");
+        unbuildableBannerEl.classList.remove("is-hidden");
+      }
+      return;
+    }
+
+    if (unbuildableBannerEl) {
+      unbuildableBannerEl.classList.add("is-hidden");
+    }
+
+    const preferredOrder = ["mountainous", "surface", "solid"];
+    const ordered = [];
+    for (let i = 0; i < preferredOrder.length; i++) {
+      if (terrains.indexOf(preferredOrder[i]) !== -1) {
+        ordered.push(preferredOrder[i]);
+      }
+    }
+    for (let i = 0; i < terrains.length; i++) {
+      if (ordered.indexOf(terrains[i]) === -1) {
+        ordered.push(terrains[i]);
+      }
+    }
+
+    for (let i = 0; i < ordered.length; i++) {
+      const t = getTerrainGroup(ordered[i]);
+      const pill = document.createElement("span");
+      pill.className = "build-trait-pill";
+      const tIcon = document.createElement("img");
+      tIcon.className = "build-trait-icon";
+      tIcon.src = t.iconSrc;
+      tIcon.alt = "";
+      tIcon.draggable = false;
+      const tText = document.createElement("span");
+      tText.className = "build-trait-text";
+      tText.textContent = t.label;
+      pill.appendChild(tIcon);
+      pill.appendChild(tText);
+      biomeTraitsEl.appendChild(pill);
+    }
+  }
+
+  function syncShelfScroll() {
+    if (!listEl) return;
+    if (isCompactRightMode()) {
+      listEl.classList.remove("is-overflowing");
+      if (shelfPrevBtn) shelfPrevBtn.classList.add("is-hidden");
+      if (shelfNextBtn) shelfNextBtn.classList.add("is-hidden");
+      return;
+    }
+
+    const overflow = listEl.scrollWidth > listEl.clientWidth + 6;
+    listEl.classList.toggle("is-overflowing", overflow);
+    if (shelfPrevBtn) {
+      shelfPrevBtn.classList.toggle("is-hidden", !overflow || listEl.scrollLeft <= 12);
+    }
+    if (shelfNextBtn) {
+      shelfNextBtn.classList.toggle(
+        "is-hidden",
+        !overflow || listEl.scrollLeft + listEl.clientWidth >= listEl.scrollWidth - 12
+      );
+    }
+  }
 
   function renderCategories() {
     if (!categoriesEl) return;
@@ -193,16 +278,38 @@
     if (!listEl) return;
     listEl.innerHTML = "";
 
+    const entries = [];
     for (let i = 0; i < BUILDINGS.length; i++) {
       const b = BUILDINGS[i];
       if (activeCategory !== "all" && b.category !== activeCategory) {
         continue;
       }
-
       const isBuilt = currentPlacedId === b.id;
-      const terrain = getTerrainGroup(b.terrain);
       const terrainOk = canBuildOnBiome(b.id, currentBiomeId);
       const affordable = canAffordBuilding(b.id);
+      const rank = isBuilt ? 0 : terrainOk ? 1 : 2;
+      entries.push({
+        b: b,
+        idx: i,
+        isBuilt: isBuilt,
+        terrainOk: terrainOk,
+        affordable: affordable,
+        rank: rank
+      });
+    }
+
+    entries.sort(function (a, c) {
+      if (a.rank !== c.rank) return a.rank - c.rank;
+      return a.idx - c.idx;
+    });
+
+    for (let i = 0; i < entries.length; i++) {
+      const entry = entries[i];
+      const b = entry.b;
+      const isBuilt = entry.isBuilt;
+      const terrain = getTerrainGroup(b.terrain);
+      const terrainOk = entry.terrainOk;
+      const affordable = entry.affordable;
       const canPurchase = !isBuilt && terrainOk && affordable;
 
       const card = document.createElement("button");
@@ -218,6 +325,22 @@
       card.setAttribute("aria-disabled", canPurchase || isBuilt ? "false" : "true");
       card.style.setProperty("--cat-accent", b.accent);
 
+      const stage = document.createElement("span");
+      stage.className = "build-card-stage";
+
+      if (isBuilt) {
+        const badge = document.createElement("span");
+        badge.className = "build-card-badge is-built";
+        badge.textContent = "BUILT";
+        stage.appendChild(badge);
+      } else if (!terrainOk) {
+        const badge = document.createElement("span");
+        badge.className = "build-card-badge is-locked";
+        badge.setAttribute("aria-hidden", "true");
+        badge.textContent = "✕";
+        stage.appendChild(badge);
+      }
+
       const preview = document.createElement("span");
       preview.className = "build-card-preview";
       const icon = document.createElement("img");
@@ -226,6 +349,7 @@
       icon.alt = "";
       icon.draggable = false;
       preview.appendChild(icon);
+      stage.appendChild(preview);
 
       const info = document.createElement("span");
       info.className = "build-card-info";
@@ -254,7 +378,10 @@
       actionBtn.className = "build-card-action";
 
       if (isBuilt) {
-        actionBtn.textContent = "BUILT";
+        const builtLbl = document.createElement("span");
+        builtLbl.className = "build-built-label";
+        builtLbl.textContent = "BUILT";
+        actionBtn.appendChild(builtLbl);
       } else {
         const costOrder = ["credits", "ore"];
         for (let c = 0; c < costOrder.length; c++) {
@@ -278,12 +405,21 @@
         }
       }
 
-      card.appendChild(preview);
+      card.appendChild(stage);
       card.appendChild(info);
       card.appendChild(actionBtn);
 
       card.addEventListener("click", function () {
-        if (!canPurchase) return;
+        if (isBuilt) return;
+        if (!canPurchase) {
+          card.classList.remove("is-shake");
+          void card.offsetWidth;
+          card.classList.add("is-shake");
+          window.setTimeout(function () {
+            card.classList.remove("is-shake");
+          }, 280);
+          return;
+        }
         if (typeof callbacks.onPlace === "function") {
           callbacks.onPlace(b.id);
         }
@@ -291,6 +427,9 @@
 
       listEl.appendChild(card);
     }
+
+    syncShelfScroll();
+    window.requestAnimationFrame(syncShelfScroll);
   }
 
   function syncRemoveButton() {
@@ -318,11 +457,13 @@
       titleEl.textContent = biome.name;
     }
 
+    renderBiomeTraits(biome);
     syncRemoveButton();
     renderCategories();
     renderBuildingCards();
     if (listEl) {
       listEl.scrollTop = 0;
+      listEl.scrollLeft = 0;
     }
 
     menuOpen = true;
@@ -332,6 +473,9 @@
       drawerEl.setAttribute("aria-hidden", "false");
     }
     document.body.classList.add("build-menu-open");
+
+    syncShelfScroll();
+    window.requestAnimationFrame(syncShelfScroll);
   }
 
   function updateCurrentBuilding(placedBuildingId) {
@@ -369,10 +513,9 @@
     if (!menuOpen || !drawerEl) {
       return { open: false, mode: "none", width: 0, height: 0 };
     }
-    const isBottomSheet = window.innerWidth < 520 || window.innerHeight > window.innerWidth;
     return {
       open: true,
-      mode: isBottomSheet ? "bottom" : "right",
+      mode: isCompactRightMode() ? "right" : "bottom",
       width: drawerEl.offsetWidth || 0,
       height: drawerEl.offsetHeight || 0
     };
@@ -395,6 +538,42 @@
       }
     });
   }
+
+  if (listEl) {
+    listEl.addEventListener("scroll", syncShelfScroll, { passive: true });
+    listEl.addEventListener(
+      "wheel",
+      function (e) {
+        if (
+          !isCompactRightMode() &&
+          listEl.scrollWidth > listEl.clientWidth + 4 &&
+          Math.abs(e.deltaY) > Math.abs(e.deltaX)
+        ) {
+          e.preventDefault();
+          listEl.scrollLeft += e.deltaY;
+        }
+      },
+      { passive: false }
+    );
+  }
+
+  if (shelfPrevBtn && listEl) {
+    shelfPrevBtn.addEventListener("click", function () {
+      listEl.scrollBy({ left: -220, behavior: "smooth" });
+    });
+  }
+
+  if (shelfNextBtn && listEl) {
+    shelfNextBtn.addEventListener("click", function () {
+      listEl.scrollBy({ left: 220, behavior: "smooth" });
+    });
+  }
+
+  window.addEventListener("resize", function () {
+    if (menuOpen) {
+      syncShelfScroll();
+    }
+  });
 
   if (window.GameCurrencies && typeof window.GameCurrencies.onChange === "function") {
     window.GameCurrencies.onChange(function () {

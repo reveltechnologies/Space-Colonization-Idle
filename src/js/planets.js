@@ -1223,16 +1223,16 @@
         targetShiftY = targetCenterY - height * 0.47;
 
         const maxFitR = Math.min(availW * 0.43, availH * 0.45);
-        targetScale = baseR > maxFitR && baseR > 0 ? clamp(maxFitR / baseR, 0.65, 1) : 1;
+        targetScale = baseR > maxFitR && baseR > 0 ? clamp(maxFitR / baseR, 0.50, 1) : 1;
       } else if (bounds.mode === "bottom") {
-        const topHudClear = 58;
-        const bottomPad = 12;
+        const topHudClear = width >= 1040 ? 20 : 62;
+        const bottomPad = 14;
         const availH = Math.max(120, height - bounds.height - bottomPad - topHudClear);
         targetShiftX = 0;
         targetShiftY = topHudClear + availH * 0.5 - height * 0.47;
 
         const maxFitR = Math.min(width * 0.42, availH * 0.44);
-        targetScale = baseR > maxFitR && baseR > 0 ? clamp(maxFitR / baseR, 0.58, 1) : 1;
+        targetScale = baseR > maxFitR && baseR > 0 ? clamp(maxFitR / baseR, 0.45, 1) : 1;
       }
     }
 

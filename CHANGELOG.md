@@ -5,6 +5,31 @@ All notable changes to **Space Colonization: Idle** will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.0-alpha.9] - 2026-11-19
+
+### Added
+- **Studio Game Command Deck Build Menu UI**:
+  - Re-architected building selection menu into a studio-grade command deck layout with large, highly accessible, finger-friendly touch and click targets.
+  - Floating Bottom Command Deck on desktop, tablets, and portrait screens (`width: min(980px, calc(100vw - 20px))`) with centered hero 3D planet framing.
+  - Adaptive 2-column side grid on compact landscape phones (`(orientation: landscape) and (max-height: 520px)`) ensuring uncompromised planet visibility and zero clipping.
+- **Studio Vertical Building Cards**:
+  - Large showcase stage featuring category-tinted spotlight gradients (`--cat-accent`) and prominent `58px` building artwork icons.
+  - Top-right status chips (`BUILT` gold ribbon badge or `✕` red lock indicator).
+  - Clear, un-truncated full-width terrain capability chips with high-contrast valid (`#dffad0`) and invalid (`#ffe0dc`) states.
+  - Full-width tactile bottom action buttons (`44px` height) with multi-currency costs arranged cleanly on a single horizontal row (`[SC] 250  [Ore] 50`).
+  - High-contrast unaffordable state styling with dark-indigo backing plates (`#261b54`), crisp white affordable numerals, and bright coral-red (`#ff6e66`) shortage indicators.
+  - Tactile cartoon nope-shake feedback (`@keyframes build-card-shake`) when tapping locked or unaffordable cards.
+- **Tile Terrain Traits & Unbuildable Notice Banners**:
+  - Biome header displays active tile terrain trait pills (e.g. `[⛰ Mountainous] [⬡ Any Solid]`) alongside the biome medallion and title.
+  - Contextual unbuildable warning banners for hazardous terrain like deep ocean and molten lava tiles.
+- **Dedicated Demolish Action & Shelf Carousel Controls**:
+  - Separated demolition into an explicit Hazard-Orange (`#ff8426`) `Demolish` action button with clear spatial isolation from the close (`✕`) button.
+  - Smooth horizontal card carousel with touch scroll-snap, mouse wheel redirection, and adaptive chunky paddle navigation buttons (`<` / `>`).
+
+### Changed
+- Stable card ordering hierarchy prioritizing currently built structures (`rank 0`), followed by terrain-compatible buildings (`rank 1`), and locked buildings (`rank 2`).
+- Dynamically adjusted planet framing bounds in `src/js/planets.js` to center the focused planet heroically above the studio bottom deck.
+
 ## [0.1.0-alpha.8] - 2026-11-19
 
 ### Added

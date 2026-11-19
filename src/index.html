@@ -65,11 +65,18 @@
         <span id="build-biome-badge" class="build-biome-badge">
           <img id="build-biome-icon" class="build-biome-icon" src="./assets/ui/biome-mountains.svg" alt="" draggable="false" />
         </span>
-        <h2 id="build-tile-title" class="build-title">Mountains</h2>
+        <div class="build-title-meta">
+          <h2 id="build-tile-title" class="build-title">Mountains</h2>
+          <div id="build-biome-traits" class="build-biome-traits" aria-label="Tile Terrain Types"></div>
+        </div>
       </div>
+
+      <div id="build-categories" class="build-categories" role="tablist" aria-label="Building Categories"></div>
+
       <div class="build-header-actions">
-        <button id="btn-remove-building" class="build-remove-btn is-hidden" type="button" aria-label="Remove Building">
+        <button id="btn-remove-building" class="build-remove-btn is-hidden" type="button" aria-label="Demolish Building">
           <img class="btn-icon-sm" src="./assets/ui/icon-trash.svg" alt="" draggable="false" />
+          <span class="build-remove-label">Demolish</span>
         </button>
         <button id="btn-close-build" class="build-close-btn" type="button" aria-label="Close Building Menu">
           <img class="btn-icon-md" src="./assets/ui/icon-close.svg" alt="" draggable="false" />
@@ -77,8 +84,17 @@
       </div>
     </div>
 
-    <div id="build-categories" class="build-categories" role="tablist" aria-label="Building Categories"></div>
-    <div id="build-list" class="build-list" role="region" aria-label="Available Buildings"></div>
+    <div id="build-unbuildable-banner" class="build-unbuildable-banner is-hidden" role="status"></div>
+
+    <div class="build-shelf-wrap">
+      <button id="btn-shelf-prev" class="build-shelf-nav build-shelf-nav--prev is-hidden" type="button" aria-label="Scroll Buildings Left">
+        <img class="shelf-nav-icon shelf-nav-icon--flip" src="./assets/ui/icon-arrow.svg" alt="" draggable="false" />
+      </button>
+      <div id="build-list" class="build-list" role="region" aria-label="Available Buildings"></div>
+      <button id="btn-shelf-next" class="build-shelf-nav build-shelf-nav--next is-hidden" type="button" aria-label="Scroll Buildings Right">
+        <img class="shelf-nav-icon" src="./assets/ui/icon-arrow.svg" alt="" draggable="false" />
+      </button>
+    </div>
   </aside>
 
   <script src="./js/main.js"></script>
