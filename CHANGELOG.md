@@ -5,6 +5,55 @@ All notable changes to **Space Colonization: Idle** will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.0-alpha.12] - 2026-11-20
+
+### Added
+- **Multi-Tier Energy Generation System**:
+  - Implemented an energy capacity system paralleling citizen housing, dynamically aggregated per planet from deployed power generation structures:
+    - **Solar Line (Surface / Flat terrain)**:
+      - **Tier 1 - Solar Panel** (`solar_panel`): 60 SC, gives **+3 Energy**.
+      - **Tier 2 - Solar Array** (`solar_array`): 180 SC, 30 Ore, gives **+8 Energy**.
+      - **Tier 3 - Solar Tower** (`solar_tower`): 420 SC, 85 Ore, gives **+20 Energy**.
+    - **Wind Line (Highlands / Mountainous terrain)**:
+      - **Tier 1 - Windmill** (`windmill`): 80 SC, 15 Ore, gives **+6 Energy**.
+      - **Tier 2 - Wind Turbine** (`wind_turbine`): 220 SC, 45 Ore, gives **+16 Energy**.
+      - **Tier 3 - Wind Farm** (`wind_farm`): 500 SC, 110 Ore, gives **+35 Energy**.
+- **Custom Cel-Shaded Energy Building Artwork**:
+  - Added dedicated vector illustrations adhering to the game's bold ink outline and specular lighting language:
+    - `bld-solar-array.svg`: Multi-panel photovoltaic array on dual reinforced pedestals.
+    - `bld-solar-tower.svg`: High-tech central solar collection spire with glowing heliostat receiver.
+    - `bld-wind-turbine.svg`: Modern high-output aerodynamic 3-blade composite wind turbine.
+    - `bld-wind-farm.svg`: Multi-turbine offshore/mountain ridgeline power generation cluster.
+- **Pure Cel-Shaded Energy Lightning Icon & Card Chips**:
+  - Designed `icon-energy.svg`: Clean cartoon lightning bolt featuring a `#ffe44d` core, `#ff9814` warm bevel, `#fffbe0` gleam, and `#1b1147` ink perimeter.
+  - Added dedicated `.build-energy-chip` indicators on building cards displaying energy outputs with lightning iconography alongside citizen and terrain requirement chips.
+- **Procedural 3D Power Generation Models**:
+  - Built Goldberg polyhedron tangent-space 3D models and demolition heights:
+    - `buildSolarArrayModel`: Multi-faceted solar panel array on angled dual masts.
+    - `buildSolarTowerModel`: Tapered central pylon with glowing amber receiver cap.
+    - `buildWindTurbineModel`: Sleek cylindrical tower with central hub and tri-blade rotor.
+    - `buildWindFarmModel`: Tri-turbine ridge arrangement with varying heights and rotor orientations.
+- **Studio-Grade Planet Status Deck**:
+  - Redesigned top-right HUD into a unified, mirrored glass-and-purple command deck (`#planet-stats-deck`):
+    - **Mirrored Layout**: Embedded protruding planet orb medallion anchored at the top-right corner with the info deck extending leftward.
+    - **Custom Planet Medallions**: Distinct cel-shaded icons for each planet type (`planet-rocky.svg`, `planet-oceanic.svg`, `planet-volcanic.svg`) with dynamic theme color accents.
+    - **Dual Stat Cells & Fill Gauges**: Integrated live counters and fill meters for Citizens (Teal/Cyan) and Energy (Amber/Gold), complete with responsive change-bounce micro-animations.
+    - **Cleaned Header**: Streamlined planet header by removing redundant planet type tags.
+- **Custom Planet Renaming System**:
+  - Added an in-place planet naming button next to the planet title:
+    - Chunky purple pencil icon button (`#btn-rename-planet` with enlarged `icon-edit.svg`).
+    - In-place text input (`#planet-hud-name-input`) with a 12-character limit (`maxlength="12"`).
+    - Green checkmark confirmation button (`✔`) with auto-save on blur or enter key, and cancel on Escape.
+    - Full keyboard input isolation so typing planet names does not trigger camera/hotkey shortcuts.
+    - Persisted player custom names in `localStorage` under `sci_planet_names_v1` across page reloads.
+
+### Fixed
+- **Subpixel Antialiasing Artifact on Numeric Zero**:
+  - Eliminated the small dark pixel rendering quirk on the initial `0/0` energy text in Chromium:
+    - Replaced multi-directional fractional `text-shadow` offsets (`±1.5px`) on `.planet-stat-value` with crisp 1px integer outlines that respect hollow glyph apertures.
+    - Replaced semi-transparent empty text colors with an opaque high-contrast `#dbe4f0` tint to prevent underlying shadows from bleeding through the character body.
+    - Added explicit text rendering optimizations (`-webkit-font-smoothing: antialiased`, `text-rendering: geometricPrecision`) and inline element spacing.
+
 ## [0.1.0-alpha.11] - 2026-11-19
 
 ### Added

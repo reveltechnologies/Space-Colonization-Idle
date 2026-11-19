@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" stroke-linejoin="round" stroke-linecap="round">
+  <g transform="translate(50 50) scale(1.12) rotate(45) translate(-50 -50)">
+    <!-- Coral-pink rounded eraser cap -->
+    <rect x="33" y="6" width="34" height="19" rx="8" fill="#ff6b8a" stroke="#1b1147" stroke-width="6.5"/>
+    <!-- Eraser highlight -->
+    <path d="M40 11 H51" stroke="#ffb8c8" stroke-width="3.8"/>
+    <!-- Silver ferrule band -->
+    <rect x="33" y="23" width="34" height="13" fill="#e2ecfc" stroke="#1b1147" stroke-width="6.5"/>
+    <path d="M38 28 H62" stroke="#ffffff" stroke-width="2.8"/>
+    <!-- Chunky golden-yellow pencil barrel -->
+    <rect x="33" y="36" width="34" height="36" fill="#ffe047" stroke="#1b1147" stroke-width="6.5"/>
+    <!-- Warm amber cel-shade strip -->
+    <rect x="54" y="38" width="11" height="32" fill="#ff9c1a"/>
+    <!-- Bright left barrel highlight -->
+    <line x1="41" y1="41" x2="41" y2="67" stroke="#fff9c4" stroke-width="4.5"/>
+    <rect x="33" y="36" width="34" height="36" fill="none" stroke="#1b1147" stroke-width="6.5"/>
+    <!-- Warm cream sharpened wood tip + dark lead tip -->
+    <polygon points="33,72 67,72 50,95" fill="#fff1d6" stroke="#1b1147" stroke-width="6.5"/>
+    <polygon points="42.5,84 57.5,84 50,95" fill="#1b1147"/>
+  </g>
+</svg>

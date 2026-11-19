@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" stroke-linejoin="round" stroke-linecap="round">
+  <ellipse cx="50" cy="91" rx="46" ry="5.5" fill="#1b1147" opacity="0.28"/>
+  <!-- Dynamic cyan wind-flow arcs across the top -->
+  <path d="M12 16 Q28 9 43 15 M58 14 Q74 8 89 15" fill="none" stroke="#5fd8f8" stroke-width="3.5"/>
+  <!-- Illuminated slate-and-cyan platform deck -->
+  <path d="M10 89 L16 78 H84 L90 89 Z" fill="#8d7ab8" stroke="#1b1147" stroke-width="4"/>
+  <rect x="20" y="78" width="60" height="4" rx="2" fill="#37a8ff" stroke="#1b1147" stroke-width="2.5"/>
+  <!-- Tall central wind turbine -->
+  <path d="M44 80 L47.5 34 H52.5 L56 80 Z" fill="#f4efff" stroke="#1b1147" stroke-width="4"/>
+  <g transform="rotate(8 50 32)">
+    <path d="M46.5 31 Q44 16 50 7 Q56 16 53.5 31 Z" fill="#ffffff" stroke="#1b1147" stroke-width="3.5"/>
+    <path d="M47 18 Q50 11 53 18" stroke="#37a8ff" stroke-width="2.8" fill="none"/>
+    <g transform="rotate(120 50 32)">
+      <path d="M46.5 31 Q44 16 50 7 Q56 16 53.5 31 Z" fill="#ffffff" stroke="#1b1147" stroke-width="3.5"/>
+      <path d="M47 18 Q50 11 53 18" stroke="#37a8ff" stroke-width="2.8" fill="none"/>
+    </g>
+    <g transform="rotate(240 50 32)">
+      <path d="M46.5 31 Q44 16 50 7 Q56 16 53.5 31 Z" fill="#ffffff" stroke="#1b1147" stroke-width="3.5"/>
+      <path d="M47 18 Q50 11 53 18" stroke="#37a8ff" stroke-width="2.8" fill="none"/>
+    </g>
+  </g>
+  <circle cx="50" cy="32" r="6" fill="#ffc83a" stroke="#1b1147" stroke-width="3.5"/>
+  <!-- Smaller left turbine -->
+  <path d="M19 80 L21.5 48 H24.5 L27 80 Z" fill="#f4efff" stroke="#1b1147" stroke-width="3.5"/>
+  <g transform="rotate(-18 23 47)">
+    <path d="M20.5 46 Q19 34 23 27 Q27 34 25.5 46 Z" fill="#ffffff" stroke="#1b1147" stroke-width="3"/>
+    <g transform="rotate(120 23 47)">
+      <path d="M20.5 46 Q19 34 23 27 Q27 34 25.5 46 Z" fill="#ffffff" stroke="#1b1147" stroke-width="3"/>
+    </g>
+    <g transform="rotate(240 23 47)">
+      <path d="M20.5 46 Q19 34 23 27 Q27 34 25.5 46 Z" fill="#ffffff" stroke="#1b1147" stroke-width="3"/>
+    </g>
+  </g>
+  <circle cx="23" cy="47" r="4.5" fill="#37a8ff" stroke="#1b1147" stroke-width="3"/>
+  <!-- Smaller right turbine -->
+  <path d="M73 80 L75.5 48 H78.5 L81 80 Z" fill="#f4efff" stroke="#1b1147" stroke-width="3.5"/>
+  <g transform="rotate(28 77 47)">
+    <path d="M74.5 46 Q73 34 77 27 Q81 34 79.5 46 Z" fill="#ffffff" stroke="#1b1147" stroke-width="3"/>
+    <g transform="rotate(120 77 47)">
+      <path d="M74.5 46 Q73 34 77 27 Q81 34 79.5 46 Z" fill="#ffffff" stroke="#1b1147" stroke-width="3"/>
+    </g>
+    <g transform="rotate(240 77 47)">
+      <path d="M74.5 46 Q73 34 77 27 Q81 34 79.5 46 Z" fill="#ffffff" stroke="#1b1147" stroke-width="3"/>
+    </g>
+  </g>
+  <circle cx="77" cy="47" r="4.5" fill="#37a8ff" stroke="#1b1147" stroke-width="3"/>
+</svg>

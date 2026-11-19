@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" stroke-linejoin="round" stroke-linecap="round">
+  <defs>
+    <clipPath id="p1-clip">
+      <circle cx="50" cy="50" r="36"/>
+    </clipPath>
+  </defs>
+  <!-- Soft icy-slate atmospheric halo -->
+  <circle cx="50" cy="50" r="44" fill="#cbd5e1" opacity="0.32"/>
+  <!-- Planet base orb -->
+  <circle cx="50" cy="50" r="36" fill="#a6b7ce"/>
+  <g clip-path="url(#p1-clip)">
+    <!-- North polar glacier cap -->
+    <path d="M12 24 Q34 17 52 22 Q70 26 88 18 V6 H12 Z" fill="#e4f2fe"/>
+    <!-- Highland facets -->
+    <polygon points="18,46 38,34 62,40 50,58 24,58" fill="#c4d3e6"/>
+    <polygon points="56,52 78,42 86,66 64,74" fill="#c4d3e6"/>
+    <!-- 3 crisp recessed impact craters -->
+    <g>
+      <circle cx="34" cy="48" r="8" fill="#64748b"/>
+      <path d="M27 52 A8 8 0 0 0 41 44 A6.5 6.5 0 0 1 27 52 Z" fill="#475569"/>
+      <path d="M28 45 A7 7 0 0 1 38 41" fill="none" stroke="#dce7f5" stroke-width="2.5"/>
+    </g>
+    <g>
+      <circle cx="64" cy="60" r="10" fill="#64748b"/>
+      <path d="M55 65 A10 10 0 0 0 73 55 A8 8 0 0 1 55 65 Z" fill="#475569"/>
+      <path d="M57 56 A8.5 8.5 0 0 1 70 52" fill="none" stroke="#dce7f5" stroke-width="2.6"/>
+    </g>
+    <g>
+      <circle cx="48" cy="72" r="5.5" fill="#64748b"/>
+      <path d="M44 69 A5 5 0 0 1 51 67" fill="none" stroke="#dce7f5" stroke-width="2"/>
+    </g>
+    <!-- Lower-right curved cel shadow crescent -->
+    <path d="M18 76 A36 36 0 0 0 84 32 A32 32 0 0 1 18 76 Z" fill="#5b6c88" opacity="0.55"/>
+    <!-- Glossy top-left highlight arc -->
+    <path d="M23 36 A30 30 0 0 1 46 20" fill="none" stroke="#ffffff" stroke-width="4" opacity="0.82"/>
+  </g>
+  <!-- Crisp outer ink ring -->
+  <circle cx="50" cy="50" r="36" fill="none" stroke="#1b1147" stroke-width="5.5"/>
+  <!-- Twinkling 4-point star sparkle -->
+  <path d="M84 11 L86.5 16.5 L92 19 L86.5 21.5 L84 27 L81.5 21.5 L76 19 L81.5 16.5 Z" fill="#ffffff" stroke="#1b1147" stroke-width="2.6"/>
+</svg>

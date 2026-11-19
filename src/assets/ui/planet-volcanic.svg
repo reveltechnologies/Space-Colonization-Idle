@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" stroke-linejoin="round" stroke-linecap="round">
+  <defs>
+    <clipPath id="p3-clip">
+      <circle cx="50" cy="50" r="36"/>
+    </clipPath>
+  </defs>
+  <!-- Fiery amber-orange atmospheric halo -->
+  <circle cx="50" cy="50" r="44" fill="#fb923c" opacity="0.40"/>
+  <!-- Base dark volcanic basalt orb -->
+  <circle cx="50" cy="50" r="36" fill="#4b1d16"/>
+  <g clip-path="url(#p3-clip)">
+    <!-- Rust-red volcanic highland plates -->
+    <path d="M12 36 Q32 22 52 28 Q68 20 88 30 V14 H12 Z" fill="#b53b16"/>
+    <path d="M18 42 Q34 36 44 46 Q38 62 22 60 Z" fill="#d94f1c"/>
+    <path d="M58 46 Q74 38 86 52 Q80 68 62 66 Z" fill="#b53b16"/>
+    <!-- Branching glowing lava rivers (orange glow + bright yellow core veins) -->
+    <path d="M14 54 Q30 48 44 58 T76 48 Q84 44 88 46" fill="none" stroke="#ff9e1b" stroke-width="7"/>
+    <path d="M44 58 Q48 72 62 82" fill="none" stroke="#ff9e1b" stroke-width="6"/>
+    <path d="M24 28 Q38 36 48 32 T74 36" fill="none" stroke="#ff9e1b" stroke-width="5"/>
+    <!-- Bright yellow molten core veins -->
+    <path d="M14 54 Q30 48 44 58 T76 48 Q84 44 88 46" fill="none" stroke="#ffe866" stroke-width="3"/>
+    <path d="M44 58 Q48 72 62 82" fill="none" stroke="#ffe866" stroke-width="2.6"/>
+    <path d="M24 28 Q38 36 48 32 T74 36" fill="none" stroke="#ffe866" stroke-width="2.2"/>
+    <!-- Glowing caldera crater -->
+    <circle cx="48" cy="44" r="6.5" fill="#7c2d12" stroke="#ff9e1b" stroke-width="2.2"/>
+    <circle cx="48" cy="44" r="3.5" fill="#ffe866"/>
+    <!-- Deep obsidian lower-right shadow crescent -->
+    <path d="M18 76 A36 36 0 0 0 84 32 A32 32 0 0 1 18 76 Z" fill="#260c12" opacity="0.58"/>
+    <!-- Fiery amber top-left rim sheen -->
+    <path d="M23 36 A30 30 0 0 1 46 20" fill="none" stroke="#ffd166" stroke-width="4" opacity="0.88"/>
+  </g>
+  <!-- Crisp outer ink ring -->
+  <circle cx="50" cy="50" r="36" fill="none" stroke="#1b1147" stroke-width="5.5"/>
+  <!-- Warm gold 4-point star sparkle -->
+  <path d="M84 11 L86.5 16.5 L92 19 L86.5 21.5 L84 27 L81.5 21.5 L76 19 L81.5 16.5 Z" fill="#ffe866" stroke="#1b1147" stroke-width="2.6"/>
+</svg>

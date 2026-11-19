@@ -16,11 +16,25 @@
   const zoomOutBtn = document.getElementById("btn-zoom-out");
   const zoomLevelLabel = document.getElementById("zoom-level-label");
   const zoomGaugeFill = document.getElementById("zoom-gauge-fill");
+  const planetStatsDeckEl = document.getElementById("planet-stats-deck");
+  const planetDeckHeaderEl = document.getElementById("planet-deck-header");
+  const renamePlanetBtn = document.getElementById("btn-rename-planet");
+  const planetHudNameInputEl = document.getElementById("planet-hud-name-input");
+  const planetHudEmblemEl = document.getElementById("planet-hud-emblem");
+  const planetHudIconEl = document.getElementById("planet-hud-icon");
+  const planetHudNameEl = document.getElementById("planet-hud-name");
   const citizensCurrEl = document.getElementById("val-citizens-curr");
   const citizensMaxEl = document.getElementById("val-citizens-max");
   const citizensStatBar = document.getElementById("planet-stat-citizens");
+  const citizensMeterFillEl = document.getElementById("meter-citizens-fill");
+  const energyCurrEl = document.getElementById("val-energy-curr");
+  const energyMaxEl = document.getElementById("val-energy-max");
+  const energyStatBar = document.getElementById("planet-stat-energy");
+  const energyMeterFillEl = document.getElementById("meter-energy-fill");
 
   const PLANET_COUNT = 3;
+  const PLANET_NAMES_STORAGE_KEY = "sci_planet_names_v1";
+  const MAX_PLANET_NAME_LEN = 12;
   const CAM_DIST = 4.2;
   const MIN_ZOOM = 1.0;
   const MAX_ZOOM = 2.2;
@@ -402,6 +416,13 @@
   const planets = [
     {
       id: 0,
+      defaultName: "Planet 1",
+      name: "Planet 1",
+      typeId: "rocky",
+      typeLabel: "Rocky",
+      accent: "#cbd5e1",
+      accentBg: "#25344d",
+      iconSrc: "./assets/ui/planet-rocky.svg",
       freq: 2,
       atmosphere: { r: 203, g: 213, b: 225 },
       coreScale: 0.92,
@@ -424,6 +445,13 @@
     },
     {
       id: 1,
+      defaultName: "Planet 2",
+      name: "Planet 2",
+      typeId: "oceanic",
+      typeLabel: "Oceanic",
+      accent: "#38bdf8",
+      accentBg: "#0f3a5c",
+      iconSrc: "./assets/ui/planet-oceanic.svg",
       freq: 3,
       atmosphere: { r: 56, g: 189, b: 248 },
       coreScale: 0.955,
@@ -446,6 +474,13 @@
     },
     {
       id: 2,
+      defaultName: "Planet 3",
+      name: "Planet 3",
+      typeId: "volcanic",
+      typeLabel: "Volcanic",
+      accent: "#fb923c",
+      accentBg: "#571e12",
+      iconSrc: "./assets/ui/planet-volcanic.svg",
       freq: 4,
       atmosphere: { r: 251, g: 146, b: 60 },
       coreScale: 0.97,
@@ -495,12 +530,142 @@
   let lastInteractionTime = 0;
   let lastZoomLabel = "";
   let lastZoomGaugeKey = -1;
-  let lastCitizensPlanet = -1;
-  let lastCitizensMax = -1;
-  let lastCitizensCurr = -1;
-  let citizensBumpTimer = 0;
+  const citizensHudState = { planet: -1, max: -1, curr: -1, bumpTimer: 0 };
+  const energyHudState = { planet: -1, max: -1, curr: -1, bumpTimer: 0 };
+  let lastHeaderPlanet = -1;
+  let emblemPopTimer = 0;
+  let isRenamingPlanet = false;
+  let renamingPlanetIndex = -1;
 
-  function calculatePlanetCitizenCapacity(planetIdx) {
+  function sanitizePlanetName(raw, fallback) {
+    const cleaned = String(raw || "").replace(/\s+/g, " ").trim().slice(0, MAX_PLANET_NAME_LEN);
+    return cleaned || fallback;
+  }
+
+  function loadSavedPlanetNames() {
+    try {
+      const raw = window.localStorage && window.localStorage.getItem(PLANET_NAMES_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          for (let i = 0; i < planets.length; i++) {
+            planets[i].name = sanitizePlanetName(parsed[i], planets[i].defaultName);
+          }
+        }
+      }
+    } catch (_) { }
+
+    for (let i = 0; i < dotButtons.length && i < planets.length; i++) {
+      dotButtons[i].setAttribute("aria-label", planets[i].name);
+    }
+  }
+
+  function savePlanetNames() {
+    try {
+      if (!window.localStorage) return;
+      const list = [];
+      for (let i = 0; i < planets.length; i++) {
+        list.push(planets[i].name);
+      }
+      window.localStorage.setItem(PLANET_NAMES_STORAGE_KEY, JSON.stringify(list));
+    } catch (_) { }
+  }
+
+  function startPlanetRename() {
+    if (!planetDeckHeaderEl || !planetHudNameInputEl) return;
+    if (isRenamingPlanet) {
+      finishPlanetRename(true);
+    }
+    const p = planets[activeDotIndex];
+    if (!p) return;
+
+    isRenamingPlanet = true;
+    renamingPlanetIndex = activeDotIndex;
+    planetHudNameInputEl.value = p.name;
+    planetDeckHeaderEl.classList.add("is-editing");
+
+    if (renamePlanetBtn) {
+      renamePlanetBtn.title = "Save Planet Name";
+      renamePlanetBtn.setAttribute("aria-label", "Save Planet Name");
+    }
+
+    planetHudNameInputEl.focus();
+    planetHudNameInputEl.select();
+  }
+
+  function finishPlanetRename(commit) {
+    if (!isRenamingPlanet) return;
+    const idx = renamingPlanetIndex;
+    isRenamingPlanet = false;
+    renamingPlanetIndex = -1;
+
+    if (planetDeckHeaderEl) {
+      planetDeckHeaderEl.classList.remove("is-editing");
+    }
+    if (renamePlanetBtn) {
+      renamePlanetBtn.title = "Rename Planet";
+      renamePlanetBtn.setAttribute("aria-label", "Rename Planet");
+    }
+
+    if (commit && planets[idx] && planetHudNameInputEl) {
+      planets[idx].name = sanitizePlanetName(planetHudNameInputEl.value, planets[idx].defaultName);
+      savePlanetNames();
+      if (dotButtons[idx]) {
+        dotButtons[idx].setAttribute("aria-label", planets[idx].name);
+      }
+    }
+
+    updatePlanetHeaderHud(true);
+  }
+
+  function formatPlanetStat(val) {
+    if (window.GameCurrencies && typeof window.GameCurrencies.formatNumber === "function") {
+      return window.GameCurrencies.formatNumber(val);
+    }
+    return String(val);
+  }
+
+  /** Update top-right planet medallion, name, and accent colors. */
+  function updatePlanetHeaderHud(force) {
+    if (!force && activeDotIndex === lastHeaderPlanet) return;
+    if (isRenamingPlanet && renamingPlanetIndex !== activeDotIndex) {
+      finishPlanetRename(true);
+    }
+    const p = planets[activeDotIndex];
+    if (!p) return;
+
+    const switched = lastHeaderPlanet !== -1 && lastHeaderPlanet !== activeDotIndex;
+    lastHeaderPlanet = activeDotIndex;
+
+    if (planetHudIconEl) {
+      planetHudIconEl.src = p.iconSrc;
+    }
+    if (planetHudNameEl) {
+      planetHudNameEl.textContent = p.name;
+    }
+    if (planetStatsDeckEl) {
+      planetStatsDeckEl.setAttribute("data-planet", String(activeDotIndex));
+      planetStatsDeckEl.setAttribute("data-planet-type", p.typeId);
+      planetStatsDeckEl.style.setProperty("--planet-accent", p.accent);
+      planetStatsDeckEl.style.setProperty("--planet-accent-bg", p.accentBg);
+    }
+    if (planetHudEmblemEl) {
+      planetHudEmblemEl.title = p.name;
+      if (switched) {
+        planetHudEmblemEl.classList.remove("is-switched");
+        void planetHudEmblemEl.offsetWidth;
+        planetHudEmblemEl.classList.add("is-switched");
+        if (emblemPopTimer) window.clearTimeout(emblemPopTimer);
+        emblemPopTimer = window.setTimeout(function () {
+          planetHudEmblemEl.classList.remove("is-switched");
+          emblemPopTimer = 0;
+        }, 260);
+      }
+    }
+  }
+
+  /** Sum a per-building capacity property (e.g. citizenSlots or energySlots) on a planet. */
+  function calculatePlanetStatCapacity(planetIdx, slotKey) {
     const buildings = buildingsByPlanet[planetIdx];
     if (!buildings || !window.GameBuildings) return 0;
     let cap = 0;
@@ -509,11 +674,55 @@
       const bInfo = buildings[keys[i]];
       if (!bInfo || !bInfo.id) continue;
       const bDef = window.GameBuildings.getBuilding(bInfo.id);
-      if (bDef && bDef.citizenSlots) {
-        cap += bDef.citizenSlots;
+      if (bDef && bDef[slotKey]) {
+        cap += bDef[slotKey];
       }
     }
     return cap;
+  }
+
+  /** Sync a top-right planet HUD stat cell, progress meter, and bump animation. */
+  function syncStatBarHud(currEl, maxEl, statBar, meterFillEl, hudState, currCount, maxCap, force) {
+    if (!currEl || !maxEl) return;
+    const activeIdx = activeDotIndex;
+    const changed = force || activeIdx !== hudState.planet || maxCap !== hudState.max || currCount !== hudState.curr;
+    if (!changed) return;
+
+    const hadPrior = hudState.planet !== -1 && hudState.planet === activeIdx;
+    const valueChanged = hadPrior && (maxCap !== hudState.max || currCount !== hudState.curr);
+
+    hudState.planet = activeIdx;
+    hudState.max = maxCap;
+    hudState.curr = currCount;
+
+    currEl.textContent = formatPlanetStat(currCount);
+    maxEl.textContent = formatPlanetStat(maxCap);
+
+    if (statBar) {
+      statBar.classList.toggle("is-empty", maxCap <= 0);
+    }
+    if (meterFillEl) {
+      const ratio = maxCap > 0 ? clamp(currCount / maxCap, 0, 1) * 100 : 0;
+      meterFillEl.style.width = ratio.toFixed(1) + "%";
+    }
+
+    if (valueChanged && statBar) {
+      const valWrap = statBar.querySelector(".planet-stat-value");
+      if (valWrap) {
+        valWrap.classList.remove("is-bumped");
+        void valWrap.offsetWidth;
+        valWrap.classList.add("is-bumped");
+        if (hudState.bumpTimer) window.clearTimeout(hudState.bumpTimer);
+        hudState.bumpTimer = window.setTimeout(function () {
+          valWrap.classList.remove("is-bumped");
+          hudState.bumpTimer = 0;
+        }, 160);
+      }
+    }
+  }
+
+  function calculatePlanetCitizenCapacity(planetIdx) {
+    return calculatePlanetStatCapacity(planetIdx, "citizenSlots");
   }
 
   function getPlanetCitizenCount(planetIdx) {
@@ -522,37 +731,44 @@
   }
 
   function updatePlanetCitizenHud(force) {
-    if (!citizensCurrEl || !citizensMaxEl) return;
-    const activeIdx = activeDotIndex;
-    const maxCap = calculatePlanetCitizenCapacity(activeIdx);
-    const currCount = getPlanetCitizenCount(activeIdx);
+    syncStatBarHud(
+      citizensCurrEl,
+      citizensMaxEl,
+      citizensStatBar,
+      citizensMeterFillEl,
+      citizensHudState,
+      getPlanetCitizenCount(activeDotIndex),
+      calculatePlanetCitizenCapacity(activeDotIndex),
+      force
+    );
+  }
 
-    const changed = force || activeIdx !== lastCitizensPlanet || maxCap !== lastCitizensMax || currCount !== lastCitizensCurr;
-    if (!changed) return;
+  function calculatePlanetEnergyCapacity(planetIdx) {
+    return calculatePlanetStatCapacity(planetIdx, "energySlots");
+  }
 
-    const hadPrior = lastCitizensPlanet !== -1 && lastCitizensPlanet === activeIdx;
-    const valueChanged = hadPrior && (maxCap !== lastCitizensMax || currCount !== lastCitizensCurr);
+  function getPlanetEnergyCount(planetIdx) {
+    // Current energy supply fills available capacity
+    return calculatePlanetEnergyCapacity(planetIdx);
+  }
 
-    lastCitizensPlanet = activeIdx;
-    lastCitizensMax = maxCap;
-    lastCitizensCurr = currCount;
+  function updatePlanetEnergyHud(force) {
+    syncStatBarHud(
+      energyCurrEl,
+      energyMaxEl,
+      energyStatBar,
+      energyMeterFillEl,
+      energyHudState,
+      getPlanetEnergyCount(activeDotIndex),
+      calculatePlanetEnergyCapacity(activeDotIndex),
+      force
+    );
+  }
 
-    citizensCurrEl.textContent = String(currCount);
-    citizensMaxEl.textContent = String(maxCap);
-
-    if (valueChanged && citizensStatBar) {
-      const valWrap = citizensStatBar.querySelector(".planet-stat-value");
-      if (valWrap) {
-        valWrap.classList.remove("is-bumped");
-        void valWrap.offsetWidth;
-        valWrap.classList.add("is-bumped");
-        if (citizensBumpTimer) window.clearTimeout(citizensBumpTimer);
-        citizensBumpTimer = window.setTimeout(function () {
-          valWrap.classList.remove("is-bumped");
-          citizensBumpTimer = 0;
-        }, 160);
-      }
-    }
+  function updatePlanetStatsHud(force) {
+    updatePlanetHeaderHud(force);
+    updatePlanetCitizenHud(force);
+    updatePlanetEnergyHud(force);
   }
 
   // Multi-touch & pointer tracking
@@ -645,10 +861,13 @@
       zoomGaugeFill.style.transform = "scaleX(" + (zoomGaugeKey / 1000).toFixed(3) + ")";
     }
 
-    updatePlanetCitizenHud(false);
+    updatePlanetStatsHud(false);
   }
 
   function goToPlanet(index) {
+    if (isRenamingPlanet) {
+      finishPlanetRename(true);
+    }
     const nextIdx = clamp(Math.round(index), 0, PLANET_COUNT - 1);
     if (nextIdx !== targetIndex) {
       selectedHexByPlanet[targetIndex] = null;
@@ -1700,6 +1919,15 @@
   }
 
   function onKeyDown(e) {
+    const activeTag = document.activeElement && document.activeElement.tagName;
+    if (
+      isRenamingPlanet ||
+      activeTag === "INPUT" ||
+      activeTag === "TEXTAREA" ||
+      (document.activeElement && document.activeElement.isContentEditable)
+    ) {
+      return;
+    }
     if (e.key === "ArrowRight") {
       goToPlanet(targetIndex + 1);
     } else if (e.key === "ArrowLeft") {
@@ -1766,6 +1994,46 @@
         adjustZoom(-ZOOM_STEP);
       });
     }
+
+    if (renamePlanetBtn) {
+      renamePlanetBtn.addEventListener("pointerdown", function (e) {
+        if (isRenamingPlanet) {
+          e.preventDefault();
+        }
+      });
+      renamePlanetBtn.addEventListener("click", function () {
+        if (isRenamingPlanet) {
+          finishPlanetRename(true);
+        } else {
+          startPlanetRename();
+        }
+      });
+    }
+
+    if (planetHudNameInputEl) {
+      planetHudNameInputEl.addEventListener("input", function () {
+        if (this.value.length > MAX_PLANET_NAME_LEN) {
+          this.value = this.value.slice(0, MAX_PLANET_NAME_LEN);
+        }
+      });
+      planetHudNameInputEl.addEventListener("keydown", function (e) {
+        e.stopPropagation();
+        if (e.key === "Enter") {
+          e.preventDefault();
+          finishPlanetRename(true);
+          planetHudNameInputEl.blur();
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          finishPlanetRename(false);
+          planetHudNameInputEl.blur();
+        }
+      });
+      planetHudNameInputEl.addEventListener("blur", function () {
+        if (isRenamingPlanet) {
+          finishPlanetRename(true);
+        }
+      });
+    }
   }
 
   function init() {
@@ -1806,7 +2074,7 @@
             startTime: now
           };
           lastInteractionTime = now;
-          updatePlanetCitizenHud(true);
+          updatePlanetStatsHud(true);
           window.GameBuildings.updateCurrentBuilding(buildingId);
         },
         onRemove: function () {
@@ -1825,7 +2093,7 @@
             seed: tileId * 2.13 + (now % 97) * 0.017
           };
           lastInteractionTime = now;
-          updatePlanetCitizenHud(true);
+          updatePlanetStatsHud(true);
           window.GameBuildings.updateCurrentBuilding(null);
         },
         onClose: function () {
@@ -1836,6 +2104,7 @@
       });
     }
 
+    loadSavedPlanetNames();
     resizeCanvas();
     updateIndicatorDots();
     updateControlStates();

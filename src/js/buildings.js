@@ -38,7 +38,8 @@
   };
 
   const STAT_ICONS = {
-    citizens: "./assets/ui/icon-citizen.svg"
+    citizens: "./assets/ui/icon-citizen.svg",
+    energy: "./assets/ui/icon-energy.svg"
   };
 
   const BUILDINGS = [
@@ -96,24 +97,70 @@
       iconSrc: "./assets/ui/bld-villa.svg"
     },
     {
-      id: "windmill",
-      name: "Windmill",
-      category: "power",
-      tag: "Power",
-      terrain: "surface",
-      cost: { credits: 120, ore: 25 },
-      accent: "#3fd6c4",
-      iconSrc: "./assets/ui/bld-windmill.svg"
-    },
-    {
       id: "solar_panel",
       name: "Solar Panel",
       category: "power",
       tag: "Power",
       terrain: "solid",
+      energySlots: 3,
       cost: { credits: 50 },
       accent: "#ffc83a",
       iconSrc: "./assets/ui/bld-solar-panel.svg"
+    },
+    {
+      id: "solar_array",
+      name: "Solar Array",
+      category: "power",
+      tag: "Power",
+      terrain: "solid",
+      energySlots: 8,
+      cost: { credits: 160, ore: 25 },
+      accent: "#ffad26",
+      iconSrc: "./assets/ui/bld-solar-array.svg"
+    },
+    {
+      id: "solar_tower",
+      name: "Solar Tower",
+      category: "power",
+      tag: "Power",
+      terrain: "solid",
+      energySlots: 20,
+      cost: { credits: 400, ore: 75 },
+      accent: "#ff7b1c",
+      iconSrc: "./assets/ui/bld-solar-tower.svg"
+    },
+    {
+      id: "windmill",
+      name: "Windmill",
+      category: "power",
+      tag: "Power",
+      terrain: "surface",
+      energySlots: 6,
+      cost: { credits: 120, ore: 25 },
+      accent: "#3fd6c4",
+      iconSrc: "./assets/ui/bld-windmill.svg"
+    },
+    {
+      id: "wind_turbine",
+      name: "Wind Turbine",
+      category: "power",
+      tag: "Power",
+      terrain: "surface",
+      energySlots: 16,
+      cost: { credits: 280, ore: 55 },
+      accent: "#20b9f0",
+      iconSrc: "./assets/ui/bld-wind-turbine.svg"
+    },
+    {
+      id: "wind_farm",
+      name: "Wind Farm",
+      category: "power",
+      tag: "Power",
+      terrain: "surface",
+      energySlots: 35,
+      cost: { credits: 480, ore: 95 },
+      accent: "#3888ff",
+      iconSrc: "./assets/ui/bld-wind-farm.svg"
     }
   ];
 
@@ -374,6 +421,26 @@
     }
   }
 
+  /** Create a compact icon+label stat or terrain pill for a building card. */
+  function createCardInfoChip(chipClass, iconClass, iconSrc, labelClass, labelText, attrName, attrVal) {
+    const chip = document.createElement("span");
+    chip.className = chipClass;
+    if (attrName) {
+      chip.setAttribute(attrName, String(attrVal));
+    }
+    const icon = document.createElement("img");
+    icon.className = iconClass;
+    icon.src = iconSrc;
+    icon.alt = "";
+    icon.draggable = false;
+    const label = document.createElement("span");
+    label.className = labelClass;
+    label.textContent = labelText;
+    chip.appendChild(icon);
+    chip.appendChild(label);
+    return chip;
+  }
+
   function renderBuildingCards() {
     if (!listEl) return;
     listEl.innerHTML = "";
@@ -470,35 +537,39 @@
 
       const showInvalidTerrain = !isBuilt && !terrainOk;
       if (!showInvalidTerrain && b.citizenSlots && b.citizenSlots > 0) {
-        const citizenChip = document.createElement("span");
-        citizenChip.className = "build-citizen-chip";
-        citizenChip.setAttribute("data-citizen-slots", String(b.citizenSlots));
-        const cIcon = document.createElement("img");
-        cIcon.className = "build-citizen-icon";
-        cIcon.src = STAT_ICONS.citizens;
-        cIcon.alt = "";
-        cIcon.draggable = false;
-        const cLabel = document.createElement("span");
-        cLabel.className = "build-citizen-label";
-        cLabel.textContent =
-          "+" + formatCostValue(b.citizenSlots) + (b.citizenSlots === 1 ? " Citizen" : " Citizens");
-        citizenChip.appendChild(cIcon);
-        citizenChip.appendChild(cLabel);
-        info.appendChild(citizenChip);
+        info.appendChild(
+          createCardInfoChip(
+            "build-citizen-chip",
+            "build-citizen-icon",
+            STAT_ICONS.citizens,
+            "build-citizen-label",
+            "+" + formatCostValue(b.citizenSlots) + (b.citizenSlots === 1 ? " Citizen" : " Citizens"),
+            "data-citizen-slots",
+            b.citizenSlots
+          )
+        );
+      } else if (!showInvalidTerrain && b.energySlots && b.energySlots > 0) {
+        info.appendChild(
+          createCardInfoChip(
+            "build-energy-chip",
+            "build-energy-icon",
+            STAT_ICONS.energy,
+            "build-energy-label",
+            "+" + formatCostValue(b.energySlots) + " Energy",
+            "data-energy-slots",
+            b.energySlots
+          )
+        );
       } else {
-        const terrainChip = document.createElement("span");
-        terrainChip.className = "build-terrain-chip " + (terrainOk ? "is-valid" : "is-invalid");
-        const tIcon = document.createElement("img");
-        tIcon.className = "build-terrain-icon";
-        tIcon.src = terrain.iconSrc;
-        tIcon.alt = "";
-        tIcon.draggable = false;
-        const tLabel = document.createElement("span");
-        tLabel.className = "build-terrain-label";
-        tLabel.textContent = terrain.label;
-        terrainChip.appendChild(tIcon);
-        terrainChip.appendChild(tLabel);
-        info.appendChild(terrainChip);
+        info.appendChild(
+          createCardInfoChip(
+            "build-terrain-chip " + (terrainOk ? "is-valid" : "is-invalid"),
+            "build-terrain-icon",
+            terrain.iconSrc,
+            "build-terrain-label",
+            terrain.label
+          )
+        );
       }
 
       const actionBtn = document.createElement("span");
@@ -1676,6 +1747,241 @@
     }
   }
 
+  function buildSolarArrayModel(m, time, phase, pxScale) {
+    // Larger octagonal slate base + golden collector collar
+    m.addPrism(0, 0, 0.0, 0.08, 0.64, 0.60, 8, Math.PI / 8, [71, 85, 105], { spec: 0.25 });
+    m.addPrism(0, 0, 0.08, 0.105, 0.56, 0.54, 8, Math.PI / 8, [251, 191, 36], { spec: 0.48 });
+
+    // Central twin-module inverter housing + pulsing amber capacitor prism
+    m.addBox(0, 0, 0.17, 0.18, 0.15, 0.08, [100, 116, 139], { spec: 0.32 });
+    const corePulse = 0.55 + 0.35 * Math.sin(time * 0.0045 + phase);
+    m.addPrism(0, 0, 0.25, 0.33, 0.095, 0.055, 6, 0, [251, 191, 36], { emissive: corePulse });
+
+    // Four tilted cobalt photovoltaic panels in two elevated rows
+    const postLW = Math.max(1.3, pxScale * 0.045);
+    const gridStroke = "rgba(186, 230, 253, 0.80)";
+    const gridLW = Math.max(0.7, pxScale * 0.016);
+    const panels = [
+      { wx: -0.28, wy: -0.22, zLow: 0.22, zHigh: 0.38 },
+      { wx:  0.28, wy: -0.22, zLow: 0.22, zHigh: 0.38 },
+      { wx: -0.28, wy:  0.20, zLow: 0.34, zHigh: 0.54 },
+      { wx:  0.28, wy:  0.20, zLow: 0.34, zHigh: 0.54 }
+    ];
+
+    for (let i = 0; i < panels.length; i++) {
+      const p = panels[i];
+      const hw = 0.21;
+      const hd = 0.16;
+      const zMid = (p.zLow + p.zHigh) * 0.5;
+      m.addLine([p.wx, p.wy, 0.09], [p.wx, p.wy, zMid - 0.02], "#cbd5e1", postLW);
+
+      // Warm silver-gold trim frame
+      m.addQuad(
+        [p.wx - hw - 0.02, p.wy - hd - 0.02, p.zLow - 0.01],
+        [p.wx + hw + 0.02, p.wy - hd - 0.02, p.zLow - 0.01],
+        [p.wx + hw + 0.02, p.wy + hd + 0.02, p.zHigh - 0.01],
+        [p.wx - hw - 0.02, p.wy + hd + 0.02, p.zHigh - 0.01],
+        i >= 2 ? [251, 191, 36] : [226, 232, 240],
+        { doubleSided: true, spec: 0.50 }
+      );
+
+      // Deep cobalt photovoltaic wing
+      m.addQuad(
+        [p.wx - hw, p.wy - hd, p.zLow],
+        [p.wx + hw, p.wy - hd, p.zLow],
+        [p.wx + hw, p.wy + hd, p.zHigh],
+        [p.wx - hw, p.wy + hd, p.zHigh],
+        [29, 78, 216],
+        { doubleSided: true, spec: 0.92, emissive: 0.16, depthBias: 0.002 }
+      );
+
+      m.addLine([p.wx, p.wy - hd, p.zLow], [p.wx, p.wy + hd, p.zHigh], gridStroke, gridLW, 0.004);
+      m.addLine([p.wx - hw, p.wy, zMid], [p.wx + hw, p.wy, zMid], gridStroke, gridLW, 0.004);
+    }
+  }
+
+  function buildSolarTowerModel(m, time, phase, pxScale) {
+    // Grand hexagonal foundation + golden trim ring
+    m.addPrism(0, 0, 0.0, 0.09, 0.70, 0.66, 6, 0, [71, 85, 105], { spec: 0.28 });
+    m.addPrism(0, 0, 0.09, 0.115, 0.63, 0.61, 6, 0, [251, 191, 36], { spec: 0.52 });
+
+    // Six radial heliostat mirror quads arranged in a ring tilting inward toward receiver
+    const postLW = Math.max(1.2, pxScale * 0.04);
+    const mirrorRadius = 0.45;
+    for (let k = 0; k < 6; k++) {
+      const a = (Math.PI * 2 * k) / 6 + Math.PI / 6;
+      const ca = Math.cos(a);
+      const sa = Math.sin(a);
+      const tx = -sa;
+      const ty = ca;
+      const mx = ca * mirrorRadius;
+      const my = sa * mirrorRadius;
+      m.addLine([mx, my, 0.10], [mx, my, 0.21], "#cbd5e1", postLW);
+
+      const hw = 0.14;
+      const hd = 0.10;
+      const outX = ca * hd;
+      const outY = sa * hd;
+      const zIn = 0.18;
+      const zOut = 0.30;
+
+      // Silver backing frame
+      m.addQuad(
+        [mx - outX - tx * (hw + 0.015), my - outY - ty * (hw + 0.015), zIn - 0.01],
+        [mx - outX + tx * (hw + 0.015), my - outY + ty * (hw + 0.015), zIn - 0.01],
+        [mx + outX + tx * (hw + 0.015), my + outY + ty * (hw + 0.015), zOut - 0.01],
+        [mx + outX - tx * (hw + 0.015), my + outY - ty * (hw + 0.015), zOut - 0.01],
+        [203, 213, 225],
+        { doubleSided: true, spec: 0.45 }
+      );
+
+      // Reflective cobalt-cyan mirror surface
+      m.addQuad(
+        [mx - outX - tx * hw, my - outY - ty * hw, zIn],
+        [mx - outX + tx * hw, my - outY + ty * hw, zIn],
+        [mx + outX + tx * hw, my + outY + ty * hw, zOut],
+        [mx + outX - tx * hw, my + outY - ty * hw, zOut],
+        [37, 99, 235],
+        { doubleSided: true, spec: 0.92, emissive: 0.20, depthBias: 0.002 }
+      );
+    }
+
+    // Tall tapered central titanium receiver spire + two structural rings
+    m.addPrism(0, 0, 0.11, 0.64, 0.16, 0.095, 8, 0, [241, 245, 249], { spec: 0.40 });
+    m.addPrism(0, 0, 0.30, 0.34, 0.155, 0.148, 8, 0, [100, 116, 139], { spec: 0.32 });
+    m.addPrism(0, 0, 0.50, 0.54, 0.132, 0.125, 8, 0, [100, 116, 139], { spec: 0.32 });
+
+    // Blazing golden solar thermal receiver chamber + glowing summit orb + finial spire
+    const solarPulse = 0.78 + 0.18 * Math.sin(time * 0.005 + phase);
+    m.addPrism(0, 0, 0.64, 0.78, 0.115, 0.125, 8, 0, [251, 191, 36], { emissive: solarPulse, spec: 0.65 });
+    m.addDome(0, 0, 0.77, 0.12, 0.12, 0.12, 3, 8, [254, 240, 138], {
+      spec: 0.75,
+      emissive: 0.85,
+      stroke: "rgba(255, 255, 255, 0.7)",
+      lineWidth: Math.max(0.6, pxScale * 0.015)
+    });
+    m.addLine([0, 0, 0.89], [0, 0, 0.98], "#fef08a", Math.max(1.2, pxScale * 0.04));
+  }
+
+  function buildWindTurbineModel(m, time, phase, pxScale) {
+    // Heavy reinforced octagonal base + glowing cyan ring + side transformer pod
+    m.addPrism(0, 0, 0.0, 0.10, 0.56, 0.48, 8, Math.PI / 8, [100, 116, 139], { spec: 0.28 });
+    m.addPrism(0, 0, 0.10, 0.135, 0.28, 0.22, 8, 0, [56, 189, 248], { emissive: 0.42 });
+    m.addBox(0.28, 0.14, 0.16, 0.12, 0.11, 0.08, [148, 163, 184], { spec: 0.30 });
+    const cellPulse = 0.55 + 0.30 * Math.sin(time * 0.004 + phase);
+    m.addBox(0.28, 0.14, 0.25, 0.06, 0.055, 0.025, [251, 191, 36], { emissive: cellPulse });
+
+    // Tall sleek tapered aero-tower + two glowing cyan power collar rings
+    m.addPrism(0, 0, 0.13, 0.96, 0.135, 0.068, 8, 0, [241, 245, 249], { spec: 0.44 });
+    m.addPrism(0, 0, 0.40, 0.44, 0.128, 0.122, 8, 0, [56, 189, 248], { emissive: 0.52 });
+    m.addPrism(0, 0, 0.70, 0.735, 0.102, 0.096, 8, 0, [56, 189, 248], { emissive: 0.52 });
+
+    // Futuristic nacelle + dual cyan tail fins
+    m.addBox(0, 0.02, 0.97, 0.09, 0.18, 0.08, [226, 232, 240], { spec: 0.42 });
+    m.addQuad([-0.03, 0.16, 0.97], [-0.03, 0.29, 0.99], [-0.03, 0.30, 1.12], [-0.03, 0.16, 1.05], [56, 189, 248], {
+      doubleSided: true,
+      emissive: 0.38
+    });
+    m.addQuad([0.03, 0.16, 0.97], [0.03, 0.29, 0.99], [0.03, 0.30, 1.12], [0.03, 0.16, 1.05], [56, 189, 248], {
+      doubleSided: true,
+      emissive: 0.38
+    });
+
+    // Glowing golden-cyan spinner cone
+    const hy = -0.17;
+    const hz = 0.97;
+    m.addBox(0, hy, hz, 0.07, 0.055, 0.07, [251, 191, 36], { emissive: 0.55, spec: 0.65 });
+
+    // 3 longer, faster aerodynamic rotor blades with bright cyan & gold energized tips
+    const spin = time * 0.0044 + phase;
+    const bladeLen = 0.66;
+    for (let k = 0; k < 3; k++) {
+      const a = spin + (Math.PI * 2 * k) / 3;
+      const ca = Math.cos(a);
+      const sa = Math.sin(a);
+      const px = -sa;
+      const pz = ca;
+
+      const rootW = 0.062;
+      const tipW = 0.020;
+      const tipX = ca * bladeLen;
+      const tipZ = hz + sa * bladeLen;
+
+      m.addQuad(
+        [ca * 0.055 - px * rootW, hy - 0.03, hz + sa * 0.055 - pz * rootW],
+        [ca * 0.055 + px * rootW, hy - 0.03, hz + sa * 0.055 + pz * rootW],
+        [tipX + px * tipW, hy - 0.04, tipZ + pz * tipW],
+        [tipX - px * tipW, hy - 0.04, tipZ - pz * tipW],
+        [248, 250, 252],
+        { doubleSided: true, spec: 0.58, depthBias: 0.008 }
+      );
+      m.addLine(
+        [tipX * 0.65, hy - 0.045, hz + sa * bladeLen * 0.65],
+        [tipX * 0.88, hy - 0.045, hz + sa * bladeLen * 0.88],
+        "#38bdf8",
+        Math.max(1.3, pxScale * 0.038),
+        0.010
+      );
+      m.addLine(
+        [tipX * 0.88, hy - 0.046, hz + sa * bladeLen * 0.88],
+        [tipX, hy - 0.046, tipZ],
+        "#ffc83a",
+        Math.max(1.3, pxScale * 0.040),
+        0.011
+      );
+    }
+  }
+
+  function buildWindFarmModel(m, time, phase, pxScale) {
+    // Grand hexagonal aero-platform + glowing cyan energy ring + central substation block
+    m.addPrism(0, 0, 0.0, 0.09, 0.70, 0.66, 6, 0, [71, 85, 105], { spec: 0.26 });
+    m.addPrism(0, 0, 0.09, 0.115, 0.63, 0.61, 6, 0, [56, 189, 248], { emissive: 0.44 });
+    m.addBox(0, -0.02, 0.16, 0.11, 0.09, 0.05, [203, 213, 225], { spec: 0.35 });
+    const subGlow = 0.58 + 0.30 * Math.sin(time * 0.005 + phase);
+    m.addPrism(0, -0.02, 0.21, 0.255, 0.05, 0.025, 6, 0, [251, 191, 36], { emissive: subGlow });
+
+    function addMiniTurbine(ox, oy, zBase, topZ, rBot, rTop, bladeLen, spin) {
+      m.addPrism(ox, oy, zBase, topZ, rBot, rTop, 6, 0, [241, 245, 249], { spec: 0.42 });
+      m.addBox(ox, oy + 0.015, topZ + 0.01, rTop * 1.15, rTop * 2.1, rTop * 1.05, [226, 232, 240], { spec: 0.40 });
+      const hy = oy - rTop * 1.95;
+      const hz = topZ + 0.01;
+      m.addBox(ox, hy, hz, rTop * 0.85, rTop * 0.7, rTop * 0.85, [56, 189, 248], { emissive: 0.50 });
+
+      for (let k = 0; k < 3; k++) {
+        const a = spin + (Math.PI * 2 * k) / 3;
+        const ca = Math.cos(a);
+        const sa = Math.sin(a);
+        const px = -sa;
+        const pz = ca;
+        const rootW = bladeLen * 0.105;
+        const tipW = bladeLen * 0.032;
+        const tipX = ox + ca * bladeLen;
+        const tipZ = hz + sa * bladeLen;
+
+        m.addQuad(
+          [ox + ca * 0.035 - px * rootW, hy - 0.025, hz + sa * 0.035 - pz * rootW],
+          [ox + ca * 0.035 + px * rootW, hy - 0.025, hz + sa * 0.035 + pz * rootW],
+          [tipX + px * tipW, hy - 0.032, tipZ + pz * tipW],
+          [tipX - px * tipW, hy - 0.032, tipZ - pz * tipW],
+          [248, 250, 252],
+          { doubleSided: true, spec: 0.56, depthBias: 0.008 }
+        );
+        m.addLine(
+          [ox + ca * bladeLen * 0.70, hy - 0.036, hz + sa * bladeLen * 0.70],
+          [tipX, hy - 0.036, tipZ],
+          "#38bdf8",
+          Math.max(1.0, pxScale * 0.028),
+          0.010
+        );
+      }
+    }
+
+    // 3 synchronized non-colliding turbines (rear tall + 2 front flanking)
+    addMiniTurbine(0, 0.20, 0.115, 0.98, 0.095, 0.052, 0.44, time * 0.0046 + phase);
+    addMiniTurbine(-0.35, -0.16, 0.115, 0.68, 0.075, 0.042, 0.30, time * 0.0054 + phase + 1.1);
+    addMiniTurbine(0.35, -0.16, 0.115, 0.68, 0.075, 0.042, 0.30, time * 0.0054 + phase + 2.3);
+  }
+
   function renderBuilding3D(ctx, buildingId, frame, time, buildScale, opts) {
     if (!ctx || !frame) return;
 
@@ -1695,8 +2001,16 @@
       buildVillaModel(collector, time, phase, pxScale);
     } else if (buildingId === "windmill") {
       buildWindmillModel(collector, time, phase, pxScale);
+    } else if (buildingId === "wind_turbine") {
+      buildWindTurbineModel(collector, time, phase, pxScale);
+    } else if (buildingId === "wind_farm") {
+      buildWindFarmModel(collector, time, phase, pxScale);
     } else if (buildingId === "solar_panel") {
       buildSolarPanelModel(collector, time, phase, pxScale);
+    } else if (buildingId === "solar_array") {
+      buildSolarArrayModel(collector, time, phase, pxScale);
+    } else if (buildingId === "solar_tower") {
+      buildSolarTowerModel(collector, time, phase, pxScale);
     }
 
     collector.drawAll(ctx);
@@ -2074,7 +2388,11 @@
       big_house: 0.54,
       villa: 0.66,
       windmill: 0.75,
-      solar_panel: 0.32
+      wind_turbine: 0.86,
+      wind_farm: 0.88,
+      solar_panel: 0.32,
+      solar_array: 0.50,
+      solar_tower: 0.76
     };
     const targetZ = buildingImpactHeights[effect.buildingId] || 0.40;
 

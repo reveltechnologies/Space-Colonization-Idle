@@ -33,15 +33,66 @@
     </div>
   </header>
 
-  <!-- Planet Stats HUD (Top-Right) -->
+  <!-- Planet Stats HUD (Top-Right Studio Deck) -->
   <aside id="planet-stats-hud" class="planet-stats-hud" aria-label="Current Planet Statistics">
-    <div id="planet-stat-citizens" class="planet-stat-bar planet-stat-bar--citizens" title="Citizens on this planet (Current / Max Capacity)">
-      <img class="planet-stat-badge" src="./assets/ui/icon-citizen.svg" alt="" draggable="false" />
-      <div class="planet-stat-content">
-        <span class="planet-stat-title">CITIZENS</span>
-        <span class="planet-stat-value">
-          <span id="val-citizens-curr" class="planet-stat-curr">0</span><span class="planet-stat-sep">/</span><span id="val-citizens-max" class="planet-stat-max">0</span>
-        </span>
+    <div id="planet-stats-deck" class="planet-stats-deck" data-planet="0" data-planet-type="rocky">
+      <div id="planet-hud-emblem" class="planet-hud-emblem" title="Planet 1">
+        <img id="planet-hud-icon" class="planet-hud-icon" src="./assets/ui/planet-rocky.svg" alt="" draggable="false" />
+      </div>
+
+      <div class="planet-deck-body">
+        <div id="planet-deck-header" class="planet-deck-header">
+          <button
+            id="btn-rename-planet"
+            class="planet-rename-btn"
+            type="button"
+            aria-label="Rename Planet"
+            title="Rename Planet"
+          >
+            <img class="planet-rename-icon" src="./assets/ui/icon-edit.svg" alt="" draggable="false" />
+            <span class="planet-rename-check" aria-hidden="true">✓</span>
+          </button>
+          <span id="planet-hud-name" class="planet-hud-name">Planet 1</span>
+          <input
+            id="planet-hud-name-input"
+            class="planet-name-input"
+            type="text"
+            maxlength="12"
+            autocomplete="off"
+            autocorrect="off"
+            spellcheck="false"
+            aria-label="Planet Name"
+            placeholder="Planet name"
+          />
+        </div>
+
+        <div class="planet-deck-tray">
+          <div id="planet-stat-citizens" class="planet-stat-cell planet-stat-cell--citizens is-empty" title="Citizens on this planet (Current / Max Capacity)">
+            <img class="planet-stat-icon" src="./assets/ui/icon-citizen.svg" alt="" draggable="false" />
+            <div class="planet-stat-info">
+              <span class="planet-stat-value">
+                <span id="val-citizens-curr" class="planet-stat-curr">0</span><span class="planet-stat-sep">/</span><span id="val-citizens-max" class="planet-stat-max">0</span>
+              </span>
+              <span class="planet-stat-meter" aria-hidden="true">
+                <span id="meter-citizens-fill" class="planet-stat-meter-fill"></span>
+              </span>
+            </div>
+          </div>
+
+          <span class="planet-tray-divider" aria-hidden="true"></span>
+
+          <div id="planet-stat-energy" class="planet-stat-cell planet-stat-cell--energy is-empty" title="Energy on this planet (Current / Max Capacity)">
+            <img class="planet-stat-icon" src="./assets/ui/icon-energy.svg" alt="" draggable="false" />
+            <div class="planet-stat-info">
+              <span class="planet-stat-value">
+                <span id="val-energy-curr" class="planet-stat-curr">0</span><span class="planet-stat-sep">/</span><span id="val-energy-max" class="planet-stat-max">0</span>
+              </span>
+              <span class="planet-stat-meter" aria-hidden="true">
+                <span id="meter-energy-fill" class="planet-stat-meter-fill"></span>
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </aside>

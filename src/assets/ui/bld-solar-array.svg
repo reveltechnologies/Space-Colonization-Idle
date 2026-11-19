@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" stroke-linejoin="round" stroke-linecap="round">
+  <ellipse cx="50" cy="91" rx="44" ry="5.5" fill="#1b1147" opacity="0.28"/>
+  <!-- Wide slate pedestal deck -->
+  <rect x="20" y="79" width="60" height="11" rx="4" fill="#bdb4e6" stroke="#1b1147" stroke-width="4"/>
+  <!-- Support twin struts -->
+  <rect x="33" y="64" width="10" height="17" fill="#d8d1f4" stroke="#1b1147" stroke-width="4"/>
+  <rect x="57" y="64" width="10" height="17" fill="#d8d1f4" stroke="#1b1147" stroke-width="4"/>
+  <!-- Central inverter box & glowing energy gauge -->
+  <rect x="41" y="69" width="18" height="14" rx="3" fill="#6c55e8" stroke="#1b1147" stroke-width="3.5"/>
+  <rect x="45" y="73" width="10" height="5" rx="2" fill="#ffd75e" stroke="#1b1147" stroke-width="2"/>
+  <!-- Rear upper stacked photovoltaic bank with golden trim -->
+  <path d="M18 18 H82 L90 42 H10 Z" fill="#ffc83a" stroke="#1b1147" stroke-width="4.5"/>
+  <path d="M21 21 H79 L85 39 H15 Z" fill="#2f6bff" stroke="#1b1147" stroke-width="3"/>
+  <path d="M22 23 H78 L80 28 H20 Z" fill="#6fa0ff"/>
+  <path d="M40 21 L38 39 M60 21 L62 39 M18 30 H82" stroke="#b9d0ff" stroke-width="2.2" fill="none"/>
+  <!-- Front lower stacked photovoltaic bank with golden trim -->
+  <path d="M12 43 H88 L95 69 H5 Z" fill="#ffc83a" stroke="#1b1147" stroke-width="4.5"/>
+  <path d="M15 46 H85 L90 66 H10 Z" fill="#2f6bff" stroke="#1b1147" stroke-width="3"/>
+  <path d="M17 48 H83 L85 54 H15 Z" fill="#6fa0ff"/>
+  <path d="M35 46 L32 66 M50 46 V66 M65 46 L68 66 M12.5 56 H87.5" stroke="#b9d0ff" stroke-width="2.3" fill="none"/>
+  <!-- Bright sun emblem at top-right with crisp rays -->
+  <circle cx="85" cy="14" r="8.5" fill="#ffd75e" stroke="#1b1147" stroke-width="3.8"/>
+  <path d="M85 2 V4 M97 14 H95 M74 5 L76 7 M95 5 L93 7" stroke="#ffd75e" stroke-width="3.2" fill="none"/>
+</svg>

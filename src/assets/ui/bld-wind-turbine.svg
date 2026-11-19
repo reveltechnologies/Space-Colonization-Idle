@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" stroke-linejoin="round" stroke-linecap="round">
+  <ellipse cx="50" cy="91" rx="38" ry="5.5" fill="#1b1147" opacity="0.28"/>
+  <!-- Crisp sky-blue curved wind streaks -->
+  <path d="M12 21 Q22 15 32 20 M10 31 Q18 27 25 30 M71 17 Q81 12 90 18" fill="none" stroke="#5fd8f8" stroke-width="3.5"/>
+  <!-- Side transformer pod -->
+  <rect x="61" y="72" width="16" height="14" rx="3.5" fill="#bdb4e6" stroke="#1b1147" stroke-width="3.5"/>
+  <rect x="65" y="76" width="8" height="5" rx="1.5" fill="#37a8ff" stroke="#1b1147" stroke-width="2"/>
+  <!-- Reinforced wide base deck -->
+  <rect x="31" y="81" width="38" height="10" rx="3.5" fill="#8d7ab8" stroke="#1b1147" stroke-width="4"/>
+  <!-- Tall tapered white aero-tower -->
+  <path d="M39 83 L44 36 H56 L61 83 Z" fill="#f4efff" stroke="#1b1147" stroke-width="4.5"/>
+  <path d="M51 36 L56 36 L61 83 H52 Z" fill="#cfc4f2"/>
+  <!-- Two glowing cyan energy bands on pylon -->
+  <rect x="42.5" y="50" width="15" height="5" rx="2" fill="#37a8ff" stroke="#1b1147" stroke-width="2.5"/>
+  <rect x="41" y="66" width="18" height="5" rx="2" fill="#37a8ff" stroke="#1b1147" stroke-width="2.5"/>
+  <path d="M39 83 L44 36 H56 L61 83 Z" fill="none" stroke="#1b1147" stroke-width="4.5"/>
+  <!-- Sculpted 3-blade rotor with cyan & gold tips -->
+  <g transform="rotate(14 50 36)">
+    <g stroke="#1b1147" stroke-width="4.2">
+      <path d="M44 34 Q40 16 50 4 Q60 16 56 34 Z" fill="#ffffff"/>
+      <path d="M46.5 13 Q50 5 53.5 13 Z" fill="#ffc83a" stroke="none"/>
+      <path d="M45 20 Q50 13 55 20" stroke="#37a8ff" stroke-width="3.5" fill="none"/>
+      <path d="M44 34 Q40 16 50 4 Q60 16 56 34 Z" fill="none" stroke="#1b1147" stroke-width="4.2"/>
+    </g>
+    <g transform="rotate(120 50 36)">
+      <path d="M44 34 Q40 16 50 4 Q60 16 56 34 Z" fill="#ffffff" stroke="#1b1147" stroke-width="4.2"/>
+      <path d="M46.5 13 Q50 5 53.5 13 Z" fill="#ffc83a"/>
+      <path d="M45 20 Q50 13 55 20" stroke="#37a8ff" stroke-width="3.5" fill="none"/>
+      <path d="M44 34 Q40 16 50 4 Q60 16 56 34 Z" fill="none" stroke="#1b1147" stroke-width="4.2"/>
+    </g>
+    <g transform="rotate(240 50 36)">
+      <path d="M44 34 Q40 16 50 4 Q60 16 56 34 Z" fill="#ffffff" stroke="#1b1147" stroke-width="4.2"/>
+      <path d="M46.5 13 Q50 5 53.5 13 Z" fill="#ffc83a"/>
+      <path d="M45 20 Q50 13 55 20" stroke="#37a8ff" stroke-width="3.5" fill="none"/>
+      <path d="M44 34 Q40 16 50 4 Q60 16 56 34 Z" fill="none" stroke="#1b1147" stroke-width="4.2"/>
+    </g>
+  </g>
+  <!-- Bold golden hub spinner cone -->
+  <circle cx="50" cy="36" r="8.5" fill="#ffc83a" stroke="#1b1147" stroke-width="4.5"/>
+  <circle cx="47.5" cy="33.5" r="2.4" fill="#fff6c4"/>
+</svg>
