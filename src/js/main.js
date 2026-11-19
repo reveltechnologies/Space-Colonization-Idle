@@ -36,6 +36,15 @@
   let height = window.innerHeight;
   let lastTime = performance.now();
   let nextShootingStarTime = performance.now() + 2000;
+  let parallaxDx = 0;
+
+  window.SpaceBackground = {
+    addParallax: function (dx) {
+      if (Number.isFinite(dx)) {
+        parallaxDx += dx;
+      }
+    }
+  };
 
   // Device pixel ratio support for crisp high-density screens
   function resizeCanvas() {
@@ -157,6 +166,8 @@
     if (!ctx || !canvas) return;
 
     lastTime = time;
+    const frameParallax = parallaxDx;
+    parallaxDx = 0;
 
     // 1. Dark Void Base Clear with slight gradient
     const bgGrad = ctx.createLinearGradient(0, 0, width, height);
@@ -190,11 +201,12 @@
     // 3. Render Cosmic Dust Motes
     for (let i = 0; i < cosmicDust.length; i++) {
       const p = cosmicDust[i];
-      p.x += p.vx;
+      p.x += p.vx + frameParallax * 0.14;
       p.y += p.vy;
 
-      if (p.x < 0) p.x = width;
-      if (p.x > width) p.x = 0;
+      if (width > 0) {
+        p.x = ((p.x % width) + width) % width;
+      }
       if (p.y < 0) p.y = height;
       if (p.y > height) p.y = 0;
 
@@ -208,13 +220,17 @@
     }
 
     // 4. Render Stars with Twinkles, Colors, and Diffraction Rays
+    const starSpanW = width + 20;
     for (let i = 0; i < stars.length; i++) {
       const s = stars[i];
+      const layerParallax = s.layer === 0 ? 0.06 : s.layer === 1 ? 0.16 : 0.28;
 
-      s.x += s.speedX;
+      s.x += s.speedX + frameParallax * layerParallax;
       s.y += s.speedY;
 
-      if (s.x < -10) s.x = width + 10;
+      if (starSpanW > 0 && (s.x < -10 || s.x > width + 10)) {
+        s.x = ((((s.x + 10) % starSpanW) + starSpanW) % starSpanW) - 10;
+      }
       if (s.y < -10) s.y = height + 10;
       if (s.y > height + 10) s.y = -10;
 
