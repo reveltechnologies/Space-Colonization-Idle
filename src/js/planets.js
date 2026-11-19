@@ -16,6 +16,9 @@
   const zoomOutBtn = document.getElementById("btn-zoom-out");
   const zoomLevelLabel = document.getElementById("zoom-level-label");
   const zoomGaugeFill = document.getElementById("zoom-gauge-fill");
+  const citizensCurrEl = document.getElementById("val-citizens-curr");
+  const citizensMaxEl = document.getElementById("val-citizens-max");
+  const citizensStatBar = document.getElementById("planet-stat-citizens");
 
   const PLANET_COUNT = 3;
   const CAM_DIST = 4.2;
@@ -492,6 +495,65 @@
   let lastInteractionTime = 0;
   let lastZoomLabel = "";
   let lastZoomGaugeKey = -1;
+  let lastCitizensPlanet = -1;
+  let lastCitizensMax = -1;
+  let lastCitizensCurr = -1;
+  let citizensBumpTimer = 0;
+
+  function calculatePlanetCitizenCapacity(planetIdx) {
+    const buildings = buildingsByPlanet[planetIdx];
+    if (!buildings || !window.GameBuildings) return 0;
+    let cap = 0;
+    const keys = Object.keys(buildings);
+    for (let i = 0; i < keys.length; i++) {
+      const bInfo = buildings[keys[i]];
+      if (!bInfo || !bInfo.id) continue;
+      const bDef = window.GameBuildings.getBuilding(bInfo.id);
+      if (bDef && bDef.citizenSlots) {
+        cap += bDef.citizenSlots;
+      }
+    }
+    return cap;
+  }
+
+  function getPlanetCitizenCount(planetIdx) {
+    // Current citizen population fills available capacity
+    return calculatePlanetCitizenCapacity(planetIdx);
+  }
+
+  function updatePlanetCitizenHud(force) {
+    if (!citizensCurrEl || !citizensMaxEl) return;
+    const activeIdx = activeDotIndex;
+    const maxCap = calculatePlanetCitizenCapacity(activeIdx);
+    const currCount = getPlanetCitizenCount(activeIdx);
+
+    const changed = force || activeIdx !== lastCitizensPlanet || maxCap !== lastCitizensMax || currCount !== lastCitizensCurr;
+    if (!changed) return;
+
+    const hadPrior = lastCitizensPlanet !== -1 && lastCitizensPlanet === activeIdx;
+    const valueChanged = hadPrior && (maxCap !== lastCitizensMax || currCount !== lastCitizensCurr);
+
+    lastCitizensPlanet = activeIdx;
+    lastCitizensMax = maxCap;
+    lastCitizensCurr = currCount;
+
+    citizensCurrEl.textContent = String(currCount);
+    citizensMaxEl.textContent = String(maxCap);
+
+    if (valueChanged && citizensStatBar) {
+      const valWrap = citizensStatBar.querySelector(".planet-stat-value");
+      if (valWrap) {
+        valWrap.classList.remove("is-bumped");
+        void valWrap.offsetWidth;
+        valWrap.classList.add("is-bumped");
+        if (citizensBumpTimer) window.clearTimeout(citizensBumpTimer);
+        citizensBumpTimer = window.setTimeout(function () {
+          valWrap.classList.remove("is-bumped");
+          citizensBumpTimer = 0;
+        }, 160);
+      }
+    }
+  }
 
   // Multi-touch & pointer tracking
   const activePointers = new Map();
@@ -582,6 +644,8 @@
       lastZoomGaugeKey = zoomGaugeKey;
       zoomGaugeFill.style.transform = "scaleX(" + (zoomGaugeKey / 1000).toFixed(3) + ")";
     }
+
+    updatePlanetCitizenHud(false);
   }
 
   function goToPlanet(index) {
@@ -1742,6 +1806,7 @@
             startTime: now
           };
           lastInteractionTime = now;
+          updatePlanetCitizenHud(true);
           window.GameBuildings.updateCurrentBuilding(buildingId);
         },
         onRemove: function () {
@@ -1760,6 +1825,7 @@
             seed: tileId * 2.13 + (now % 97) * 0.017
           };
           lastInteractionTime = now;
+          updatePlanetCitizenHud(true);
           window.GameBuildings.updateCurrentBuilding(null);
         },
         onClose: function () {

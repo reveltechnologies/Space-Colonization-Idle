@@ -171,6 +171,98 @@ img {
   display: none;
 }
 
+/* ---------- Planet Stats HUD (Top-Right) ---------- */
+.planet-stats-hud {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 10px) + 14px);
+  right: calc(env(safe-area-inset-right, 10px) + 18px);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  pointer-events: none;
+}
+
+.planet-stat-bar {
+  position: relative;
+  height: 38px;
+  min-width: 124px;
+  padding: 0 16px 0 34px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #1e3a66;
+  background: linear-gradient(180deg, #24497e 0%, #17335c 100%);
+  border: 3px solid var(--ink);
+  border-radius: 999px;
+  box-shadow:
+    inset 0 4px 0 rgba(255, 255, 255, 0.25),
+    inset 0 -4px 0 rgba(0, 0, 0, 0.35),
+    0 4px 0 var(--ink),
+    0 0 0 2px rgba(95, 216, 248, 0.3),
+    0 7px 10px rgba(0, 0, 0, 0.4);
+  pointer-events: auto;
+  transition: transform 0.12s ease;
+}
+
+.planet-stat-badge {
+  position: absolute;
+  left: -20px;
+  top: 50%;
+  width: 50px;
+  height: 50px;
+  margin-top: -27px;
+  filter: drop-shadow(0 3px 0 rgba(27, 17, 71, 0.55));
+}
+
+.planet-stat-content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  line-height: 1;
+}
+
+.planet-stat-title {
+  font-size: 8.5px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  color: #79d7ff;
+  text-shadow: 0 1px 0 var(--ink);
+  margin-bottom: 2px;
+}
+
+.planet-stat-value {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 2px;
+  font-size: 19px;
+  line-height: 1;
+  color: #ffffff;
+  font-variant-numeric: tabular-nums;
+  text-shadow: var(--outline);
+  transition: transform 0.14s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.planet-stat-value.is-bumped {
+  transform: scale(1.15);
+}
+
+.planet-stat-curr {
+  color: #ffffff;
+}
+
+.planet-stat-sep {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.6);
+  margin: 0 1px;
+}
+
+.planet-stat-max {
+  font-size: 15px;
+  color: #a4ddff;
+}
+
 /* ---------- Planet navigation ---------- */
 .planet-nav {
   --b: var(--blue);
@@ -337,6 +429,7 @@ img {
   transform: translate(-50%, calc(100% + 36px));
   opacity: 0;
   pointer-events: none;
+  will-change: transform;
   transition: transform 0.26s cubic-bezier(0.22, 1.2, 0.36, 1), opacity 0.2s ease;
 }
 
@@ -389,17 +482,9 @@ img {
   object-fit: contain;
 }
 
-.build-title-meta {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 3px;
-  min-width: 0;
-}
-
 .build-title {
   min-width: 0;
-  padding: 0 2px 2px 0;
+  padding: 0 2px;
   font-size: 20px;
   font-weight: 900;
   color: #ffffff;
@@ -408,45 +493,6 @@ img {
   overflow: hidden;
   text-overflow: ellipsis;
   text-shadow: var(--outline);
-}
-
-.build-biome-traits {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  flex-wrap: wrap;
-}
-
-.build-trait-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 7px 2px 4px;
-  background: rgba(20, 12, 62, 0.55);
-  border: 2px solid rgba(255, 255, 255, 0.22);
-  border-radius: 999px;
-  color: #ffffff;
-}
-
-.build-trait-pill.is-unbuildable {
-  background: rgba(180, 32, 32, 0.55);
-  border-color: #ff9c94;
-  color: #ffe4e2;
-  padding: 2px 8px;
-}
-
-.build-trait-icon {
-  width: 13px;
-  height: 13px;
-  display: block;
-  object-fit: contain;
-  flex-shrink: 0;
-}
-
-.build-trait-text {
-  font-size: 10.5px;
-  line-height: 1.05;
-  white-space: nowrap;
 }
 
 .build-header-actions {
@@ -515,6 +561,14 @@ img {
 
 .build-categories::-webkit-scrollbar {
   display: none;
+}
+
+.build-categories.is-dragging {
+  cursor: grabbing;
+}
+
+.build-categories.is-dragging .build-cat-btn {
+  pointer-events: none;
 }
 
 .build-cat-btn {
@@ -640,37 +694,43 @@ img {
   align-items: stretch;
   justify-content: center;
   gap: 10px;
-  padding: 10px 10px 12px;
+  padding: 10px;
   overflow-x: auto;
   overflow-y: hidden;
-  scroll-snap-type: x proximity;
-  scroll-padding-inline: 10px;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-x;
+  will-change: scroll-position;
+  contain: layout paint;
+  transform: translateZ(0);
   background: var(--purple-deep);
   border: 3px solid var(--ink);
   border-radius: 18px;
   box-shadow: inset 0 6px 0 rgba(0, 0, 0, 0.38);
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 200, 58, 0.65) transparent;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.build-list.is-overflowing,
+.build-list.is-v-overflowing {
+  cursor: grab;
 }
 
 .build-list.is-overflowing {
   justify-content: flex-start;
 }
 
+.build-list.is-dragging {
+  cursor: grabbing;
+}
+
+.build-list.is-dragging .build-card {
+  pointer-events: none;
+  transform: none !important;
+  transition: none !important;
+}
+
 .build-list::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-.build-list::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.build-list::-webkit-scrollbar-thumb {
-  background: rgba(255, 200, 58, 0.65);
-  border-radius: 999px;
+  display: none;
 }
 
 @keyframes build-card-shake {
@@ -684,7 +744,8 @@ img {
   position: relative;
   flex: 1 0 156px;
   max-width: 206px;
-  scroll-snap-align: start;
+  contain: layout style;
+  touch-action: pan-x;
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -741,7 +802,6 @@ img {
   height: 58px;
   display: block;
   object-fit: contain;
-  filter: drop-shadow(0 3px 0 rgba(27, 17, 71, 0.22));
 }
 
 .build-card-badge {
@@ -855,6 +915,34 @@ img {
   white-space: nowrap;
 }
 
+.build-citizen-chip {
+  max-width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 3px 9px 3px 5px;
+  border: 2px solid #1877cc;
+  border-radius: 999px;
+  background: #d8f4ff;
+  color: #113866;
+}
+
+.build-citizen-icon {
+  flex-shrink: 0;
+  width: 17px;
+  height: 17px;
+  display: block;
+  object-fit: contain;
+}
+
+.build-citizen-label {
+  font-size: 11.5px;
+  line-height: 1.05;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
 .build-card-action {
   --b: linear-gradient(180deg, #7ae437 0%, #58c01c 100%);
   margin-top: auto;
@@ -886,7 +974,6 @@ img {
   height: 19px;
   display: block;
   object-fit: contain;
-  filter: drop-shadow(0 1.5px 0 rgba(27, 17, 71, 0.55));
 }
 
 .build-cost-val {
@@ -930,30 +1017,62 @@ img {
 }
 
 .build-card.is-terrain-blocked {
-  background: #e7e1ee;
+  background: #c8c5cf;
+  border-color: #554e66;
+  box-shadow: inset 0 -5px 0 rgba(40, 35, 55, 0.22), 0 4px 0 #3a3248;
+  filter: grayscale(0.55);
+  opacity: 0.78;
+}
+
+.build-card.is-terrain-blocked .build-card-stage {
+  background: linear-gradient(180deg, #d3cfdb 0%, #bcb7c7 100%);
+  border-color: #7b728e;
 }
 
 .build-card.is-terrain-blocked .build-card-preview {
-  filter: saturate(0.45);
-  opacity: 0.72;
+  background: rgba(220, 216, 228, 0.7);
+  filter: grayscale(0.9) contrast(0.85);
+  opacity: 0.6;
+}
+
+.build-card.is-terrain-blocked .build-card-cat-badge {
+  background: #dedbe4;
+  border-color: #655d78;
+  filter: grayscale(0.7);
+  opacity: 0.75;
 }
 
 .build-card.is-terrain-blocked .build-card-name {
-  opacity: 0.72;
+  color: #4a425a;
+  opacity: 0.85;
+}
+
+.build-card.is-terrain-blocked .build-terrain-chip.is-invalid {
+  background: #f7d2cf;
+  border-color: #a83232;
+  color: #7a1515;
+  filter: none;
+  opacity: 1;
 }
 
 .build-card.is-terrain-blocked .build-card-action {
-  --b: linear-gradient(180deg, #584c85 0%, #44396e 100%);
+  --b: linear-gradient(180deg, #5c566c 0%, #464054 100%);
+  border-color: #383244;
   box-shadow:
-    inset 0 3px 0 rgba(255, 255, 255, 0.16),
-    inset 0 -4px 0 rgba(0, 0, 0, 0.3),
-    0 3px 0 var(--ink);
-  text-shadow: 0 1.5px 0 rgba(15, 10, 40, 0.85);
-  color: #dcd4f2;
+    inset 0 3px 0 rgba(255, 255, 255, 0.12),
+    inset 0 -4px 0 rgba(0, 0, 0, 0.35),
+    0 3px 0 #2b2536;
+  text-shadow: 0 1.5px 0 rgba(15, 10, 25, 0.9);
+  color: #c4bfd0;
+  filter: grayscale(0.3);
+}
+
+.build-card.is-terrain-blocked .build-cost-item .build-cost-icon {
+  filter: grayscale(0.8) opacity(0.75);
 }
 
 .build-card.is-terrain-blocked .build-cost-item.is-short .build-cost-val {
-  color: #ffb2ac;
+  color: #e59792;
 }
 
 @media (hover: hover) {
@@ -1119,20 +1238,6 @@ body.build-menu-open .planet-dots {
     font-size: 17px;
   }
 
-  .build-trait-pill {
-    gap: 3px;
-    padding: 2px 6px 2px 4px;
-  }
-
-  .build-trait-icon {
-    width: 11px;
-    height: 11px;
-  }
-
-  .build-trait-text {
-    font-size: 9px;
-  }
-
   .build-header-actions {
     gap: 7px;
   }
@@ -1205,15 +1310,6 @@ body.build-menu-open .planet-dots {
     font-size: 16px;
   }
 
-  .build-trait-icon {
-    width: 12px;
-    height: 12px;
-  }
-
-  .build-trait-text {
-    font-size: 9.5px;
-  }
-
   .build-header-actions {
     gap: 8px;
   }
@@ -1281,12 +1377,12 @@ body.build-menu-open .planet-dots {
     overflow-x: hidden;
     overflow-y: auto;
     touch-action: pan-y;
-    scroll-snap-type: none;
   }
 
   .build-card {
     flex: initial;
     max-width: none;
+    touch-action: pan-y;
     padding: 5px 5px 6px;
     gap: 4px;
     border-radius: 14px;
@@ -1329,17 +1425,20 @@ body.build-menu-open .planet-dots {
     font-size: 12.5px;
   }
 
-  .build-terrain-chip {
+  .build-terrain-chip,
+  .build-citizen-chip {
     padding: 2px 6px 2px 4px;
     gap: 3px;
   }
 
-  .build-terrain-icon {
+  .build-terrain-icon,
+  .build-citizen-icon {
     width: 13px;
     height: 13px;
   }
 
-  .build-terrain-label {
+  .build-terrain-label,
+  .build-citizen-label {
     font-size: 10px;
   }
 
@@ -1408,32 +1507,9 @@ body.build-menu-open .planet-dots {
     height: 32px;
   }
 
-  .build-title-meta {
-    flex-direction: row;
-    align-items: center;
-    gap: 5px;
-  }
-
   .build-title {
     font-size: 14.5px;
     padding-bottom: 0;
-  }
-
-  .build-biome-traits {
-    gap: 3px;
-  }
-
-  .build-trait-pill:not(.is-unbuildable) {
-    padding: 2px;
-  }
-
-  .build-trait-pill:not(.is-unbuildable) .build-trait-text {
-    display: none;
-  }
-
-  .build-trait-icon {
-    width: 12px;
-    height: 12px;
   }
 
   .build-header-actions {
@@ -1511,7 +1587,8 @@ body.build-menu-open .planet-dots {
     font-size: 12px;
   }
 
-  .build-terrain-chip {
+  .build-terrain-chip,
+  .build-citizen-chip {
     padding: 1.5px 5px 1.5px 3px;
   }
 
@@ -1565,5 +1642,163 @@ body.build-menu-open .planet-dots {
   .zoom-icon {
     width: 24px;
     height: 24px;
+  }
+
+  .planet-stats-hud {
+    top: calc(env(safe-area-inset-top, 8px) + 10px);
+    right: calc(env(safe-area-inset-right, 8px) + 16px);
+  }
+
+  .planet-stat-bar {
+    height: 34px;
+    min-width: 104px;
+    padding: 0 12px 0 30px;
+  }
+
+  .planet-stat-badge {
+    left: -18px;
+    width: 44px;
+    height: 44px;
+    margin-top: -24px;
+  }
+
+  .planet-stat-title {
+    font-size: 7.5px;
+  }
+
+  .planet-stat-value {
+    font-size: 16px;
+  }
+
+  .planet-stat-max {
+    font-size: 13.5px;
+  }
+}
+
+/* ---------- Global Floating Text Notices (Top-Center) ---------- */
+.game-toast-container {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 20px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+  width: min(680px, calc(100vw - 24px));
+}
+
+.game-toast {
+  pointer-events: none;
+  max-width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 3px 6px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  color: #ff6259;
+  font-size: 15.5px;
+  font-weight: 900;
+  line-height: 1.25;
+  text-align: center;
+  text-shadow:
+    0 -2px 0 var(--ink), 0 2px 0 var(--ink), 2px 0 0 var(--ink), -2px 0 0 var(--ink),
+    2px 2px 0 var(--ink), -2px -2px 0 var(--ink), 2px -2px 0 var(--ink), -2px 2px 0 var(--ink),
+    0 3px 6px rgba(0, 0, 0, 0.85);
+  transform: translateY(12px);
+  opacity: 0;
+  will-change: transform, opacity;
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s ease-out;
+}
+
+.game-toast.is-visible {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.game-toast.is-hiding {
+  transform: translateY(-24px);
+  opacity: 0;
+  transition: transform 0.65s cubic-bezier(0.2, 0.8, 0.4, 1), opacity 0.65s ease-in;
+}
+
+.game-toast-icon {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  display: inline-block;
+  vertical-align: middle;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 0 var(--ink));
+}
+
+.game-toast-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 4px;
+  margin: 0 1px;
+  vertical-align: middle;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  color: #ffd27a;
+  font-size: 15.5px;
+  text-shadow:
+    0 -2px 0 var(--ink), 0 2px 0 var(--ink), 2px 0 0 var(--ink), -2px 0 0 var(--ink),
+    2px 2px 0 var(--ink), -2px -2px 0 var(--ink), 2px -2px 0 var(--ink), -2px 2px 0 var(--ink),
+    0 3px 6px rgba(0, 0, 0, 0.85);
+}
+
+.game-toast-pill-icon {
+  width: 18px;
+  height: 18px;
+  display: inline-block;
+  vertical-align: middle;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 2px 0 var(--ink));
+}
+
+.game-toast-strong {
+  color: #ffffff;
+  font-weight: 900;
+  text-shadow:
+    0 -2px 0 var(--ink), 0 2px 0 var(--ink), 2px 0 0 var(--ink), -2px 0 0 var(--ink),
+    2px 2px 0 var(--ink), -2px -2px 0 var(--ink), 2px -2px 0 var(--ink), -2px 2px 0 var(--ink),
+    0 3px 6px rgba(0, 0, 0, 0.85);
+}
+
+@media (max-width: 480px), (max-height: 420px) {
+  .game-toast-container {
+    top: calc(env(safe-area-inset-top, 0px) + 12px);
+    width: min(440px, calc(100vw - 16px));
+    gap: 4px;
+  }
+
+  .game-toast {
+    font-size: 13px;
+    gap: 5px;
+  }
+
+  .game-toast-icon {
+    width: 18px;
+    height: 18px;
+  }
+
+  .game-toast-pill {
+    font-size: 13px;
+    gap: 3px;
+  }
+
+  .game-toast-pill-icon {
+    width: 15px;
+    height: 15px;
   }
 }

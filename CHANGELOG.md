@@ -5,6 +5,57 @@ All notable changes to **Space Colonization: Idle** will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.0-alpha.11] - 2026-11-19
+
+### Added
+- **3-Tier Residential Housing System**:
+  - Expanded residential structures into a multi-tier progression line under the Colony category:
+    - **Small House** (`small_house`): 75 SC, 10 Ore, gives **+2 Citizens**.
+    - **Big House** (`big_house`): 200 SC, 35 Ore, gives **+6 Citizens**.
+    - **Villa** (`villa`): 450 SC, 90 Ore, gives **+15 Citizens**.
+  - Added full backward compatibility fallback in `getBuilding()` for legacy save states or references referencing `house`.
+- **Custom Cel-Shaded Artwork for Housing Tiers**:
+  - Created custom vector illustrations matching the studio cartoon aesthetic with `#1b1147` ink lines, specular highlights, and warm palettes:
+    - `bld-big-house.svg`: 2-story sunset gabled suburban residence with dual chimneys, dormer roof, and glowing golden windows.
+    - `bld-villa.svg`: Luxurious imperial estate featuring amethyst side wings, marble arches, swimming pool terrace, and illuminated glass cupola.
+- **Dedicated Citizen Slot Stat Icon & Card Slot Indicator**:
+  - Created `icon-citizen.svg`: High-contrast teal spacesuit astronaut bust with cyan reflective visor glint.
+  - Added dedicated citizen capacity chips (`.build-citizen-chip`) positioned directly above the cost/action button for housing units.
+  - Contextual display logic: Shows citizen slots whenever the tile terrain is valid (whether affordable, unaffordable, or already built). If terrain is incompatible, seamlessly swaps with the red terrain requirement chip (e.g., `Surface`).
+- **Procedural 3D Models for Housing Tiers**:
+  - Implemented 3D Goldberg polyhedron tangent-space models for all 3 housing tiers:
+    - `buildSmallHouseModel`: Classic modular dome habitat.
+    - `buildBigHouseModel`: Multi-level dual-volume structure with gabled roofline and observation cupola.
+    - `buildVillaModel`: Multi-wing estate complex with central rotunda, pavilion wings, and elevated plaza.
+  - Added proper demolition impact heights for demolition FX on all tiers.
+- **Fluid Hold-and-Drag Shelf Scrolling**:
+  - Enabled intuitive click-and-drag / touch-and-drag panning anywhere across the building carousel list.
+  - Implemented inertia glide velocity calculation, rAF-coalesced DOM updates, and 6px drag threshold suppression to prevent accidental building placement or nope-shakes while panning.
+- **Top-Right Planet Citizen HUD (Current / Max)**:
+  - Added a dedicated planet stat counter at the top-right corner of the player HUD (`.planet-stats-hud`) showing the current planet's citizen population and capacity: `[Citizen Icon] CITIZENS <current>/<max>`.
+  - Dynamically calculates the planet's total housing capacity across all placed residential structures (`Small House` +2, `Big House` +6, `Villa` +15).
+  - Automatically syncs as the player swipes between planets in the carousel or constructs/demolishes residential buildings, complete with a tactile bump bounce animation on capacity change.
+- **Top-Center Floating Error Notice System**:
+  - Added floating contextual text notices spawned at the top center of the screen when clicking unbuildable or unaffordable cards.
+  - Formatted reasons as clear, natural sentences embedded with building icons, biome badges, and terrain group or currency icons (e.g., *"Cannot build Mine on Highlands — requires Mountainous terrain"*).
+  - Clean floating text presentation without bubble backgrounds, styled with bold multi-offset ink outlines and ambient drop shadows.
+  - Smooth fade-in entrance with float-up fade-away exit animation (`translateY(-24px)`).
+  - Stacks simultaneous clicks vertically below each other with a maximum cap of 5 active notices at once (oldest auto-retires when exceeded).
+  - Independent lifecycle: notices do not abruptly disappear when closing the building menu, completing their natural float and fade animation.
+
+### Changed
+- **Unbuildable Building Card Visuals**:
+  - Enhanced disabled / unbuildable cards with a desaturated, muted greyish "loss of color" appearance (`#c8c5cf` slate backing, `filter: grayscale(0.55)`, dimmed artwork, and cold charcoal action buttons) to instantly communicate invalid terrain to players at a glance.
+  - Removed the redundant "✕" red cross badge from the top-left corner of building cards, keeping the stage artwork clean while preserving the red invalid terrain chip.
+- **Removed Visible Browser Scrollbars / "Sliders"**:
+  - Cleaned up the building drawer interface by completely hiding native browser scrollbars (`scrollbar-width: none;` and `::-webkit-scrollbar { display: none; }`) across both horizontal carousel and compact landscape vertical grid modes.
+- **Header Biome Traits Cleanup**:
+  - Removed cluttering terrain trait tags from directly under the biome title in the build menu header, keeping only the biome badge and clean title. Critical hazardous unbuildable alerts (e.g. Ocean, Lava) remain prominently pinned.
+- **Smooth Drag Performance & Latency Optimizations**:
+  - Eliminated synchronous layout reflows (`scrollWidth`, `clientWidth`) during `pointermove` events by caching metrics at drag inception.
+  - Replaced real-time SVG drop-shadow filter repaints with lightweight border/box-shadow accents and hardware layer promotion (`will-change: scroll-position; contain: layout paint; transform: translateZ(0);`).
+  - Added `pointer-events: none` on cards during active drag to eliminate micro-stutters from hover style calculations.
+
 ## [0.1.0-alpha.10] - 2026-11-19
 
 ### Added

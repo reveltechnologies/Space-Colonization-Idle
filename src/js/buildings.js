@@ -37,6 +37,10 @@
     ore: "./assets/ui/icon-ore.svg"
   };
 
+  const STAT_ICONS = {
+    citizens: "./assets/ui/icon-citizen.svg"
+  };
+
   const BUILDINGS = [
     {
       id: "mine",
@@ -59,14 +63,37 @@
       iconSrc: "./assets/ui/bld-research-lab.svg"
     },
     {
-      id: "house",
-      name: "House",
+      id: "small_house",
+      name: "Small House",
       category: "colony",
       tag: "Colony",
       terrain: "surface",
+      citizenSlots: 2,
       cost: { credits: 75, ore: 10 },
       accent: "#ff6b5a",
       iconSrc: "./assets/ui/bld-house.svg"
+    },
+    {
+      id: "big_house",
+      name: "Big House",
+      category: "colony",
+      tag: "Colony",
+      terrain: "surface",
+      citizenSlots: 6,
+      cost: { credits: 200, ore: 35 },
+      accent: "#ff8a3d",
+      iconSrc: "./assets/ui/bld-big-house.svg"
+    },
+    {
+      id: "villa",
+      name: "Villa",
+      category: "colony",
+      tag: "Colony",
+      terrain: "surface",
+      citizenSlots: 15,
+      cost: { credits: 450, ore: 90 },
+      accent: "#a855f7",
+      iconSrc: "./assets/ui/bld-villa.svg"
     },
     {
       id: "windmill",
@@ -109,8 +136,9 @@
   }
 
   function getBuilding(buildingId) {
+    const id = buildingId === "house" ? "small_house" : buildingId;
     for (let i = 0; i < BUILDINGS.length; i++) {
-      if (BUILDINGS[i].id === buildingId) {
+      if (BUILDINGS[i].id === id) {
         return BUILDINGS[i];
       }
     }
@@ -159,7 +187,6 @@
   const biomeBadgeEl = document.getElementById("build-biome-badge");
   const biomeIconEl = document.getElementById("build-biome-icon");
   const titleEl = document.getElementById("build-tile-title");
-  const biomeTraitsEl = document.getElementById("build-biome-traits");
   const unbuildableBannerEl = document.getElementById("build-unbuildable-banner");
   const categoriesEl = document.getElementById("build-categories");
   const shelfPrevBtn = document.getElementById("btn-shelf-prev");
@@ -167,6 +194,7 @@
   const listEl = document.getElementById("build-list");
   const closeBtn = document.getElementById("btn-close-build");
   const removeBtn = document.getElementById("btn-remove-building");
+  const toastContainerEl = document.getElementById("game-toast-container");
 
   let activeCategory = "all";
   let currentPlanetId = 0;
@@ -179,86 +207,139 @@
     onRemove: null,
     onClose: null
   };
+  let listDragScroller = null;
+  let catDragScroller = null;
+  const activeToasts = [];
+  const MAX_TOASTS = 5;
+
+  function removeToastItem(item) {
+    if (!item) return;
+    if (item.timer) {
+      window.clearTimeout(item.timer);
+      item.timer = 0;
+    }
+    const idx = activeToasts.indexOf(item);
+    if (idx !== -1) {
+      activeToasts.splice(idx, 1);
+    }
+    if (item.el && item.el.parentNode) {
+      item.el.parentNode.removeChild(item.el);
+    }
+  }
+
+  function clearAllToasts() {
+    while (activeToasts.length > 0) {
+      removeToastItem(activeToasts[0]);
+    }
+  }
+
+  function showBuildErrorToast(messageHtml) {
+    const container = toastContainerEl || document.body;
+
+    // Maintain max 5 simultaneous visible toasts by popping oldest
+    while (activeToasts.length >= MAX_TOASTS) {
+      removeToastItem(activeToasts[0]);
+    }
+
+    const toast = document.createElement("div");
+    toast.className = "game-toast";
+    toast.setAttribute("role", "alert");
+    toast.innerHTML = messageHtml;
+
+    container.appendChild(toast);
+
+    const item = {
+      el: toast,
+      timer: 0
+    };
+    activeToasts.push(item);
+
+    // Fade-in entrance
+    window.requestAnimationFrame(function () {
+      toast.classList.add("is-visible");
+    });
+
+    // After display duration, trigger float-up and fade-out
+    item.timer = window.setTimeout(function () {
+      toast.classList.remove("is-visible");
+      toast.classList.add("is-hiding");
+      item.timer = window.setTimeout(function () {
+        removeToastItem(item);
+      }, 650);
+    }, 2200);
+  }
 
   function isCompactRightMode() {
     return window.innerWidth > window.innerHeight && window.innerHeight <= 520;
   }
 
-  function renderBiomeTraits(biome) {
-    if (!biomeTraitsEl) return;
-    biomeTraitsEl.innerHTML = "";
-
+  function syncUnbuildableBanner(biome) {
+    if (!unbuildableBannerEl) return;
     const terrains = biome && biome.terrains ? biome.terrains : [];
     if (terrains.length === 0) {
-      const pill = document.createElement("span");
-      pill.className = "build-trait-pill is-unbuildable";
-      pill.textContent = "Not Buildable";
-      biomeTraitsEl.appendChild(pill);
-
-      if (unbuildableBannerEl) {
-        unbuildableBannerEl.textContent =
-          (biome && biome.unbuildableHint) ||
-          ("Cannot build on " + (biome ? biome.name : "this") + " tiles");
-        unbuildableBannerEl.classList.remove("is-hidden");
-      }
-      return;
-    }
-
-    if (unbuildableBannerEl) {
+      unbuildableBannerEl.textContent =
+        (biome && biome.unbuildableHint) ||
+        ("Cannot build on " + (biome ? biome.name : "this") + " tiles");
+      unbuildableBannerEl.classList.remove("is-hidden");
+    } else {
       unbuildableBannerEl.classList.add("is-hidden");
     }
+  }
 
-    const preferredOrder = ["mountainous", "surface", "solid"];
-    const ordered = [];
-    for (let i = 0; i < preferredOrder.length; i++) {
-      if (terrains.indexOf(preferredOrder[i]) !== -1) {
-        ordered.push(preferredOrder[i]);
-      }
-    }
-    for (let i = 0; i < terrains.length; i++) {
-      if (ordered.indexOf(terrains[i]) === -1) {
-        ordered.push(terrains[i]);
-      }
-    }
+  let lastOverflowX = null;
+  let lastOverflowY = null;
+  let lastPrevHidden = null;
+  let lastNextHidden = null;
+  let scrollSyncRaf = 0;
 
-    for (let i = 0; i < ordered.length; i++) {
-      const t = getTerrainGroup(ordered[i]);
-      const pill = document.createElement("span");
-      pill.className = "build-trait-pill";
-      const tIcon = document.createElement("img");
-      tIcon.className = "build-trait-icon";
-      tIcon.src = t.iconSrc;
-      tIcon.alt = "";
-      tIcon.draggable = false;
-      const tText = document.createElement("span");
-      tText.className = "build-trait-text";
-      tText.textContent = t.label;
-      pill.appendChild(tIcon);
-      pill.appendChild(tText);
-      biomeTraitsEl.appendChild(pill);
+  function updateShelfNav(scrollPos, maxScroll) {
+    const overflow = maxScroll > 6;
+    const prevHidden = !overflow || scrollPos <= 12;
+    const nextHidden = !overflow || scrollPos >= maxScroll - 12;
+    if (shelfPrevBtn && prevHidden !== lastPrevHidden) {
+      lastPrevHidden = prevHidden;
+      shelfPrevBtn.classList.toggle("is-hidden", prevHidden);
+    }
+    if (shelfNextBtn && nextHidden !== lastNextHidden) {
+      lastNextHidden = nextHidden;
+      shelfNextBtn.classList.toggle("is-hidden", nextHidden);
     }
   }
 
   function syncShelfScroll() {
     if (!listEl) return;
     if (isCompactRightMode()) {
-      listEl.classList.remove("is-overflowing");
-      if (shelfPrevBtn) shelfPrevBtn.classList.add("is-hidden");
-      if (shelfNextBtn) shelfNextBtn.classList.add("is-hidden");
+      if (lastOverflowX !== false) {
+        lastOverflowX = false;
+        listEl.classList.remove("is-overflowing");
+      }
+      const overflowY = listEl.scrollHeight > listEl.clientHeight + 6;
+      if (overflowY !== lastOverflowY) {
+        lastOverflowY = overflowY;
+        listEl.classList.toggle("is-v-overflowing", overflowY);
+      }
+      if (shelfPrevBtn && lastPrevHidden !== true) {
+        lastPrevHidden = true;
+        shelfPrevBtn.classList.add("is-hidden");
+      }
+      if (shelfNextBtn && lastNextHidden !== true) {
+        lastNextHidden = true;
+        shelfNextBtn.classList.add("is-hidden");
+      }
       return;
     }
 
-    const overflow = listEl.scrollWidth > listEl.clientWidth + 6;
-    listEl.classList.toggle("is-overflowing", overflow);
-    if (shelfPrevBtn) {
-      shelfPrevBtn.classList.toggle("is-hidden", !overflow || listEl.scrollLeft <= 12);
+    if (lastOverflowY !== false) {
+      lastOverflowY = false;
+      listEl.classList.remove("is-v-overflowing");
     }
-    if (shelfNextBtn) {
-      shelfNextBtn.classList.toggle(
-        "is-hidden",
-        !overflow || listEl.scrollLeft + listEl.clientWidth >= listEl.scrollWidth - 12
-      );
+    const maxScroll = Math.max(0, listEl.scrollWidth - listEl.clientWidth);
+    const overflowX = maxScroll > 6;
+    if (overflowX !== lastOverflowX) {
+      lastOverflowX = overflowX;
+      listEl.classList.toggle("is-overflowing", overflowX);
     }
+    updateShelfNav(listEl.scrollLeft, maxScroll);
   }
 
   function renderCategories() {
@@ -284,6 +365,7 @@
       btn.appendChild(catIcon);
       btn.appendChild(catLabel);
       btn.addEventListener("click", function () {
+        if (listDragScroller) listDragScroller.stopGlide();
         activeCategory = cat.id;
         renderCategories();
         renderBuildingCards();
@@ -351,12 +433,6 @@
         badge.className = "build-card-badge is-built";
         badge.textContent = "BUILT";
         stage.appendChild(badge);
-      } else if (!terrainOk) {
-        const badge = document.createElement("span");
-        badge.className = "build-card-badge is-locked";
-        badge.setAttribute("aria-hidden", "true");
-        badge.textContent = "✕";
-        stage.appendChild(badge);
       }
 
       const cat = getCategory(b.category);
@@ -390,22 +466,40 @@
       const nameEl = document.createElement("span");
       nameEl.className = "build-card-name";
       nameEl.textContent = b.name;
-
-      const terrainChip = document.createElement("span");
-      terrainChip.className = "build-terrain-chip " + (terrainOk ? "is-valid" : "is-invalid");
-      const tIcon = document.createElement("img");
-      tIcon.className = "build-terrain-icon";
-      tIcon.src = terrain.iconSrc;
-      tIcon.alt = "";
-      tIcon.draggable = false;
-      const tLabel = document.createElement("span");
-      tLabel.className = "build-terrain-label";
-      tLabel.textContent = terrain.label;
-      terrainChip.appendChild(tIcon);
-      terrainChip.appendChild(tLabel);
-
       info.appendChild(nameEl);
-      info.appendChild(terrainChip);
+
+      const showInvalidTerrain = !isBuilt && !terrainOk;
+      if (!showInvalidTerrain && b.citizenSlots && b.citizenSlots > 0) {
+        const citizenChip = document.createElement("span");
+        citizenChip.className = "build-citizen-chip";
+        citizenChip.setAttribute("data-citizen-slots", String(b.citizenSlots));
+        const cIcon = document.createElement("img");
+        cIcon.className = "build-citizen-icon";
+        cIcon.src = STAT_ICONS.citizens;
+        cIcon.alt = "";
+        cIcon.draggable = false;
+        const cLabel = document.createElement("span");
+        cLabel.className = "build-citizen-label";
+        cLabel.textContent =
+          "+" + formatCostValue(b.citizenSlots) + (b.citizenSlots === 1 ? " Citizen" : " Citizens");
+        citizenChip.appendChild(cIcon);
+        citizenChip.appendChild(cLabel);
+        info.appendChild(citizenChip);
+      } else {
+        const terrainChip = document.createElement("span");
+        terrainChip.className = "build-terrain-chip " + (terrainOk ? "is-valid" : "is-invalid");
+        const tIcon = document.createElement("img");
+        tIcon.className = "build-terrain-icon";
+        tIcon.src = terrain.iconSrc;
+        tIcon.alt = "";
+        tIcon.draggable = false;
+        const tLabel = document.createElement("span");
+        tLabel.className = "build-terrain-label";
+        tLabel.textContent = terrain.label;
+        terrainChip.appendChild(tIcon);
+        terrainChip.appendChild(tLabel);
+        info.appendChild(terrainChip);
+      }
 
       const actionBtn = document.createElement("span");
       actionBtn.className = "build-card-action";
@@ -451,6 +545,77 @@
           window.setTimeout(function () {
             card.classList.remove("is-shake");
           }, 280);
+
+          if (!terrainOk) {
+            const currentBiome = getBiome(currentBiomeId);
+            const bldImg = '<img class="game-toast-icon" src="' + b.iconSrc + '" alt="" draggable="false" />';
+            const terrainPill =
+              '<span class="game-toast-pill"><img class="game-toast-pill-icon" src="' +
+              terrain.iconSrc +
+              '" alt="" draggable="false" /> ' +
+              terrain.label +
+              '</span>';
+            const biomePill =
+              '<span class="game-toast-pill"><img class="game-toast-pill-icon" src="' +
+              currentBiome.iconSrc +
+              '" alt="" draggable="false" /> ' +
+              currentBiome.name +
+              '</span>';
+
+            let reasonHtml = "";
+            if (currentBiome.terrains.length === 0) {
+              reasonHtml =
+                bldImg +
+                '<span>Cannot build <strong class="game-toast-strong">' +
+                b.name +
+                '</strong> on ' +
+                biomePill +
+                ' terrain.</span>';
+            } else {
+              reasonHtml =
+                bldImg +
+                '<span>Cannot build <strong class="game-toast-strong">' +
+                b.name +
+                '</strong> on ' +
+                biomePill +
+                ' — requires ' +
+                terrainPill +
+                ' terrain.</span>';
+            }
+            showBuildErrorToast(reasonHtml);
+          } else if (!affordable) {
+            const bldImg = '<img class="game-toast-icon" src="' + b.iconSrc + '" alt="" draggable="false" />';
+            const missing = [];
+            const costOrder = ["credits", "ore"];
+            for (let c = 0; c < costOrder.length; c++) {
+              const key = costOrder[c];
+              const req = b.cost && b.cost[key];
+              if (!req || req <= 0) continue;
+              const has = (window.GameCurrencies && window.GameCurrencies.get(key)) || 0;
+              if (has < req) {
+                const diff = req - has;
+                const cIcon = CURRENCY_ICONS[key];
+                const cLabel = key === "credits" ? "Credits" : "Ore";
+                missing.push(
+                  '<span class="game-toast-pill"><img class="game-toast-pill-icon" src="' +
+                    cIcon +
+                    '" alt="" draggable="false" /> ' +
+                    formatCostValue(diff) +
+                    ' ' +
+                    cLabel +
+                    '</span>'
+                );
+              }
+            }
+            const reasonHtml =
+              bldImg +
+              '<span>Cannot afford <strong class="game-toast-strong">' +
+              b.name +
+              '</strong> — need ' +
+              missing.join(" and ") +
+              ' more.</span>';
+            showBuildErrorToast(reasonHtml);
+          }
           return;
         }
         if (typeof callbacks.onPlace === "function") {
@@ -490,7 +655,10 @@
       titleEl.textContent = biome.name;
     }
 
-    renderBiomeTraits(biome);
+    if (listDragScroller) listDragScroller.cancel();
+    if (catDragScroller) catDragScroller.cancel();
+
+    syncUnbuildableBanner(biome);
     syncRemoveButton();
     renderCategories();
     renderBuildingCards();
@@ -520,6 +688,12 @@
   }
 
   function close(notifyHandler) {
+    if (listDragScroller) listDragScroller.cancel();
+    if (catDragScroller) catDragScroller.cancel();
+    if (scrollSyncRaf) {
+      window.cancelAnimationFrame(scrollSyncRaf);
+      scrollSyncRaf = 0;
+    }
     if (!menuOpen && (!drawerEl || !drawerEl.classList.contains("is-open"))) {
       return;
     }
@@ -572,11 +746,321 @@
     });
   }
 
+  function createDragScroller(el, getAxis, onScrollPosition) {
+    const DRAG_THRESHOLD_PX = 6;
+    const INERTIA_MIN_VEL = 0.14;
+    const INERTIA_STOP_VEL = 0.03;
+    const INERTIA_DECAY = 6.5;
+
+    let active = false;
+    let dragging = false;
+    let pointerId = null;
+    let axis = "x";
+    let startX = 0;
+    let startY = 0;
+    let maxScroll = 0;
+    let anchorPos = 0;
+    let anchorScroll = 0;
+    let currentScroll = 0;
+    let targetScroll = 0;
+    let lastFrameScroll = 0;
+    let lastFrameTime = 0;
+    let lastMoveTime = 0;
+    let velocity = 0;
+    let dragRaf = 0;
+    let glideRaf = 0;
+    let lastGlideTime = 0;
+    let suppressClick = false;
+    let suppressTimer = 0;
+
+    function stopGlide() {
+      if (glideRaf) {
+        window.cancelAnimationFrame(glideRaf);
+        glideRaf = 0;
+      }
+    }
+
+    function cancel() {
+      stopGlide();
+      if (dragRaf) {
+        window.cancelAnimationFrame(dragRaf);
+        dragRaf = 0;
+      }
+      if (dragging && pointerId !== null && el.releasePointerCapture) {
+        try {
+          el.releasePointerCapture(pointerId);
+        } catch (_) { }
+      }
+      active = false;
+      dragging = false;
+      pointerId = null;
+      el.classList.remove("is-dragging");
+    }
+
+    function startGlide(glideAxis, startPos, cachedMaxScroll, initVel) {
+      stopGlide();
+      let pos = startPos;
+      let glideVel = Math.max(-3.5, Math.min(3.5, initVel));
+      lastGlideTime = performance.now();
+
+      function step(now) {
+        const dtMs = Math.min(48, Math.max(1, now - lastGlideTime));
+        const dtSec = dtMs / 1000;
+        lastGlideTime = now;
+
+        const next = pos + glideVel * dtMs;
+        const clamped = next < 0 ? 0 : next > cachedMaxScroll ? cachedMaxScroll : next;
+        pos = clamped;
+
+        if (glideAxis === "y") {
+          el.scrollTop = pos;
+        } else {
+          el.scrollLeft = pos;
+        }
+
+        if (typeof onScrollPosition === "function") {
+          onScrollPosition(pos, cachedMaxScroll);
+        }
+
+        if (clamped !== next || Math.abs(glideVel) < INERTIA_STOP_VEL) {
+          stopGlide();
+          return;
+        }
+
+        glideVel *= Math.exp(-INERTIA_DECAY * dtSec);
+        glideRaf = window.requestAnimationFrame(step);
+      }
+
+      glideRaf = window.requestAnimationFrame(step);
+    }
+
+    function flushDrag(now) {
+      dragRaf = 0;
+      if (!dragging) return;
+
+      const dtMs = Math.max(1, now - lastFrameTime);
+      const instVel = (targetScroll - lastFrameScroll) / dtMs;
+      velocity = velocity * 0.45 + instVel * 0.55;
+      lastFrameScroll = targetScroll;
+      lastFrameTime = now;
+
+      if (targetScroll !== currentScroll) {
+        currentScroll = targetScroll;
+        if (axis === "y") {
+          el.scrollTop = currentScroll;
+        } else {
+          el.scrollLeft = currentScroll;
+        }
+        if (typeof onScrollPosition === "function") {
+          onScrollPosition(currentScroll, maxScroll);
+        }
+      }
+    }
+
+    el.addEventListener("dragstart", function (e) {
+      e.preventDefault();
+    });
+
+    el.addEventListener("pointerdown", function (e) {
+      if (e.button !== undefined && e.button !== 0) return;
+      if (e.pointerType === "touch") return;
+
+      if (suppressTimer) {
+        window.clearTimeout(suppressTimer);
+        suppressTimer = 0;
+      }
+      suppressClick = false;
+      stopGlide();
+
+      axis = typeof getAxis === "function" ? getAxis() : "x";
+      maxScroll = axis === "y"
+        ? Math.max(0, el.scrollHeight - el.clientHeight)
+        : Math.max(0, el.scrollWidth - el.clientWidth);
+      if (maxScroll <= 2) return;
+
+      active = true;
+      dragging = false;
+      pointerId = e.pointerId;
+      startX = e.clientX;
+      startY = e.clientY;
+      lastMoveTime = performance.now();
+      velocity = 0;
+    });
+
+    window.addEventListener(
+      "pointermove",
+      function (e) {
+        if (!active || e.pointerId !== pointerId) return;
+
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        const primaryDelta = axis === "y" ? dy : dx;
+        const curPos = axis === "y" ? e.clientY : e.clientX;
+
+        if (!dragging) {
+          if (Math.abs(primaryDelta) < DRAG_THRESHOLD_PX) return;
+          dragging = true;
+          anchorPos = curPos;
+          anchorScroll = axis === "y" ? el.scrollTop : el.scrollLeft;
+          currentScroll = anchorScroll;
+          targetScroll = anchorScroll;
+          lastFrameScroll = anchorScroll;
+          lastFrameTime = performance.now();
+          lastMoveTime = lastFrameTime;
+          velocity = 0;
+          el.classList.add("is-dragging");
+          if (el.setPointerCapture) {
+            try {
+              el.setPointerCapture(pointerId);
+            } catch (_) { }
+          }
+        }
+
+        const raw = anchorScroll - (curPos - anchorPos);
+        targetScroll = raw < 0 ? 0 : raw > maxScroll ? maxScroll : raw;
+        lastMoveTime = performance.now();
+
+        if (!dragRaf) {
+          dragRaf = window.requestAnimationFrame(flushDrag);
+        }
+      },
+      { passive: true }
+    );
+
+    function finishPointer(e, wasCanceled) {
+      if (!active || e.pointerId !== pointerId) return;
+
+      const wasDragging = dragging;
+      const releaseAxis = axis;
+      const releaseMax = maxScroll;
+      const releaseIdleMs = performance.now() - lastMoveTime;
+
+      if (dragRaf) {
+        window.cancelAnimationFrame(dragRaf);
+        dragRaf = 0;
+        if (wasDragging && targetScroll !== currentScroll) {
+          const now = performance.now();
+          const dtMs = Math.max(1, now - lastFrameTime);
+          const instVel = (targetScroll - lastFrameScroll) / dtMs;
+          velocity = velocity * 0.45 + instVel * 0.55;
+          currentScroll = targetScroll;
+          if (releaseAxis === "y") {
+            el.scrollTop = currentScroll;
+          } else {
+            el.scrollLeft = currentScroll;
+          }
+          if (typeof onScrollPosition === "function") {
+            onScrollPosition(currentScroll, releaseMax);
+          }
+        }
+      }
+
+      const releaseVel = velocity;
+
+      if (wasDragging && el.releasePointerCapture) {
+        try {
+          el.releasePointerCapture(pointerId);
+        } catch (_) { }
+      }
+
+      active = false;
+      dragging = false;
+      pointerId = null;
+      el.classList.remove("is-dragging");
+
+      if (wasDragging) {
+        suppressClick = true;
+        if (suppressTimer) {
+          window.clearTimeout(suppressTimer);
+        }
+        suppressTimer = window.setTimeout(function () {
+          suppressClick = false;
+          suppressTimer = 0;
+        }, 140);
+
+        if (!wasCanceled && releaseIdleMs < 85 && Math.abs(releaseVel) >= INERTIA_MIN_VEL) {
+          startGlide(releaseAxis, currentScroll, releaseMax, releaseVel);
+        }
+
+        if (typeof onScrollPosition === "function") {
+          onScrollPosition(currentScroll, releaseMax);
+        }
+      }
+    }
+
+    window.addEventListener("pointerup", function (e) {
+      finishPointer(e, false);
+    });
+    window.addEventListener("pointercancel", function (e) {
+      finishPointer(e, true);
+    });
+
+    el.addEventListener(
+      "click",
+      function (e) {
+        if (suppressClick) {
+          e.preventDefault();
+          e.stopPropagation();
+          suppressClick = false;
+          if (suppressTimer) {
+            window.clearTimeout(suppressTimer);
+            suppressTimer = 0;
+          }
+        }
+      },
+      true
+    );
+
+    return {
+      stopGlide: stopGlide,
+      cancel: cancel,
+      isDriving: function () {
+        return dragging || glideRaf !== 0;
+      }
+    };
+  }
+
+  listDragScroller = listEl
+    ? createDragScroller(
+        listEl,
+        function () {
+          return isCompactRightMode() ? "y" : "x";
+        },
+        function (scrollPos, maxScroll) {
+          if (!isCompactRightMode()) {
+            updateShelfNav(scrollPos, maxScroll);
+          }
+        }
+      )
+    : null;
+  catDragScroller = categoriesEl
+    ? createDragScroller(
+        categoriesEl,
+        function () {
+          return "x";
+        },
+        null
+      )
+    : null;
+
   if (listEl) {
-    listEl.addEventListener("scroll", syncShelfScroll, { passive: true });
+    listEl.addEventListener(
+      "scroll",
+      function () {
+        if (listDragScroller && listDragScroller.isDriving()) return;
+        if (!scrollSyncRaf) {
+          scrollSyncRaf = window.requestAnimationFrame(function () {
+            scrollSyncRaf = 0;
+            syncShelfScroll();
+          });
+        }
+      },
+      { passive: true }
+    );
     listEl.addEventListener(
       "wheel",
       function (e) {
+        if (listDragScroller) listDragScroller.stopGlide();
         if (
           !isCompactRightMode() &&
           listEl.scrollWidth > listEl.clientWidth + 4 &&
@@ -592,12 +1076,14 @@
 
   if (shelfPrevBtn && listEl) {
     shelfPrevBtn.addEventListener("click", function () {
+      if (listDragScroller) listDragScroller.stopGlide();
       listEl.scrollBy({ left: -220, behavior: "smooth" });
     });
   }
 
   if (shelfNextBtn && listEl) {
     shelfNextBtn.addEventListener("click", function () {
+      if (listDragScroller) listDragScroller.stopGlide();
       listEl.scrollBy({ left: 220, behavior: "smooth" });
     });
   }
@@ -965,7 +1451,7 @@
     );
   }
 
-  function buildHouseModel(m, time, phase, pxScale) {
+  function buildSmallHouseModel(m, time, phase, pxScale) {
     // Slate habitat foundation
     m.addPrism(0, 0, 0.0, 0.08, 0.56, 0.52, 8, Math.PI / 8, [100, 116, 139], { spec: 0.2 });
 
@@ -995,6 +1481,95 @@
     // Slim comms spire
     m.addLine([-0.04, 0.04, 0.45], [-0.04, 0.04, 0.66], "#e2e8f0", Math.max(1.1, pxScale * 0.035));
     m.addPrism(-0.04, 0.04, 0.65, 0.69, 0.03, 0.01, 6, 0, [52, 211, 153], { emissive: 0.7 });
+  }
+
+  function buildBigHouseModel(m, time, phase, pxScale) {
+    // Larger octagonal slate foundation + emerald lawn deck
+    m.addPrism(0, 0, 0.0, 0.08, 0.64, 0.60, 8, Math.PI / 8, [100, 116, 139], { spec: 0.2 });
+    m.addPrism(0, 0, 0.08, 0.13, 0.50, 0.50, 10, 0, [16, 185, 129], { spec: 0.15 });
+
+    // Ground floor wide warm-ivory residential block + terracotta mid-floor band
+    m.addBox(0, 0, 0.25, 0.33, 0.25, 0.12, [241, 245, 249], { spec: 0.32 });
+    m.addBox(0, 0, 0.38, 0.35, 0.27, 0.025, [255, 138, 61], { spec: 0.25 });
+
+    // Second-story suite + pitched terracotta-orange pyramid roof
+    m.addBox(-0.04, 0.02, 0.49, 0.24, 0.19, 0.095, [248, 250, 252], { spec: 0.35 });
+    m.addPrism(-0.04, 0.02, 0.585, 0.72, 0.36, 0.04, 4, Math.PI / 4, [255, 132, 56], { spec: 0.30 });
+
+    // Side glass sunroom biodome
+    m.addDome(0.30, -0.06, 0.13, 0.16, 0.16, 0.16, 2, 8, [125, 211, 252], {
+      spec: 0.55,
+      emissive: 0.22
+    });
+
+    // Warm golden glowing windows & entryway door
+    const winGlow = 0.66 + 0.12 * Math.sin(time * 0.002 + phase);
+    m.addBox(0, -0.245, 0.22, 0.065, 0.02, 0.085, [251, 191, 36], { emissive: 0.72, depthBias: 0.004 });
+    m.addBox(-0.18, -0.245, 0.24, 0.055, 0.02, 0.048, [253, 224, 71], { emissive: winGlow, depthBias: 0.004 });
+    m.addBox(0.18, -0.245, 0.24, 0.055, 0.02, 0.048, [253, 224, 71], { emissive: winGlow, depthBias: 0.004 });
+    m.addBox(-0.14, 0.245, 0.24, 0.055, 0.02, 0.048, [253, 224, 71], { emissive: winGlow, depthBias: 0.004 });
+    m.addBox(0.14, 0.245, 0.24, 0.055, 0.02, 0.048, [253, 224, 71], { emissive: winGlow, depthBias: 0.004 });
+    m.addBox(-0.325, 0, 0.24, 0.02, 0.075, 0.048, [253, 224, 71], { emissive: winGlow, depthBias: 0.004 });
+
+    // Second-story lit windows
+    m.addBox(-0.12, -0.165, 0.49, 0.048, 0.02, 0.042, [253, 224, 71], { emissive: winGlow, depthBias: 0.004 });
+    m.addBox(0.05, -0.165, 0.49, 0.048, 0.02, 0.042, [253, 224, 71], { emissive: winGlow, depthBias: 0.004 });
+    m.addBox(-0.04, 0.205, 0.49, 0.075, 0.02, 0.042, [253, 224, 71], { emissive: winGlow, depthBias: 0.004 });
+    m.addBox(-0.275, 0.02, 0.49, 0.02, 0.06, 0.042, [253, 224, 71], { emissive: winGlow, depthBias: 0.004 });
+    m.addBox(0.195, 0.02, 0.49, 0.02, 0.06, 0.042, [253, 224, 71], { emissive: winGlow, depthBias: 0.004 });
+
+    // Slim rooftop beacon spire
+    m.addLine([-0.04, 0.02, 0.72], [-0.04, 0.02, 0.85], "#e2e8f0", Math.max(1.1, pxScale * 0.035));
+    m.addPrism(-0.04, 0.02, 0.84, 0.88, 0.032, 0.01, 6, 0, [251, 191, 36], { emissive: 0.72 });
+  }
+
+  function buildVillaModel(m, time, phase, pxScale) {
+    // Grand hexagonal marble terrace, golden trim collar & emerald manicured garden lawn
+    m.addPrism(0, 0, 0.0, 0.09, 0.70, 0.66, 6, 0, [226, 232, 240], { spec: 0.28 });
+    m.addPrism(0, 0, 0.09, 0.115, 0.64, 0.62, 6, 0, [251, 191, 36], { spec: 0.50 });
+    m.addPrism(0, 0, 0.115, 0.135, 0.58, 0.57, 6, 0, [16, 185, 129], { spec: 0.12 });
+
+    // Glowing cyan front courtyard infinity pool & flanking ornamental cypress cones
+    m.addBox(0, -0.34, 0.142, 0.23, 0.105, 0.015, [56, 189, 248], {
+      emissive: 0.55,
+      spec: 0.85,
+      depthBias: 0.002
+    });
+    m.addPrism(-0.34, -0.30, 0.135, 0.30, 0.065, 0.01, 6, 0, [34, 197, 94], { spec: 0.12 });
+    m.addPrism(0.34, -0.30, 0.135, 0.30, 0.065, 0.01, 6, 0, [34, 197, 94], { spec: 0.12 });
+
+    // Symmetrical left & right marble villa wings with royal-amethyst pitched roofs
+    m.addBox(-0.31, 0.04, 0.24, 0.15, 0.20, 0.11, [255, 249, 238], { spec: 0.34 });
+    m.addPrism(-0.31, 0.04, 0.35, 0.45, 0.29, 0.05, 4, Math.PI / 4, [139, 92, 246], { spec: 0.35 });
+    m.addBox(0.31, 0.04, 0.24, 0.15, 0.20, 0.11, [255, 249, 238], { spec: 0.34 });
+    m.addPrism(0.31, 0.04, 0.35, 0.45, 0.29, 0.05, 4, Math.PI / 4, [139, 92, 246], { spec: 0.35 });
+
+    // Grand central 2-story marble hall & golden balcony cornice
+    m.addBox(0, 0.10, 0.34, 0.21, 0.21, 0.205, [255, 252, 245], { spec: 0.38 });
+    m.addBox(0, 0.10, 0.35, 0.24, 0.24, 0.02, [251, 191, 36], { spec: 0.55 });
+
+    // Shimmering cyan glass cupola biodome & gleaming golden finial spire
+    m.addDome(0, 0.10, 0.545, 0.21, 0.21, 0.21, 3, 8, [56, 189, 248], {
+      spec: 0.65,
+      emissive: 0.28,
+      stroke: "rgba(254, 240, 138, 0.65)",
+      lineWidth: Math.max(0.6, pxScale * 0.015)
+    });
+    m.addPrism(0, 0.10, 0.75, 0.87, 0.038, 0.008, 6, 0, [251, 191, 36], { emissive: 0.72 });
+
+    // Warm golden glowing panoramic windows & grand entrance across hall and wings
+    const winGlow = 0.68 + 0.12 * Math.sin(time * 0.002 + phase);
+    m.addBox(0, -0.105, 0.23, 0.065, 0.02, 0.085, [251, 191, 36], { emissive: 0.75, depthBias: 0.004 });
+    m.addBox(-0.105, -0.105, 0.45, 0.038, 0.02, 0.042, [253, 224, 71], { emissive: winGlow, depthBias: 0.004 });
+    m.addBox(0, -0.105, 0.45, 0.038, 0.02, 0.042, [253, 224, 71], { emissive: winGlow, depthBias: 0.004 });
+    m.addBox(0.105, -0.105, 0.45, 0.038, 0.02, 0.042, [253, 224, 71], { emissive: winGlow, depthBias: 0.004 });
+    m.addBox(0, 0.305, 0.24, 0.09, 0.02, 0.052, [253, 224, 71], { emissive: winGlow, depthBias: 0.004 });
+    m.addBox(0, 0.305, 0.45, 0.11, 0.02, 0.042, [253, 224, 71], { emissive: winGlow, depthBias: 0.004 });
+
+    m.addBox(-0.31, -0.155, 0.245, 0.065, 0.02, 0.05, [253, 224, 71], { emissive: winGlow, depthBias: 0.004 });
+    m.addBox(0.31, -0.155, 0.245, 0.065, 0.02, 0.05, [253, 224, 71], { emissive: winGlow, depthBias: 0.004 });
+    m.addBox(-0.455, 0.04, 0.245, 0.02, 0.075, 0.05, [253, 224, 71], { emissive: winGlow, depthBias: 0.004 });
+    m.addBox(0.455, 0.04, 0.245, 0.02, 0.075, 0.05, [253, 224, 71], { emissive: winGlow, depthBias: 0.004 });
   }
 
   function buildWindmillModel(m, time, phase, pxScale) {
@@ -1112,8 +1687,12 @@
       buildMineModel(collector, time, phase, pxScale);
     } else if (buildingId === "research_lab") {
       buildResearchLabModel(collector, time, phase, pxScale);
-    } else if (buildingId === "house") {
-      buildHouseModel(collector, time, phase, pxScale);
+    } else if (buildingId === "small_house" || buildingId === "house") {
+      buildSmallHouseModel(collector, time, phase, pxScale);
+    } else if (buildingId === "big_house") {
+      buildBigHouseModel(collector, time, phase, pxScale);
+    } else if (buildingId === "villa") {
+      buildVillaModel(collector, time, phase, pxScale);
     } else if (buildingId === "windmill") {
       buildWindmillModel(collector, time, phase, pxScale);
     } else if (buildingId === "solar_panel") {
@@ -1490,7 +2069,10 @@
     const buildingImpactHeights = {
       mine: 0.60,
       research_lab: 0.38,
+      small_house: 0.36,
       house: 0.36,
+      big_house: 0.54,
+      villa: 0.66,
       windmill: 0.75,
       solar_panel: 0.32
     };

@@ -33,6 +33,22 @@
     </div>
   </header>
 
+  <!-- Planet Stats HUD (Top-Right) -->
+  <aside id="planet-stats-hud" class="planet-stats-hud" aria-label="Current Planet Statistics">
+    <div id="planet-stat-citizens" class="planet-stat-bar planet-stat-bar--citizens" title="Citizens on this planet (Current / Max Capacity)">
+      <img class="planet-stat-badge" src="./assets/ui/icon-citizen.svg" alt="" draggable="false" />
+      <div class="planet-stat-content">
+        <span class="planet-stat-title">CITIZENS</span>
+        <span class="planet-stat-value">
+          <span id="val-citizens-curr" class="planet-stat-curr">0</span><span class="planet-stat-sep">/</span><span id="val-citizens-max" class="planet-stat-max">0</span>
+        </span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Global Toast / Error Banner -->
+  <div id="game-toast-container" class="game-toast-container" aria-live="assertive" aria-atomic="true"></div>
+
   <!-- Planet navigation -->
   <button id="btn-prev-planet" class="planet-nav planet-nav-prev is-hidden" type="button" aria-label="Previous Planet">
     <img class="nav-arrow-icon nav-arrow-icon--flip" src="./assets/ui/icon-arrow.svg" alt="" draggable="false" />
@@ -65,10 +81,7 @@
         <span id="build-biome-badge" class="build-biome-badge">
           <img id="build-biome-icon" class="build-biome-icon" src="./assets/ui/biome-mountains.svg" alt="" draggable="false" />
         </span>
-        <div class="build-title-meta">
-          <h2 id="build-tile-title" class="build-title">Mountains</h2>
-          <div id="build-biome-traits" class="build-biome-traits" aria-label="Tile Terrain Types"></div>
-        </div>
+        <h2 id="build-tile-title" class="build-title">Mountains</h2>
       </div>
 
       <div id="build-categories" class="build-categories" role="tablist" aria-label="Building Categories"></div>
