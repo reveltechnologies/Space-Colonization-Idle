@@ -227,11 +227,19 @@
         return add(scale(planeCenter, 0.11), scale(c, 0.89));
       });
 
+      const rawT = sub(outerCorners[0], planeCenter);
+      const tangentT = normalize(sub(rawT, scale(faceNormal, dot(rawT, faceNormal))));
+      const tangentB = normalize(cross(faceNormal, tangentT));
+      const hexScale = len(rawT);
+
       tiles.push({
         id: String(vIdx),
         center: normalize(avg),
         planeCenter: planeCenter,
         normal: faceNormal,
+        tangentT: tangentT,
+        tangentB: tangentB,
+        hexScale: hexScale,
         outerCorners: outerCorners,
         innerCorners: innerCorners,
         sides: outerCorners.length,
@@ -438,8 +446,12 @@
   let targetIndex = 0;
   let activeDotIndex = 0;
 
-  // Interactive hex & QoL state
+  // Interactive hex, buildings & QoL state
   const selectedHexByPlanet = [null, null, null];
+  const buildingsByPlanet = [Object.create(null), Object.create(null), Object.create(null)];
+  let drawerShiftX = 0;
+  let drawerShiftY = 0;
+  let drawerScale = 1;
   let hoveredHexId = null;
   let isHoveringPlanet = false;
   let focusedHitPolys = [];
@@ -542,6 +554,11 @@
   function goToPlanet(index) {
     const nextIdx = clamp(Math.round(index), 0, PLANET_COUNT - 1);
     if (nextIdx !== targetIndex) {
+      selectedHexByPlanet[targetIndex] = null;
+      selectionPulse = null;
+      if (window.GameBuildings) {
+        window.GameBuildings.close(false);
+      }
       for (let i = 0; i < planets.length; i++) {
         planets[i].targetZoom = MIN_ZOOM;
         if (i !== nextIdx) {
@@ -598,7 +615,7 @@
     const focus = 0.5 * (1 + Math.cos(Math.PI * absRel));
     const scaleFactor = 0.35 + 0.65 * focus;
     const baseRadius = planet.getBaseRadius(width, height);
-    const effectiveRadius = baseRadius * planet.zoom;
+    const effectiveRadius = baseRadius * planet.zoom * drawerScale;
     const travelDistance = width * 0.68 + effectiveRadius;
 
     return {
@@ -609,9 +626,16 @@
       baseRadius: baseRadius,
       effectiveRadius: effectiveRadius,
       scaledRadius: effectiveRadius * scaleFactor,
-      x: width * 0.5 + rel * travelDistance,
-      y: height * 0.47
+      x: width * 0.5 + drawerShiftX + rel * travelDistance,
+      y: height * 0.47 + drawerShiftY
     };
+  }
+
+  function easeOutBack(t) {
+    const c1 = 1.70158;
+    const c3 = c1 + 1;
+    const inv = t - 1;
+    return 1 + c3 * inv * inv * inv + c1 * inv * inv;
   }
 
   function isPointOnPlanet(clientX, clientY) {
@@ -774,7 +798,9 @@
 
       // Front-facing polygons project CCW in 3D -> negative signed area in screen Y-down
       const topVisible = facing > -0.05 && signedArea2D(topPts) < -0.25;
-      if (!topVisible && !needsSides) {
+      const placed = buildingsByPlanet[planet.id][tile.id] || null;
+      const hasBuilding = Boolean(placed);
+      if (!topVisible && !needsSides && !hasBuilding) {
         continue;
       }
 
@@ -790,6 +816,7 @@
         facingDot: facingDot,
         topVisible: topVisible,
         needsSides: needsSides,
+        placed: placed,
         rotBase: rotBase,
         topPts: topPts,
         basePts: basePts,
@@ -864,109 +891,140 @@
         }
       }
 
-      if (!entry.topVisible) {
-        continue;
-      }
+      if (entry.topVisible) {
+        const projCenter = project(entry.elevPlaneCenter, cx, cy, focalLength);
 
-      const projCenter = project(entry.elevPlaneCenter, cx, cy, focalLength);
-
-      if (isFocused) {
-        const tileR = Math.hypot(topPts[0].x - projCenter.x, topPts[0].y - projCenter.y);
-        focusedHitPolys.push({
-          id: tile.id,
-          pts: topPts,
-          cx: projCenter.x,
-          cy: projCenter.y,
-          tileR: tileR
-        });
-      }
-
-      // Improved front-hemisphere fill lighting so tiles stay readable near terminator
-      const ndotl = Math.max(0, dot(rotNormal, LIGHT_DIR));
-      const frontFill = 0.16 * Math.max(0, rotNormal.z);
-      const lightAmt = Math.min(1.18, 0.28 + 0.82 * ndotl + frontFill + tile.emissive * (1 - ndotl * 0.6));
-      const specAmt = tile.spec * Math.pow(Math.max(0, dot(rotNormal, HALF_VEC)), 18);
-      const fresnelAmt = Math.pow(Math.max(0, 1 - Math.max(0, rotNormal.z)), 2.6) * 0.28;
-      const topFill = computeShadedColor(tile.rgb, lightAmt, specAmt, fresnelAmt, atmo);
-
-      // Draw Tile Top Face
-      tracePolygon(topPts);
-      ctx.fillStyle = topFill;
-      ctx.fill();
-      ctx.lineWidth = 0.75;
-      ctx.strokeStyle = topFill;
-      ctx.stroke();
-
-      // Project & Draw Glowing White-Light Hexagon Border (flush on tile polygon plane)
-      const innerPts = new Array(sides);
-      const innerScale = elev + 0.0015;
-      for (let k = 0; k < sides; k++) {
-        const ri = scale(rotatePoint(tile.innerCorners[k]), innerScale);
-        innerPts[k] = project(ri, cx, cy, focalLength);
-      }
-
-      const pulse = 0.5 + 0.5 * Math.sin(time * 0.002 + tile.phase);
-      const rimFade = clamp(entry.facingDot * 1.45, 0.30, 1.0);
-
-      tracePolygon(innerPts);
-
-      if (isSelected) {
-        ctx.fillStyle = "rgba(255, 255, 255, 0.28)";
-      } else if (isHovered) {
-        ctx.fillStyle = "rgba(255, 255, 255, 0.15)";
-      } else {
-        ctx.fillStyle = `rgba(255, 255, 255, ${(0.04 + pulse * 0.025) * rimFade})`;
-      }
-      ctx.fill();
-
-      if (isSelected || isHovered) {
-        ctx.save();
-        ctx.shadowColor = "#ffffff";
-        ctx.shadowBlur = isSelected ? 14 : 8;
-      }
-
-      ctx.lineWidth = Math.max(2.6, lineUnit * 2.9);
-      ctx.strokeStyle = isSelected
-        ? `rgba(255, 255, 255, ${0.42 * rimFade})`
-        : `rgba(255, 255, 255, ${(0.16 + pulse * 0.07) * rimFade})`;
-      ctx.stroke();
-
-      ctx.lineWidth = Math.max(1.4, lineUnit * 1.45);
-      ctx.strokeStyle = isSelected
-        ? `rgba(255, 255, 255, ${0.78 * rimFade})`
-        : `rgba(255, 255, 255, ${(0.45 + pulse * 0.12) * rimFade})`;
-      ctx.stroke();
-
-      ctx.lineWidth = Math.max(0.85, lineUnit * 0.72);
-      ctx.strokeStyle = isSelected
-        ? `rgba(255, 255, 255, ${Math.min(1, 0.96 * rimFade + 0.08)})`
-        : `rgba(255, 255, 255, ${(0.92 + pulse * 0.08) * rimFade})`;
-      ctx.stroke();
-
-      if (isSelected || isHovered) {
-        ctx.restore();
-      }
-
-      // Expanding white-light selection pulse ring
-      if (selectionPulse && selectionPulse.planetId === planet.id && selectionPulse.tileId === tile.id) {
-        const elapsed = time - selectionPulse.startTime;
-        if (elapsed >= 0 && elapsed <= PULSE_DURATION_MS) {
-          const progress = elapsed / PULSE_DURATION_MS;
-          const ringScale = 1 + 0.26 * progress;
-          const ringPts = new Array(sides);
-          for (let k = 0; k < sides; k++) {
-            ringPts[k] = {
-              x: projCenter.x + (innerPts[k].x - projCenter.x) * ringScale,
-              y: projCenter.y + (innerPts[k].y - projCenter.y) * ringScale
-            };
-          }
-          tracePolygon(ringPts);
-          ctx.lineWidth = Math.max(1.5, lineUnit * 2.0) * (1 - progress * 0.5);
-          ctx.strokeStyle = `rgba(255, 255, 255, ${(1 - progress) * 0.85})`;
-          ctx.stroke();
-        } else if (elapsed > PULSE_DURATION_MS) {
-          selectionPulse = null;
+        if (isFocused) {
+          const tileR = Math.hypot(topPts[0].x - projCenter.x, topPts[0].y - projCenter.y);
+          focusedHitPolys.push({
+            id: tile.id,
+            pts: topPts,
+            cx: projCenter.x,
+            cy: projCenter.y,
+            tileR: tileR
+          });
         }
+
+        // Improved front-hemisphere fill lighting so tiles stay readable near terminator
+        const ndotl = Math.max(0, dot(rotNormal, LIGHT_DIR));
+        const frontFill = 0.16 * Math.max(0, rotNormal.z);
+        const lightAmt = Math.min(1.18, 0.28 + 0.82 * ndotl + frontFill + tile.emissive * (1 - ndotl * 0.6));
+        const specAmt = tile.spec * Math.pow(Math.max(0, dot(rotNormal, HALF_VEC)), 18);
+        const fresnelAmt = Math.pow(Math.max(0, 1 - Math.max(0, rotNormal.z)), 2.6) * 0.28;
+        const topFill = computeShadedColor(tile.rgb, lightAmt, specAmt, fresnelAmt, atmo);
+
+        // Draw Tile Top Face
+        tracePolygon(topPts);
+        ctx.fillStyle = topFill;
+        ctx.fill();
+        ctx.lineWidth = 0.75;
+        ctx.strokeStyle = topFill;
+        ctx.stroke();
+
+        // Project & Draw Glowing White-Light Hexagon Border (flush on tile polygon plane)
+        const innerPts = new Array(sides);
+        const innerScale = elev + 0.0015;
+        for (let k = 0; k < sides; k++) {
+          const ri = scale(rotatePoint(tile.innerCorners[k]), innerScale);
+          innerPts[k] = project(ri, cx, cy, focalLength);
+        }
+
+        const pulse = 0.5 + 0.5 * Math.sin(time * 0.002 + tile.phase);
+        const rimFade = clamp(entry.facingDot * 1.45, 0.30, 1.0);
+
+        tracePolygon(innerPts);
+
+        if (isSelected) {
+          ctx.fillStyle = "rgba(255, 255, 255, 0.28)";
+        } else if (isHovered) {
+          ctx.fillStyle = "rgba(255, 255, 255, 0.15)";
+        } else {
+          ctx.fillStyle = `rgba(255, 255, 255, ${(0.04 + pulse * 0.025) * rimFade})`;
+        }
+        ctx.fill();
+
+        if (isSelected || isHovered) {
+          ctx.save();
+          ctx.shadowColor = "#ffffff";
+          ctx.shadowBlur = isSelected ? 14 : 8;
+        }
+
+        ctx.lineWidth = Math.max(2.6, lineUnit * 2.9);
+        ctx.strokeStyle = isSelected
+          ? `rgba(255, 255, 255, ${0.42 * rimFade})`
+          : `rgba(255, 255, 255, ${(0.16 + pulse * 0.07) * rimFade})`;
+        ctx.stroke();
+
+        ctx.lineWidth = Math.max(1.4, lineUnit * 1.45);
+        ctx.strokeStyle = isSelected
+          ? `rgba(255, 255, 255, ${0.78 * rimFade})`
+          : `rgba(255, 255, 255, ${(0.45 + pulse * 0.12) * rimFade})`;
+        ctx.stroke();
+
+        ctx.lineWidth = Math.max(0.85, lineUnit * 0.72);
+        ctx.strokeStyle = isSelected
+          ? `rgba(255, 255, 255, ${Math.min(1, 0.96 * rimFade + 0.08)})`
+          : `rgba(255, 255, 255, ${(0.92 + pulse * 0.08) * rimFade})`;
+        ctx.stroke();
+
+        if (isSelected || isHovered) {
+          ctx.restore();
+        }
+
+        // Expanding white-light selection pulse ring
+        if (selectionPulse && selectionPulse.planetId === planet.id && selectionPulse.tileId === tile.id) {
+          const elapsed = time - selectionPulse.startTime;
+          if (elapsed >= 0 && elapsed <= PULSE_DURATION_MS) {
+            const progress = elapsed / PULSE_DURATION_MS;
+            const ringScale = 1 + 0.26 * progress;
+            const ringPts = new Array(sides);
+            for (let k = 0; k < sides; k++) {
+              ringPts[k] = {
+                x: projCenter.x + (innerPts[k].x - projCenter.x) * ringScale,
+                y: projCenter.y + (innerPts[k].y - projCenter.y) * ringScale
+              };
+            }
+            tracePolygon(ringPts);
+            ctx.lineWidth = Math.max(1.5, lineUnit * 2.0) * (1 - progress * 0.5);
+            ctx.strokeStyle = `rgba(255, 255, 255, ${(1 - progress) * 0.85})`;
+            ctx.stroke();
+          } else if (elapsed > PULSE_DURATION_MS) {
+            selectionPulse = null;
+          }
+        }
+      }
+
+      if (entry.placed && window.GameBuildings) {
+        const buildElapsed = time - entry.placed.placedAt;
+        const buildScale =
+          buildElapsed >= 0 && buildElapsed < 280
+            ? easeOutBack(buildElapsed / 280)
+            : 1;
+        const rotT = rotatePoint(tile.tangentT);
+        const rotB = rotatePoint(tile.tangentB);
+        window.GameBuildings.renderBuilding3D(
+          ctx,
+          entry.placed.id,
+          {
+            origin: entry.elevPlaneCenter,
+            rotT: rotT,
+            rotB: rotB,
+            rotN: rotNormal,
+            scale: tile.hexScale * elev,
+            phase: tile.phase,
+            cx: cx,
+            cy: cy,
+            focalLength: focalLength,
+            camVec: CAM_VEC,
+            lightDir: LIGHT_DIR,
+            halfVec: HALF_VEC,
+            atmo: atmo,
+            isSelected: isSelected,
+            project: project
+          },
+          time,
+          buildScale
+        );
       }
     }
 
@@ -1059,6 +1117,53 @@
     lastFrameTime = time;
 
     const prevScroll = scrollPos;
+
+    let targetShiftX = 0;
+    let targetShiftY = 0;
+    let targetScale = 1;
+
+    const bounds =
+      window.GameBuildings && typeof window.GameBuildings.getLayoutBounds === "function"
+        ? window.GameBuildings.getLayoutBounds()
+        : null;
+
+    if (bounds && bounds.open) {
+      const activePlanet = planets[targetIndex];
+      const baseR = activePlanet ? activePlanet.getBaseRadius(width, height) : 0;
+
+      if (bounds.mode === "right") {
+        const rightPad = clamp(width * 0.015, 8, 16);
+        const leftPad = 10;
+        const availW = Math.max(120, width - bounds.width - rightPad - leftPad);
+        const targetCenterX = leftPad + availW * 0.5;
+        targetShiftX = targetCenterX - width * 0.5;
+
+        const topHudClear = height <= 420 ? 52 : 66;
+        const availH = Math.max(120, height - topHudClear - 12);
+        const targetCenterY = topHudClear + availH * 0.5;
+        targetShiftY = targetCenterY - height * 0.47;
+
+        const maxFitR = Math.min(availW * 0.43, availH * 0.45);
+        targetScale = baseR > maxFitR && baseR > 0 ? clamp(maxFitR / baseR, 0.65, 1) : 1;
+      } else if (bounds.mode === "bottom") {
+        const topHudClear = 58;
+        const bottomPad = 12;
+        const availH = Math.max(120, height - bounds.height - bottomPad - topHudClear);
+        targetShiftX = 0;
+        targetShiftY = topHudClear + availH * 0.5 - height * 0.47;
+
+        const maxFitR = Math.min(width * 0.42, availH * 0.44);
+        targetScale = baseR > maxFitR && baseR > 0 ? clamp(maxFitR / baseR, 0.58, 1) : 1;
+      }
+    }
+
+    const drawerLerp = 1 - Math.exp(-10 * dtSec);
+    drawerShiftX += (targetShiftX - drawerShiftX) * drawerLerp;
+    drawerShiftY += (targetShiftY - drawerShiftY) * drawerLerp;
+    drawerScale += (targetScale - drawerScale) * drawerLerp;
+    if (Math.abs(targetShiftX - drawerShiftX) < 0.25) drawerShiftX = targetShiftX;
+    if (Math.abs(targetShiftY - drawerShiftY) < 0.25) drawerShiftY = targetShiftY;
+    if (Math.abs(targetScale - drawerScale) < 0.001) drawerScale = targetScale;
 
     if (!isDragging || gestureMode !== "scroll") {
       const diff = targetIndex - scrollPos;
@@ -1327,6 +1432,10 @@
           focusOnTile(activePlanet, tile);
         }
         selectionPulse = { planetId: hit.planetId, tileId: hit.hexId, startTime: now };
+        if (window.GameBuildings) {
+          const placed = buildingsByPlanet[hit.planetId][hit.hexId];
+          window.GameBuildings.openForTile(hit.planetId, hit.hexId, placed ? placed.id : null);
+        }
       }
       lastTapTime = 0;
       lastInteractionTime = now;
@@ -1342,6 +1451,9 @@
       if (currentSelected === hit.hexId) {
         selectedHexByPlanet[hit.planetId] = null;
         selectionPulse = null;
+        if (window.GameBuildings) {
+          window.GameBuildings.close(false);
+        }
       } else {
         selectedHexByPlanet[hit.planetId] = hit.hexId;
         const planet = planets[hit.planetId];
@@ -1350,10 +1462,17 @@
           focusOnTile(planet, tile);
         }
         selectionPulse = { planetId: hit.planetId, tileId: hit.hexId, startTime: now };
+        if (window.GameBuildings) {
+          const placed = buildingsByPlanet[hit.planetId][hit.hexId];
+          window.GameBuildings.openForTile(hit.planetId, hit.hexId, placed ? placed.id : null);
+        }
       }
     } else if (!onPlanet) {
       selectedHexByPlanet[startSnapIndex] = null;
       selectionPulse = null;
+      if (window.GameBuildings) {
+        window.GameBuildings.close(false);
+      }
     }
 
     lastInteractionTime = now;
@@ -1449,6 +1568,9 @@
     } else if (e.key === "Escape") {
       selectedHexByPlanet[targetIndex] = null;
       selectionPulse = null;
+      if (window.GameBuildings) {
+        window.GameBuildings.close(false);
+      }
     }
   }
 
@@ -1505,6 +1627,39 @@
 
   function init() {
     if (!canvas || !ctx) return;
+
+    if (window.GameBuildings) {
+      window.GameBuildings.setHandlers({
+        onPlace: function (buildingId) {
+          const tileId = selectedHexByPlanet[targetIndex];
+          if (!tileId) return;
+          buildingsByPlanet[targetIndex][tileId] = {
+            id: buildingId,
+            placedAt: performance.now()
+          };
+          selectionPulse = {
+            planetId: targetIndex,
+            tileId: tileId,
+            startTime: performance.now()
+          };
+          lastInteractionTime = performance.now();
+          window.GameBuildings.updateCurrentBuilding(buildingId);
+        },
+        onRemove: function () {
+          const tileId = selectedHexByPlanet[targetIndex];
+          if (!tileId) return;
+          delete buildingsByPlanet[targetIndex][tileId];
+          lastInteractionTime = performance.now();
+          window.GameBuildings.updateCurrentBuilding(null);
+        },
+        onClose: function () {
+          selectedHexByPlanet[targetIndex] = null;
+          selectionPulse = null;
+          lastInteractionTime = performance.now();
+        }
+      });
+    }
+
     resizeCanvas();
     updateIndicatorDots();
     updateControlStates();

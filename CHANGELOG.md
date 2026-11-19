@@ -5,6 +5,30 @@ All notable changes to **Space Colonization: Idle** will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.0-alpha.6] - 2026-11-19
+
+### Changed
+- Complete visual UI overhaul: Replaced generic dark glassmorphism, chamfered wireframe polygonal cuts, and thin cyan HUD frames with a chunky, mobile-first cel-shaded cartoon art style (thick dark outlines, physical bottom press lips, and tactile color-coded buttons).
+- Re-architected UI assets into dedicated hand-crafted vector files in `src/assets/ui/`:
+  - `icon-credits.svg` (chunky gold SC card with embossed chip and violet core)
+  - `icon-ore.svg` (faceted ice-cyan Space Ore crystal gem with sparkles)
+  - Building icons: `bld-mine.svg`, `bld-research-lab.svg`, `bld-house.svg`, `bld-windmill.svg`, and `bld-solar-panel.svg`
+  - Action glyphs: `icon-arrow.svg`, `icon-plus.svg`, `icon-minus.svg`, `icon-close.svg`, and `icon-trash.svg`
+- Streamlined HUD and minimized UI clutter:
+  - Top-left currency pill bars showing only the bold icon, value counter, and rate indicator without redundant framing.
+  - Bottom-right zoom controls simplified to discrete circular `+`/`−` buttons flanking a bold magnification readout.
+  - Circular edge-docked navigation buttons for planet carousel switching.
+  - Redesigned building construction drawer (`#build-drawer`): royal purple container, chunky category tabs, cream building cards with circular colored icon sockets, and vibrant green `BUILD` buttons shifting to gold `BUILT` plaques.
+
+### Removed
+- Removed legacy inline HUD SVG wireframes, chamfered polygons, and temporary procedural asset generation scripts.
+
+## [0.1.0-alpha.5] - 2026-11-19
+
+### Added
+- Interactive hexagon-click Building Menu (`#build-drawer`) with category filtering (`ALL`, `POWER`, `MINING`, `COLONY`, `SCIENCE`), bold chamfered mobile UI cards, custom SVG building previews, and smooth planet viewport shifting.
+- Five procedural 3D building models with live animations rendered directly on 3D planet hexagons (`Mine`, `Research Lab`, `House`, `Windmill`, and `Solar Panel`) with instant build, replace, and remove controls in `src/js/buildings.js` and `src/js/planets.js` (models and UI only; gameplay effects not implemented yet).
+
 ## [0.1.0-alpha.4] - 2026-11-19
 
 ### Added
