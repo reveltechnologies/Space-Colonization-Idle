@@ -5,6 +5,31 @@ All notable changes to **Space Colonization: Idle** will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.0-alpha.7] - 2026-11-19
+
+### Added
+- **3D Cartoon Construction VFX (`build`)**:
+  - Billowing 4-pass fused cel-shaded cartoon fog cloud collar puffing outward around newly placed buildings with an expanding ground shockwave ring.
+  - Elastic squash-and-stretch building pop-in entrance (`easeOutBack`), with a smooth shrink-down transition on building replacement.
+  - Five celebratory 4-point cartoon star sparkles popping in orbit around the completed structure.
+- **3D Cartoon Demolition VFX (`demolish`)**:
+  - Pre-strike building trembling jitter anticipating destruction.
+  - Animated overhead cartoon demolition hammer (wooden handle, steel head with red hazard chevron band, and motion whoosh arc) winding up and slamming down (`easeInQuart`).
+  - High-energy 8-spike comic starburst impact flash at strike contact.
+  - Instant building pancake crush (`scaleZ` compression down to `0.06`).
+  - Dense charcoal-violet cartoon smoke burst, four fiery orange ember sparks, and eight tumbling 3D debris chunks exploding on parabolic gravity trajectories.
+
+### Changed
+- **Adaptive Building Menu Responsiveness & Fit**:
+  - Fluid, responsive drawer sizing across desktop, mobile landscape, and ultra-wide viewports using viewport clamping (`clamp(256px, 42vw, 386px)`), ensuring all elements fit comfortably on screen without overflow.
+  - Compact single-row drawer header pairing the tile identifier (`Tile #N`) with a planet pill (`Planet N`).
+  - Auto-wrapping category filter tab pills and single-line building titles to prevent horizontal clipping.
+  - Clean inset gold highlight border (`inset 0 0 0 3px var(--yellow)`) on built cards and subtle themed scrollbars.
+  - Narrow/portrait view fallback (`@media (max-width: 519px)` and `@media (orientation: portrait) and (max-height: 540px)`) docking the menu as an adaptive bottom sheet with bottom dots automatically hidden while open.
+- **Dynamic Planet Viewport Centering & Framing**:
+  - Integrated `getLayoutBounds()` layout detection in `src/js/planets.js` to dynamically compute available unobstructed screen space.
+  - Smoothly lerps planet center position (`drawerShiftX`, `drawerShiftY`) and auto-scales planet radius (`drawerScale`) when the building menu opens or resizes, keeping the entire 3D planet perfectly centered and fully visible on all display sizes.
+
 ## [0.1.0-alpha.6] - 2026-11-19
 
 ### Changed

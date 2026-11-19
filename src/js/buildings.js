@@ -296,9 +296,14 @@
     return "rgb(" + r + "," + g + "," + b + ")";
   }
 
-  function createMeshCollector(frame, buildScale) {
+  function createMeshCollector(frame, buildScale, opts) {
+    const o = opts || {};
     const primitives = [];
-    const s = frame.scale * Math.max(0.05, buildScale);
+    const baseS = frame.scale * Math.max(0.05, buildScale);
+    const sXY = baseS * (o.scaleXY !== undefined ? o.scaleXY : 1);
+    const sZ = baseS * (o.scaleZ !== undefined ? o.scaleZ : 1);
+    const jx = o.jitterX || 0;
+    const jy = o.jitterY || 0;
     const ox = frame.origin.x;
     const oy = frame.origin.y;
     const oz = frame.origin.z;
@@ -311,10 +316,13 @@
     const atmo = frame.atmo;
 
     function toWorld(lx, ly, lz) {
+      const wx = (lx + jx) * sXY;
+      const wy = (ly + jy) * sXY;
+      const wz = lz * sZ;
       return {
-        x: ox + (t.x * lx + b.x * ly + n.x * lz) * s,
-        y: oy + (t.y * lx + b.y * ly + n.y * lz) * s,
-        z: oz + (t.z * lx + b.z * ly + n.z * lz) * s
+        x: ox + t.x * wx + b.x * wy + n.x * wz,
+        y: oy + t.y * wx + b.y * wy + n.y * wz,
+        z: oz + t.z * wx + b.z * wy + n.z * wz
       };
     }
 
@@ -731,10 +739,10 @@
     }
   }
 
-  function renderBuilding3D(ctx, buildingId, frame, time, buildScale) {
+  function renderBuilding3D(ctx, buildingId, frame, time, buildScale, opts) {
     if (!ctx || !frame) return;
 
-    const collector = createMeshCollector(frame, buildScale);
+    const collector = createMeshCollector(frame, buildScale, opts);
     const pxScale = frame.scale * (frame.focalLength / 3.8);
     const phase = frame.phase || 0;
 
@@ -753,6 +761,580 @@
     collector.drawAll(ctx);
   }
 
+  // --- 3D Cartoon Tile Construction & Demolition VFX ---
+
+  function clamp01(v) {
+    return v < 0 ? 0 : v > 1 ? 1 : v;
+  }
+
+  function easeInQuart(t) {
+    return t * t * t * t;
+  }
+
+  function easeOutCubic(t) {
+    const inv = 1 - t;
+    return 1 - inv * inv * inv;
+  }
+
+  function pseudoRand(seed) {
+    const x = Math.sin(seed * 127.1 + 311.7) * 43758.5453123;
+    return x - Math.floor(x);
+  }
+
+  function projectLocal(frame, lx, ly, lz) {
+    const s = frame.scale;
+    const t = frame.rotT;
+    const b = frame.rotB;
+    const n = frame.rotN;
+    const world = {
+      x: frame.origin.x + (t.x * lx + b.x * ly + n.x * lz) * s,
+      y: frame.origin.y + (t.y * lx + b.y * ly + n.y * lz) * s,
+      z: frame.origin.z + (t.z * lx + b.z * ly + n.z * lz) * s
+    };
+    return frame.project(world, frame.cx, frame.cy, frame.focalLength);
+  }
+
+  function drawFusedCloud(ctx, puffs, alpha, outlineCol, shadowCol, bodyCol, highlightCol, outlineW) {
+    if (alpha <= 0.01 || puffs.length === 0) return;
+
+    ctx.save();
+    ctx.globalAlpha *= clamp01(alpha);
+
+    // Pass 1: Unified dark ink silhouette
+    ctx.fillStyle = outlineCol;
+    for (let i = 0; i < puffs.length; i++) {
+      const pf = puffs[i];
+      if (pf.r <= 0.3) continue;
+      ctx.beginPath();
+      ctx.arc(pf.x, pf.y, pf.r + outlineW, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Pass 2: Cool lower/belly shading
+    ctx.fillStyle = shadowCol;
+    for (let i = 0; i < puffs.length; i++) {
+      const pf = puffs[i];
+      if (pf.r <= 0.3) continue;
+      ctx.beginPath();
+      ctx.arc(pf.x, pf.y, pf.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Pass 3: Main cel body offset upward-left
+    ctx.fillStyle = bodyCol;
+    for (let i = 0; i < puffs.length; i++) {
+      const pf = puffs[i];
+      if (pf.r <= 0.5) continue;
+      ctx.beginPath();
+      ctx.arc(pf.x - pf.r * 0.08, pf.y - pf.r * 0.12, pf.r * 0.90, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Pass 4: Crisp highlight crown
+    ctx.fillStyle = highlightCol;
+    for (let i = 0; i < puffs.length; i++) {
+      const pf = puffs[i];
+      if (pf.r <= 1.2) continue;
+      ctx.beginPath();
+      ctx.arc(pf.x - pf.r * 0.20, pf.y - pf.r * 0.24, pf.r * 0.54, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.restore();
+  }
+
+  function drawSparkle4(ctx, x, y, size, rot, fillCol, outlineCol, alpha) {
+    if (size <= 0.5 || alpha <= 0.02) return;
+    const inner = size * 0.28;
+
+    ctx.save();
+    ctx.globalAlpha *= clamp01(alpha);
+    ctx.translate(x, y);
+    ctx.rotate(rot);
+
+    ctx.beginPath();
+    for (let i = 0; i < 8; i++) {
+      const r = i % 2 === 0 ? size : inner;
+      const a = (i * Math.PI) / 4;
+      const px = Math.cos(a) * r;
+      const py = Math.sin(a) * r;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+
+    ctx.lineJoin = "round";
+    ctx.lineWidth = Math.max(1.8, size * 0.32);
+    ctx.strokeStyle = outlineCol;
+    ctx.stroke();
+    ctx.fillStyle = fillCol;
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawImpactStarburst(ctx, x, y, outerR, innerR, spikes, rot, alpha) {
+    if (outerR <= 1 || alpha <= 0.02) return;
+
+    function traceStar(rOut, rIn) {
+      ctx.beginPath();
+      for (let i = 0; i < spikes * 2; i++) {
+        const r = i % 2 === 0 ? rOut : rIn;
+        const a = rot + (i * Math.PI) / spikes;
+        const px = Math.cos(a) * r;
+        const py = Math.sin(a) * r;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+    }
+
+    ctx.save();
+    ctx.globalAlpha *= clamp01(alpha);
+    ctx.translate(x, y);
+    ctx.lineJoin = "round";
+
+    // Outer crimson-orange impact burst with cartoon ink outline
+    traceStar(outerR, innerR);
+    ctx.lineWidth = Math.max(2.4, outerR * 0.14);
+    ctx.strokeStyle = "#1b1147";
+    ctx.stroke();
+    ctx.fillStyle = "#ff5a4d";
+    ctx.fill();
+
+    // Inner bright gold burst
+    traceStar(outerR * 0.72, innerR * 0.78);
+    ctx.fillStyle = "#ffc83a";
+    ctx.fill();
+
+    // Hot white flash core
+    traceStar(outerR * 0.40, innerR * 0.50);
+    ctx.fillStyle = "#ffffff";
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  function drawCartoonHammer(ctx, anchorX, anchorY, scalePx, baseUpAngle, swingAngle, alpha, showWhoosh, whooshAlpha) {
+    if (alpha <= 0.01 || scalePx <= 1) return;
+
+    ctx.save();
+    ctx.globalAlpha *= clamp01(alpha);
+    ctx.translate(anchorX, anchorY);
+    // Align 0 rad along surface normal up: baseUpAngle + PI/2 maps (0, -1) to normal direction
+    ctx.rotate(baseUpAngle + Math.PI * 0.5);
+
+    const handleLen = scalePx * 1.15;
+    const handleW = Math.max(4, scalePx * 0.17);
+    const headLen = scalePx * 0.92;
+    const headThick = Math.max(10, scalePx * 0.44);
+    const inkW = Math.max(2.0, scalePx * 0.085);
+
+    // Sweeping motion-whoosh arc during the smash stroke (swings CCW from wind-up to center strike)
+    if (showWhoosh && whooshAlpha > 0.02) {
+      ctx.save();
+      ctx.globalAlpha *= whooshAlpha;
+      const arcR = handleLen * 0.94;
+      ctx.beginPath();
+      ctx.arc(0, 0, arcR, swingAngle - Math.PI * 0.5 - 0.06, swingAngle - Math.PI * 0.5 + 0.88);
+      ctx.lineCap = "round";
+      ctx.lineWidth = Math.max(4, scalePx * 0.22);
+      ctx.strokeStyle = "#fff3b0";
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(0, 0, arcR * 0.86, swingAngle - Math.PI * 0.5 - 0.03, swingAngle - Math.PI * 0.5 + 0.66);
+      ctx.lineWidth = Math.max(2, scalePx * 0.10);
+      ctx.strokeStyle = "#ffffff";
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Rotate hammer mallet around bottom grip pivot
+    ctx.rotate(swingAngle);
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+
+    // Wooden Handle + Warm Highlight
+    const hx = -handleW * 0.5;
+    const hy = -handleLen;
+    ctx.fillStyle = "#e89428";
+    ctx.strokeStyle = "#1b1147";
+    ctx.lineWidth = inkW;
+    ctx.beginPath();
+    ctx.rect(hx, hy, handleW, handleLen);
+    ctx.fill();
+    ctx.fillStyle = "#ffc85a";
+    ctx.fillRect(hx + handleW * 0.14, hy + 2, handleW * 0.34, handleLen - 4);
+    ctx.stroke();
+
+    // Grip pommel cap
+    ctx.beginPath();
+    ctx.arc(0, 0, handleW * 0.72, 0, Math.PI * 2);
+    ctx.fillStyle = "#6c55e8";
+    ctx.fill();
+    ctx.stroke();
+
+    // Top of handle connects to center of hammer head
+    const headX = -headLen * 0.5;
+    const headY = -handleLen - headThick * 0.5;
+    const chamfer = headThick * 0.20;
+
+    ctx.beginPath();
+    ctx.moveTo(headX + chamfer, headY);
+    ctx.lineTo(headX + headLen - chamfer, headY);
+    ctx.lineTo(headX + headLen, headY + chamfer);
+    ctx.lineTo(headX + headLen, headY + headThick - chamfer);
+    ctx.lineTo(headX + headLen - chamfer, headY + headThick);
+    ctx.lineTo(headX + chamfer, headY + headThick);
+    ctx.lineTo(headX, headY + headThick - chamfer);
+    ctx.lineTo(headX, headY + chamfer);
+    ctx.closePath();
+
+    // Base dark steel fill
+    ctx.fillStyle = "#64748b";
+    ctx.fill();
+
+    // Upper steel cel highlight & red hazard center collar clipped inside head
+    ctx.save();
+    ctx.clip();
+    ctx.fillStyle = "#e2e8f0";
+    ctx.fillRect(headX, headY, headLen, headThick * 0.36);
+
+    ctx.fillStyle = "#ff5a4d";
+    ctx.fillRect(-headLen * 0.14, headY, headLen * 0.28, headThick);
+    ctx.fillStyle = "#ff9d90";
+    ctx.fillRect(-headLen * 0.14, headY, headLen * 0.28, headThick * 0.30);
+    ctx.restore();
+
+    // Crisp outer dark ink outline over whole hammer head
+    ctx.strokeStyle = "#1b1147";
+    ctx.lineWidth = inkW;
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  function renderBuildEffect(ctx, effect, frame, p, depthScale) {
+    const seedBase = effect.seed || 1;
+    const centerPt = projectLocal(frame, 0, 0, 0.04);
+
+    // 1. Expanding soft ground flash hex ring flush on tile surface
+    if (p < 0.52) {
+      const ringT = easeOutCubic(p / 0.52);
+      const rad = 0.42 + 0.56 * ringT;
+      ctx.save();
+      ctx.globalAlpha *= (1 - ringT) * 0.78;
+      ctx.beginPath();
+      for (let k = 0; k < 6; k++) {
+        const a = (Math.PI / 3) * k + 0.25;
+        const pt = projectLocal(frame, Math.cos(a) * rad, Math.sin(a) * rad, 0.03);
+        if (k === 0) ctx.moveTo(pt.x, pt.y);
+        else ctx.lineTo(pt.x, pt.y);
+      }
+      ctx.closePath();
+      ctx.lineWidth = Math.max(1.8, depthScale * 0.085 * (1 - ringT * 0.4));
+      ctx.strokeStyle = "#ffffff";
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // 2. Billowing Cartoon White Fog Cloud (11 fused cel-shaded puffs)
+    const expandT = easeOutCubic(Math.min(1, p * 1.15));
+    const swell = p < 0.26
+      ? easeOutCubic(p / 0.26)
+      : p < 0.56
+        ? 1
+        : Math.max(0, 1 - (p - 0.56) / 0.44);
+    const cloudAlpha = p < 0.12
+      ? p / 0.12
+      : p > 0.62
+        ? Math.max(0, 1 - (p - 0.62) / 0.38)
+        : 1;
+
+    const puffs = [];
+    // Low fused cloud collar (8 overlapping chunky puffs)
+    for (let i = 0; i < 8; i++) {
+      const r1 = pseudoRand(seedBase + i * 3.17);
+      const r2 = pseudoRand(seedBase + i * 7.41 + 11);
+      const angle = (Math.PI * 2 * i) / 8 + (r1 - 0.5) * 0.34;
+      const dist = 0.08 + (0.40 + r2 * 0.16) * expandT;
+      const lz = 0.05 + (0.08 + r1 * 0.12) * expandT + Math.sin(p * Math.PI) * 0.05;
+      const pt = projectLocal(frame, Math.cos(angle) * dist, Math.sin(angle) * dist, lz);
+      const radiusPx = depthScale * (0.26 + r2 * 0.12) * (0.45 + 0.55 * swell);
+      puffs.push({ x: pt.x, y: pt.y, r: radiusPx, z: pt.z });
+    }
+    // 3 inner puffs peaking early then parting aside as building pops above
+    const crownSwell = p < 0.24 ? easeOutCubic(p / 0.24) : Math.max(0, 1 - (p - 0.24) / 0.40);
+    if (crownSwell > 0.04) {
+      for (let i = 0; i < 3; i++) {
+        const r1 = pseudoRand(seedBase + 50 + i * 5.23);
+        const angle = (Math.PI * 2 * i) / 3 + seedBase * 0.7;
+        const dist = (0.12 + r1 * 0.16) * expandT;
+        const lz = 0.16 + (0.18 + r1 * 0.12) * expandT;
+        const pt = projectLocal(frame, Math.cos(angle) * dist, Math.sin(angle) * dist, lz);
+        const radiusPx = depthScale * (0.28 + r1 * 0.08) * crownSwell;
+        puffs.push({ x: pt.x, y: pt.y, r: radiusPx, z: pt.z });
+      }
+    }
+
+    drawFusedCloud(
+      ctx,
+      puffs,
+      cloudAlpha,
+      "#1b1147",
+      "#c7d4f2",
+      "#eef5ff",
+      "#ffffff",
+      Math.max(1.8, depthScale * 0.048)
+    );
+
+    // 3. 5 Celebratory Golden-White Cartoon Sparkles popping as the fog clears
+    if (p > 0.26) {
+      const spT = clamp01((p - 0.26) / 0.70);
+      for (let i = 0; i < 5; i++) {
+        const delay = i * 0.08;
+        const localT = clamp01((spT - delay) / 0.68);
+        if (localT <= 0 || localT >= 1) continue;
+
+        const r1 = pseudoRand(seedBase + 100 + i * 4.3);
+        const angle = (Math.PI * 2 * i) / 5 + 0.4 + r1 * 0.5;
+        const dist = 0.34 + 0.44 * localT;
+        const lz = 0.28 + 0.52 * easeOutCubic(localT);
+        const pt = projectLocal(frame, Math.cos(angle) * dist, Math.sin(angle) * dist, lz);
+        const popScale = Math.sin(localT * Math.PI);
+        const sizePx = depthScale * (0.14 + r1 * 0.06) * popScale;
+        const fillCol = i % 2 === 0 ? "#ffc83a" : "#ffffff";
+        drawSparkle4(ctx, pt.x, pt.y, sizePx, localT * 1.4 + i, fillCol, "#1b1147", popScale);
+      }
+    }
+
+    // Subtle soft ambient mist tint at base center early in build
+    if (p < 0.42 && centerPt) {
+      ctx.save();
+      ctx.globalAlpha *= (1 - p / 0.42) * 0.35;
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath();
+      ctx.arc(centerPt.x, centerPt.y, depthScale * 0.35, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  function renderDemolishEffect(ctx, effect, frame, p, depthScale) {
+    const seedBase = effect.seed || 2;
+    const IMPACT_T = 0.32;
+
+    // Height of impact target for each building type (local Z above tile base)
+    const buildingImpactHeights = {
+      mine: 0.60,
+      research_lab: 0.38,
+      house: 0.36,
+      windmill: 0.75,
+      solar_panel: 0.32
+    };
+    const targetZ = buildingImpactHeights[effect.buildingId] || 0.40;
+
+    // 1. Dark Gritty Demolition Smoke Cloud + Flying Angular 3D Rubble (post-impact)
+    if (p >= IMPACT_T - 0.02) {
+      const postT = clamp01((p - (IMPACT_T - 0.02)) / (1 - (IMPACT_T - 0.02)));
+      const burstT = easeOutCubic(postT);
+      const smokeSwell = postT < 0.22
+        ? easeOutCubic(postT / 0.22)
+        : Math.max(0, 1 - (postT - 0.22) / 0.78);
+      const smokeAlpha = postT > 0.55
+        ? Math.max(0, 1 - (postT - 0.55) / 0.45)
+        : 1;
+
+      const smokePuffs = [];
+      for (let i = 0; i < 11; i++) {
+        const r1 = pseudoRand(seedBase + 10 + i * 4.11);
+        const r2 = pseudoRand(seedBase + 30 + i * 6.73);
+        const angle = (Math.PI * 2 * i) / 11 + (r1 - 0.5) * 0.45;
+        const isCore = i < 4;
+        const dist = isCore ? (0.04 + 0.24 * burstT) : (0.12 + (0.34 + r2 * 0.18) * burstT);
+        const lz = 0.06 + (isCore ? 0.36 : 0.22) * burstT + r1 * 0.12;
+        const pt = projectLocal(frame, Math.cos(angle) * dist, Math.sin(angle) * dist, lz);
+        const radiusPx = depthScale * (isCore ? (0.28 + r2 * 0.11) : (0.22 + r2 * 0.10)) * (0.45 + 0.55 * smokeSwell);
+        smokePuffs.push({ x: pt.x, y: pt.y, r: radiusPx });
+      }
+
+      // Clearly darker charcoal-violet / warm dust smoke palette (distinct from snowy build fog)
+      drawFusedCloud(
+        ctx,
+        smokePuffs,
+        smokeAlpha,
+        "#1b1147",
+        "#483e63",
+        "#7d7294",
+        "#b4a7ba",
+        Math.max(1.8, depthScale * 0.050)
+      );
+
+      // 8 Tumbling 3D Debris Chunks on ballistic arcs
+      if (postT < 0.94) {
+        const debT = clamp01(postT / 0.94);
+        const chunkColors = ["#94a3b8", "#cbd5e1", "#ffb13b", "#6c55e8"];
+        ctx.save();
+        ctx.lineJoin = "round";
+        for (let i = 0; i < 8; i++) {
+          const r1 = pseudoRand(seedBase + 200 + i * 3.7);
+          const r2 = pseudoRand(seedBase + 220 + i * 5.9);
+          const angle = (Math.PI * 2 * i) / 8 + (r1 - 0.5) * 0.6;
+          const speedXY = 0.55 + r2 * 0.65;
+          const v0z = 1.65 + r1 * 0.85;
+          const gravity = 3.9;
+          const lx = Math.cos(angle) * speedXY * debT;
+          const ly = Math.sin(angle) * speedXY * debT;
+          const lz = Math.max(0.02, 0.12 + v0z * debT - 0.5 * gravity * debT * debT);
+          const pt = projectLocal(frame, lx, ly, lz);
+
+          const chunkAlpha = debT > 0.68 ? Math.max(0, 1 - (debT - 0.68) / 0.32) : 1;
+          const sz = depthScale * (0.095 + r1 * 0.055) * (1 - debT * 0.25);
+          const rot = debT * (6 + i * 1.9) * (i % 2 === 0 ? 1 : -1);
+
+          ctx.save();
+          ctx.globalAlpha *= chunkAlpha;
+          ctx.translate(pt.x, pt.y);
+          ctx.rotate(rot);
+          ctx.beginPath();
+          ctx.moveTo(-sz, -sz * 0.55);
+          ctx.lineTo(sz * 0.85, -sz * 0.78);
+          ctx.lineTo(sz, sz * 0.50);
+          ctx.lineTo(-sz * 0.45, sz * 0.85);
+          ctx.closePath();
+          ctx.lineWidth = Math.max(1.5, sz * 0.38);
+          ctx.strokeStyle = "#1b1147";
+          ctx.stroke();
+          ctx.fillStyle = chunkColors[i % chunkColors.length];
+          ctx.fill();
+          ctx.restore();
+        }
+        ctx.restore();
+      }
+
+      // 4 Hot Orange-Gold Ember Sparks
+      if (postT < 0.65) {
+        const emT = postT / 0.65;
+        for (let i = 0; i < 4; i++) {
+          const r1 = pseudoRand(seedBase + 300 + i * 8.3);
+          const angle = (Math.PI * 2 * i) / 4 + 0.55 + r1 * 0.7;
+          const lx = Math.cos(angle) * (0.28 + 0.72 * emT);
+          const ly = Math.sin(angle) * (0.28 + 0.72 * emT);
+          const lz = 0.15 + (1.25 + r1 * 0.5) * emT - 1.1 * emT * emT;
+          if (lz < 0) continue;
+          const pt = projectLocal(frame, lx, ly, lz);
+          drawSparkle4(
+            ctx,
+            pt.x,
+            pt.y,
+            depthScale * 0.11 * (1 - emT * 0.65),
+            emT * 2.5,
+            "#ff7a45",
+            "#1b1147",
+            1 - emT
+          );
+        }
+      }
+    }
+
+    // 2. Comic Starburst Impact Flash at Smash Moment (0.30 -> 0.50)
+    if (p >= 0.30 && p <= 0.50) {
+      const fT = (p - 0.30) / 0.20;
+      const strikePt = projectLocal(frame, 0, 0, targetZ * 0.75);
+      const burstScale = Math.sin(Math.min(1, fT * 1.15) * Math.PI);
+      const outerR = depthScale * (0.42 + 0.36 * easeOutCubic(fT)) * Math.max(0.25, burstScale);
+      drawImpactStarburst(ctx, strikePt.x, strikePt.y, outerR, outerR * 0.44, 8, fT * 0.4, 1 - fT * 0.35);
+    }
+
+    // 3. Heavy Overhead Cartoon Demolition Hammer (0.00 -> 0.66)
+    if (p < 0.66) {
+      const hammerScale = depthScale * 0.90;
+      const handleLen = hammerScale * 1.15;
+      const headThick = Math.max(10, hammerScale * 0.44);
+      const impactRadius = handleLen + headThick * 0.5;
+
+      const pBase = projectLocal(frame, 0, 0, targetZ * 0.5);
+      const pUp = projectLocal(frame, 0, 0, targetZ * 0.5 + 0.80);
+      const dx = pUp.x - pBase.x;
+      const dy = pUp.y - pBase.y;
+      const projLen = Math.hypot(dx, dy);
+
+      // Surface normal screen direction
+      const screenUpX = 0;
+      const screenUpY = -1;
+      const blend = Math.min(1, projLen / Math.max(8, depthScale * 0.38));
+      const nx = projLen > 0.001 ? dx / projLen : 0;
+      const ny = projLen > 0.001 ? dy / projLen : -1;
+      const normX = screenUpX * (1 - blend) + nx * blend;
+      const normY = screenUpY * (1 - blend) + ny * blend;
+      const normLen = Math.hypot(normX, normY) || 1;
+      const uX = normX / normLen;
+      const uY = normY / normLen;
+      const baseUpAngle = Math.atan2(uY, uX);
+
+      // Exact impact contact point directly atop the building model
+      const impactTarget = projectLocal(frame, 0, 0, targetZ);
+
+      // The hammer handle extends along -uVector (upwards from grip to head):
+      // head_center = anchor + uVector * impactRadius
+      // To place the head center exactly on impactTarget when striking at swingAngle = 0:
+      // anchor = impactTarget - uVector * impactRadius
+      const anchorX = impactTarget.x - uX * impactRadius;
+      const anchorY = impactTarget.y - uY * impactRadius;
+
+      let swingAngle = 0;
+      let hammerAlpha = 1;
+      let showWhoosh = false;
+      let whooshAlpha = 0;
+
+      if (p < 0.18) {
+        const wT = easeOutCubic(p / 0.18);
+        hammerAlpha = clamp01(p / 0.10);
+        swingAngle = - (0.45 + 0.75 * wT); // -25deg -> -68deg (draw back overhead)
+      } else if (p < IMPACT_T) {
+        const sT = easeInQuart((p - 0.18) / (IMPACT_T - 0.18));
+        swingAngle = - 1.20 * (1 - sT); // -68deg down to exactly 0.00deg (direct flush impact)
+        showWhoosh = sT > 0.12;
+        whooshAlpha = Math.sin(sT * Math.PI);
+      } else if (p < 0.46) {
+        const rT = easeOutCubic((p - IMPACT_T) / (0.46 - IMPACT_T));
+        swingAngle = - 0.32 * Math.sin(rT * Math.PI); // slight elastic rebound bounce
+      } else {
+        const fT = (p - 0.46) / 0.20;
+        swingAngle = - 0.08 * (1 - fT);
+        hammerAlpha = Math.max(0, 1 - fT);
+      }
+
+      drawCartoonHammer(
+        ctx,
+        anchorX,
+        anchorY,
+        hammerScale,
+        baseUpAngle,
+        swingAngle,
+        hammerAlpha,
+        showWhoosh,
+        whooshAlpha
+      );
+    }
+  }
+
+  function renderTileEffect(ctx, effect, frame, time) {
+    if (!ctx || !effect || !frame) return;
+
+    const p = clamp01((time - effect.startTime) / effect.duration);
+    if (p >= 1) return;
+
+    const dist = Math.max(0.8, frame.camVec.z - frame.origin.z);
+    const depthScale = (frame.scale * frame.focalLength) / dist;
+
+    if (effect.type === "build") {
+      renderBuildEffect(ctx, effect, frame, p, depthScale);
+    } else if (effect.type === "demolish") {
+      renderDemolishEffect(ctx, effect, frame, p, depthScale);
+    }
+  }
+
   window.GameBuildings = {
     CATEGORIES: CATEGORIES,
     BUILDINGS: BUILDINGS,
@@ -762,6 +1344,7 @@
     close: close,
     isOpen: isOpen,
     getLayoutBounds: getLayoutBounds,
-    renderBuilding3D: renderBuilding3D
+    renderBuilding3D: renderBuilding3D,
+    renderTileEffect: renderTileEffect
   };
 })();

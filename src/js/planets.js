@@ -449,6 +449,9 @@
   // Interactive hex, buildings & QoL state
   const selectedHexByPlanet = [null, null, null];
   const buildingsByPlanet = [Object.create(null), Object.create(null), Object.create(null)];
+  const tileEffectsByPlanet = [Object.create(null), Object.create(null), Object.create(null)];
+  const BUILD_VFX_MS = 760;
+  const DEMOLISH_VFX_MS = 900;
   let drawerShiftX = 0;
   let drawerShiftY = 0;
   let drawerScale = 1;
@@ -799,8 +802,13 @@
       // Front-facing polygons project CCW in 3D -> negative signed area in screen Y-down
       const topVisible = facing > -0.05 && signedArea2D(topPts) < -0.25;
       const placed = buildingsByPlanet[planet.id][tile.id] || null;
+      let effect = tileEffectsByPlanet[planet.id][tile.id] || null;
+      if (effect && time - effect.startTime >= effect.duration) {
+        delete tileEffectsByPlanet[planet.id][tile.id];
+        effect = null;
+      }
       const hasBuilding = Boolean(placed);
-      if (!topVisible && !needsSides && !hasBuilding) {
+      if (!topVisible && !needsSides && !hasBuilding && !effect) {
         continue;
       }
 
@@ -817,6 +825,7 @@
         topVisible: topVisible,
         needsSides: needsSides,
         placed: placed,
+        effect: effect,
         rotBase: rotBase,
         topPts: topPts,
         basePts: basePts,
@@ -994,37 +1003,77 @@
         }
       }
 
-      if (entry.placed && window.GameBuildings) {
-        const buildElapsed = time - entry.placed.placedAt;
-        const buildScale =
-          buildElapsed >= 0 && buildElapsed < 280
-            ? easeOutBack(buildElapsed / 280)
-            : 1;
+      if (window.GameBuildings && (entry.placed || entry.effect)) {
         const rotT = rotatePoint(tile.tangentT);
         const rotB = rotatePoint(tile.tangentB);
-        window.GameBuildings.renderBuilding3D(
-          ctx,
-          entry.placed.id,
-          {
-            origin: entry.elevPlaneCenter,
-            rotT: rotT,
-            rotB: rotB,
-            rotN: rotNormal,
-            scale: tile.hexScale * elev,
-            phase: tile.phase,
-            cx: cx,
-            cy: cy,
-            focalLength: focalLength,
-            camVec: CAM_VEC,
-            lightDir: LIGHT_DIR,
-            halfVec: HALF_VEC,
-            atmo: atmo,
-            isSelected: isSelected,
-            project: project
-          },
-          time,
-          buildScale
-        );
+        const buildingFrame = {
+          origin: entry.elevPlaneCenter,
+          rotT: rotT,
+          rotB: rotB,
+          rotN: rotNormal,
+          scale: tile.hexScale * elev,
+          phase: tile.phase,
+          cx: cx,
+          cy: cy,
+          focalLength: focalLength,
+          camVec: CAM_VEC,
+          lightDir: LIGHT_DIR,
+          halfVec: HALF_VEC,
+          atmo: atmo,
+          isSelected: isSelected,
+          project: project
+        };
+
+        const eff = entry.effect;
+
+        if (eff && eff.type === "demolish") {
+          const dp = clamp((time - eff.startTime) / eff.duration, 0, 1);
+          if (dp < 0.47 && eff.buildingId) {
+            if (dp < 0.32) {
+              const amp = 0.055 * (dp / 0.32);
+              window.GameBuildings.renderBuilding3D(ctx, eff.buildingId, buildingFrame, time, 1, {
+                jitterX: Math.sin(dp * 110) * amp,
+                jitterY: Math.cos(dp * 95) * amp * 0.85
+              });
+            } else {
+              const k = (dp - 0.32) / 0.15;
+              const crushZ = Math.max(0.06, 1 - k * 0.94);
+              const crushXY = 1 + Math.sin(k * Math.PI) * 0.34;
+              window.GameBuildings.renderBuilding3D(ctx, eff.buildingId, buildingFrame, time, 1, {
+                scaleXY: crushXY,
+                scaleZ: crushZ
+              });
+            }
+          }
+        } else if (entry.placed) {
+          if (eff && eff.type === "build") {
+            const bp = clamp((time - eff.startTime) / eff.duration, 0, 1);
+            if (eff.prevBuildingId && bp < 0.20) {
+              const shrink = Math.max(0.06, 1 - bp / 0.20);
+              window.GameBuildings.renderBuilding3D(ctx, eff.prevBuildingId, buildingFrame, time, shrink);
+            }
+            if (bp >= 0.16) {
+              const k = clamp((bp - 0.16) / 0.44, 0, 1);
+              const pop = easeOutBack(k);
+              const stretch = Math.sin(k * Math.PI) * 0.18;
+              window.GameBuildings.renderBuilding3D(ctx, entry.placed.id, buildingFrame, time, pop, {
+                scaleXY: 1 - stretch * 0.45,
+                scaleZ: 1 + stretch
+              });
+            }
+          } else {
+            const buildElapsed = time - entry.placed.placedAt;
+            const buildScale =
+              buildElapsed >= 0 && buildElapsed < 280
+                ? easeOutBack(buildElapsed / 280)
+                : 1;
+            window.GameBuildings.renderBuilding3D(ctx, entry.placed.id, buildingFrame, time, buildScale);
+          }
+        }
+
+        if (eff && typeof window.GameBuildings.renderTileEffect === "function") {
+          window.GameBuildings.renderTileEffect(ctx, eff, buildingFrame, time);
+        }
       }
     }
 
@@ -1633,23 +1682,45 @@
         onPlace: function (buildingId) {
           const tileId = selectedHexByPlanet[targetIndex];
           if (!tileId) return;
+          const existing = buildingsByPlanet[targetIndex][tileId];
+          if (existing && existing.id === buildingId) return;
+
+          const now = performance.now();
           buildingsByPlanet[targetIndex][tileId] = {
             id: buildingId,
-            placedAt: performance.now()
+            placedAt: now
+          };
+          tileEffectsByPlanet[targetIndex][tileId] = {
+            type: "build",
+            prevBuildingId: existing ? existing.id : null,
+            startTime: now,
+            duration: BUILD_VFX_MS,
+            seed: tileId * 1.37 + (now % 97) * 0.013
           };
           selectionPulse = {
             planetId: targetIndex,
             tileId: tileId,
-            startTime: performance.now()
+            startTime: now
           };
-          lastInteractionTime = performance.now();
+          lastInteractionTime = now;
           window.GameBuildings.updateCurrentBuilding(buildingId);
         },
         onRemove: function () {
           const tileId = selectedHexByPlanet[targetIndex];
           if (!tileId) return;
+          const removed = buildingsByPlanet[targetIndex][tileId];
+          if (!removed) return;
+
+          const now = performance.now();
           delete buildingsByPlanet[targetIndex][tileId];
-          lastInteractionTime = performance.now();
+          tileEffectsByPlanet[targetIndex][tileId] = {
+            type: "demolish",
+            buildingId: removed.id,
+            startTime: now,
+            duration: DEMOLISH_VFX_MS,
+            seed: tileId * 2.13 + (now % 97) * 0.017
+          };
+          lastInteractionTime = now;
           window.GameBuildings.updateCurrentBuilding(null);
         },
         onClose: function () {
