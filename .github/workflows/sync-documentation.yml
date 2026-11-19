@@ -30,7 +30,34 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Check if documentation sync is enabled
+        id: check-enabled
+        run: |
+          # 1. Check if documentation_sync is enabled in config.yaml
+          if [ -f "config.yaml" ]; then
+            python3 - << 'EOF'
+          import re
+          import os
+
+          with open("config.yaml", "r", encoding="utf-8") as f:
+              content = f.read()
+
+          m = re.search(r'documentation_sync:\s*(?:#[^\n]*)?\n\s+enabled:\s*(true|false)', content, re.IGNORECASE)
+          if m and m.group(1).lower() == 'false':
+              print("Documentation sync is disabled in config.yaml. Skipping.")
+              with open(os.environ["GITHUB_OUTPUT"], "a") as gh_out:
+                  gh_out.write("enabled=false\n")
+              exit(0)
+
+          with open(os.environ["GITHUB_OUTPUT"], "a") as gh_out:
+              gh_out.write("enabled=true\n")
+          EOF
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Sync documentation across branches
+        if: steps.check-enabled.outputs.enabled == 'true'
         run: |
           set -e
 
@@ -43,18 +70,19 @@ jobs:
           fi
           echo "==> Source branch: $SOURCE_BRANCH"
 
-          git fetch --all --prune
-          git checkout "$SOURCE_BRANCH"
+          # Prune remote tracking branches
+          git fetch --all --prune || true
 
           TARGET_BRANCHES=()
           while IFS= read -r branch; do
-            if [ -n "$branch" ] && [ "$branch" != "HEAD" ] && [ "$branch" != "$SOURCE_BRANCH" ]; then
-              TARGET_BRANCHES+=("$branch")
+            clean_branch="${branch#origin/}"
+            if [ -n "$clean_branch" ] && [ "$clean_branch" != "HEAD" ] && [ "$clean_branch" != "$SOURCE_BRANCH" ]; then
+              TARGET_BRANCHES+=("$clean_branch")
             fi
-          done < <(git for-each-ref --format='%(refname:strip=3)' refs/remotes/origin/)
+          done < <(git branch -r --list 'origin/*' | sed 's/^[ \t]*//')
 
           if [ ${#TARGET_BRANCHES[@]} -eq 0 ]; then
-            echo "No other target branches found to sync with. Exiting."
+            echo "No other target branches found to sync with (only $SOURCE_BRANCH exists). Exiting gracefully."
             exit 0
           fi
 
@@ -86,7 +114,7 @@ jobs:
               sync_items = [
                   "config.yaml", "update.json", "CHANGELOG.md", "README.md",
                   "SECURITY.md", "LICENSE*", "CONTRIBUTING.md", "CODE_OF_CONDUCT.md",
-                  "banner.png", "docs/", ".github/workflows/", ".github/ISSUE_TEMPLATE/"
+                  "banner.png", ".github/workflows/", ".github/ISSUE_TEMPLATE/"
               ]
 
           # On push events, check if commit touched any sync item; skip if not touched

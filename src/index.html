@@ -19,63 +19,6 @@
   <!-- Animated Space Background -->
   <canvas id="starfield" aria-hidden="true"></canvas>
 
-  <!-- Main Mobile App Container -->
-  <main id="app" class="app-shell">
-    <!-- Initial / Title Screen -->
-    <section id="initial-screen" class="screen active" aria-label="Title Screen">
-      <header class="top-bar">
-        <span class="sector-tag">SECTOR 01 // SOL OUTPOST</span>
-        <span class="build-tag">v0.1.0-alpha</span>
-      </header>
-
-      <div class="content-row">
-        <div class="hero-container">
-          <div class="planet-emblem" aria-hidden="true">
-            <div class="orbit-ring"></div>
-            <div class="planet-core"></div>
-          </div>
-
-          <div class="hero-text">
-            <p class="eyebrow">UNITED FRONTIER INITIATIVE</p>
-            <h1 class="game-title">
-              SPACE<br />
-              <span>COLONIZATION</span>
-            </h1>
-            <div class="subtitle-badge">IDLE</div>
-            <p class="tagline">Harvest. Expand. Automate the Cosmos.</p>
-          </div>
-        </div>
-
-        <div class="action-panel">
-          <button id="btn-start" class="btn btn-primary" type="button">
-            <span class="btn-label">INITIALIZE COLONY</span>
-            <span class="btn-sub">TAP TO LAUNCH</span>
-          </button>
-
-          <div class="secondary-actions">
-            <button id="btn-settings" class="btn btn-secondary" type="button">
-              SETTINGS
-            </button>
-            <button id="btn-about" class="btn btn-secondary" type="button">
-              MISSION LOG
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <footer class="bottom-bar">
-        <span id="status-indicator" class="status-text">SYSTEMS STANDBY</span>
-      </footer>
-    </section>
-
-    <!-- Rotate Device Prompt for Portrait Viewports -->
-    <div id="rotate-prompt" class="rotate-prompt" aria-hidden="true">
-      <div class="rotate-icon">📱 ↷</div>
-      <p class="rotate-title">PLEASE ROTATE YOUR DEVICE</p>
-      <p class="rotate-sub">Space Colonization is locked in landscape mode</p>
-    </div>
-  </main>
-
   <script src="./js/main.js"></script>
 </body>
 </html>
