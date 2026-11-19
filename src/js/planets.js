@@ -14,7 +14,8 @@
   const nextBtn = document.getElementById("btn-next-planet");
   const zoomInBtn = document.getElementById("btn-zoom-in");
   const zoomOutBtn = document.getElementById("btn-zoom-out");
-  const resetViewBtn = document.getElementById("btn-reset-view");
+  const zoomLevelLabel = document.getElementById("zoom-level-label");
+  const zoomGaugeFill = document.getElementById("zoom-gauge-fill");
 
   const PLANET_COUNT = 3;
   const CAM_DIST = 4.2;
@@ -216,18 +217,20 @@
         faceNormal = scale(faceNormal, -1);
       }
 
-      const innerCorners = outerCorners.map(function (c) {
-        return normalize(add(scale(N, 0.11), scale(c, 0.89)));
-      });
-
       let avg = vec3(0, 0, 0);
       for (let k = 0; k < outerCorners.length; k++) {
         avg = add(avg, outerCorners[k]);
       }
+      const planeCenter = scale(avg, 1 / outerCorners.length);
+
+      const innerCorners = outerCorners.map(function (c) {
+        return add(scale(planeCenter, 0.11), scale(c, 0.89));
+      });
 
       tiles.push({
         id: String(vIdx),
         center: normalize(avg),
+        planeCenter: planeCenter,
         normal: faceNormal,
         outerCorners: outerCorners,
         innerCorners: innerCorners,
@@ -360,7 +363,7 @@
       id: 0,
       freq: 2,
       atmosphere: { r: 203, g: 213, b: 225 },
-      coreScale: 0.93,
+      coreScale: 0.92,
       roll: 0.21,
       basePitch: 0.24,
       pitchOffset: 0,
@@ -382,7 +385,7 @@
       id: 1,
       freq: 3,
       atmosphere: { r: 56, g: 189, b: 248 },
-      coreScale: 0.96,
+      coreScale: 0.955,
       roll: -0.26,
       basePitch: 0.30,
       pitchOffset: 0,
@@ -404,7 +407,7 @@
       id: 2,
       freq: 4,
       atmosphere: { r: 251, g: 146, b: 60 },
-      coreScale: 0.975,
+      coreScale: 0.97,
       roll: 0.18,
       basePitch: 0.26,
       pitchOffset: 0,
@@ -442,6 +445,8 @@
   let focusedHitPolys = [];
   let selectionPulse = null;
   let lastInteractionTime = 0;
+  let lastZoomLabel = "";
+  let lastZoomGaugeKey = -1;
 
   // Multi-touch & pointer tracking
   const activePointers = new Map();
@@ -513,19 +518,24 @@
     const activePlanet = planets[activeDotIndex];
     if (!activePlanet) return;
 
-    const hasDirtyView =
-      activePlanet.targetZoom > 1.04 ||
-      Math.abs(activePlanet.pitchOffset) > 0.08 ||
-      selectedHexByPlanet[activeDotIndex] !== null;
-
-    if (resetViewBtn) {
-      resetViewBtn.classList.toggle("is-hidden", !hasDirtyView);
-    }
     if (zoomInBtn) {
       zoomInBtn.disabled = activePlanet.targetZoom >= MAX_ZOOM - 0.02;
     }
     if (zoomOutBtn) {
       zoomOutBtn.disabled = activePlanet.targetZoom <= MIN_ZOOM + 0.02;
+    }
+
+    const zoomText = activePlanet.zoom.toFixed(1) + "×";
+    if (zoomLevelLabel && zoomText !== lastZoomLabel) {
+      lastZoomLabel = zoomText;
+      zoomLevelLabel.textContent = zoomText;
+    }
+
+    const zoomNorm = clamp((activePlanet.zoom - MIN_ZOOM) / (MAX_ZOOM - MIN_ZOOM), 0, 1);
+    const zoomGaugeKey = Math.round(zoomNorm * 1000);
+    if (zoomGaugeFill && zoomGaugeKey !== lastZoomGaugeKey) {
+      lastZoomGaugeKey = zoomGaugeKey;
+      zoomGaugeFill.style.transform = "scaleX(" + (zoomGaugeKey / 1000).toFixed(3) + ")";
     }
   }
 
@@ -578,21 +588,6 @@
     const activePlanet = planets[targetIndex];
     if (!activePlanet) return;
     activePlanet.targetZoom = clamp(activePlanet.targetZoom + delta, MIN_ZOOM, MAX_ZOOM);
-    lastInteractionTime = performance.now();
-  }
-
-  function resetActiveView() {
-    const activePlanet = planets[targetIndex];
-    if (!activePlanet) return;
-    activePlanet.targetZoom = MIN_ZOOM;
-    activePlanet.lookTarget = {
-      spinY: activePlanet.spinY,
-      pitchOffset: 0
-    };
-    activePlanet.spinVelY = 0;
-    activePlanet.pitchVelX = 0;
-    selectedHexByPlanet[targetIndex] = null;
-    selectionPulse = null;
     lastInteractionTime = performance.now();
   }
 
@@ -676,6 +671,14 @@
     ctx.closePath();
   }
 
+  function signedArea2D(pts) {
+    let area = 0;
+    for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+      area += pts[j].x * pts[i].y - pts[i].x * pts[j].y;
+    }
+    return area * 0.5;
+  }
+
   function computeShadedColor(rgb, lightAmt, specAmt, fresnelAmt, atmo) {
     const r = Math.min(255, Math.round(rgb[0] * lightAmt + 255 * specAmt + (atmo.r - rgb[0] * lightAmt) * fresnelAmt));
     const g = Math.min(255, Math.round(rgb[1] * lightAmt + 255 * specAmt + (atmo.g - rgb[1] * lightAmt) * fresnelAmt));
@@ -741,28 +744,55 @@
       const targetElev = isSelected ? tile.baseElev + 0.055 : tile.baseElev;
       tile.currentElev += (targetElev - tile.currentElev) * elevLerp;
 
-      const rotNormal = rotatePoint(tile.normal);
       const rotCenter = rotatePoint(tile.center);
+      if (rotCenter.z <= -0.45) {
+        continue;
+      }
+
+      const rotNormal = rotatePoint(tile.normal);
+      const rotPlaneCenter = rotatePoint(tile.planeCenter);
       const elev = tile.currentElev;
 
-      const elevCenter = scale(rotCenter, elev);
-      const toCam = sub(CAM_VEC, elevCenter);
+      const elevPlaneCenter = scale(rotPlaneCenter, elev);
+      const toCam = sub(CAM_VEC, elevPlaneCenter);
       const facing = dot(rotNormal, toCam);
+      const needsSides = elev > 1.003;
 
-      if (facing <= 0) {
+      const sides = tile.sides;
+      const rotBase = new Array(sides);
+      const topPts = new Array(sides);
+      const basePts = needsSides ? new Array(sides) : null;
+
+      for (let k = 0; k < sides; k++) {
+        const rc = rotatePoint(tile.outerCorners[k]);
+        rotBase[k] = rc;
+        topPts[k] = project(scale(rc, elev), cx, cy, focalLength);
+        if (needsSides) {
+          basePts[k] = project(rc, cx, cy, focalLength);
+        }
+      }
+
+      // Front-facing polygons project CCW in 3D -> negative signed area in screen Y-down
+      const topVisible = facing > -0.05 && signedArea2D(topPts) < -0.25;
+      if (!topVisible && !needsSides) {
         continue;
       }
 
       const toCamLen = len(toCam) || 1;
-      const facingDot = facing / toCamLen;
+      const facingDot = Math.max(0, facing / toCamLen);
 
       visibleTiles.push({
         tile: tile,
         rotNormal: rotNormal,
-        elevCenter: elevCenter,
+        elevPlaneCenter: elevPlaneCenter,
         elev: elev,
-        depthZ: elevCenter.z,
+        depthZ: rotCenter.z,
         facingDot: facingDot,
+        topVisible: topVisible,
+        needsSides: needsSides,
+        rotBase: rotBase,
+        topPts: topPts,
+        basePts: basePts,
         isSelected: isSelected,
         isHovered: isFocused && hoveredHexId === tile.id
       });
@@ -781,23 +811,64 @@
       const rotNormal = entry.rotNormal;
       const elev = entry.elev;
       const sides = tile.sides;
+      const rotBase = entry.rotBase;
+      const topPts = entry.topPts;
+      const basePts = entry.basePts;
+      const isSelected = entry.isSelected;
+      const isHovered = entry.isHovered;
 
-      const rotBase = new Array(sides);
-      const topPts = new Array(sides);
-      const needsSides = elev > 1.003;
-      const basePts = needsSides ? new Array(sides) : null;
+      if (entry.needsSides) {
+        for (let k = 0; k < sides; k++) {
+          const next = (k + 1) % sides;
+          const b0 = rotBase[k];
+          const b1 = rotBase[next];
+          const sideN = cross(sub(b1, b0), rotNormal);
+          const midB = scale(add(b0, b1), 0.5);
 
-      for (let k = 0; k < sides; k++) {
-        const rc = rotatePoint(tile.outerCorners[k]);
-        rotBase[k] = rc;
-        const rt = scale(rc, elev);
-        topPts[k] = project(rt, cx, cy, focalLength);
-        if (needsSides) {
-          basePts[k] = project(rc, cx, cy, focalLength);
+          if (dot(sideN, sub(CAM_VEC, midB)) <= 0) {
+            continue;
+          }
+
+          const sideNormUnit = normalize(sideN);
+          const sideNdotL = Math.max(0, dot(sideNormUnit, LIGHT_DIR));
+          const sideLight =
+            0.52 * (0.28 + 0.72 * sideNdotL) +
+            tile.emissive * 0.35 +
+            (isSelected ? 0.12 : 0);
+
+          const sr = clamp(Math.round(tile.rgb[0] * sideLight), 0, 255);
+          const sg = clamp(Math.round(tile.rgb[1] * sideLight), 0, 255);
+          const sb = clamp(Math.round(tile.rgb[2] * sideLight), 0, 255);
+
+          ctx.beginPath();
+          ctx.moveTo(basePts[k].x, basePts[k].y);
+          ctx.lineTo(basePts[next].x, basePts[next].y);
+          ctx.lineTo(topPts[next].x, topPts[next].y);
+          ctx.lineTo(topPts[k].x, topPts[k].y);
+          ctx.closePath();
+
+          ctx.fillStyle = `rgb(${sr}, ${sg}, ${sb})`;
+          ctx.fill();
+          ctx.lineWidth = 0.6;
+          ctx.strokeStyle = `rgb(${sr}, ${sg}, ${sb})`;
+          ctx.stroke();
+
+          if (isSelected) {
+            ctx.beginPath();
+            ctx.moveTo(topPts[k].x, topPts[k].y);
+            ctx.lineTo(topPts[next].x, topPts[next].y);
+            ctx.lineWidth = Math.max(1.1, lineUnit * 0.9);
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.78)";
+            ctx.stroke();
+          }
         }
       }
 
-      const projCenter = project(entry.elevCenter, cx, cy, focalLength);
+      if (!entry.topVisible) {
+        continue;
+      }
+
+      const projCenter = project(entry.elevPlaneCenter, cx, cy, focalLength);
 
       if (isFocused) {
         const tileR = Math.hypot(topPts[0].x - projCenter.x, topPts[0].y - projCenter.y);
@@ -818,41 +889,6 @@
       const fresnelAmt = Math.pow(Math.max(0, 1 - Math.max(0, rotNormal.z)), 2.6) * 0.28;
       const topFill = computeShadedColor(tile.rgb, lightAmt, specAmt, fresnelAmt, atmo);
 
-      if (needsSides) {
-        for (let k = 0; k < sides; k++) {
-          const next = (k + 1) % sides;
-          const b0 = rotBase[k];
-          const b1 = rotBase[next];
-          const sideN = cross(sub(b1, b0), rotNormal);
-          const midB = scale(add(b0, b1), 0.5);
-
-          if (dot(sideN, sub(CAM_VEC, midB)) <= 0) {
-            continue;
-          }
-
-          const sideNormUnit = normalize(sideN);
-          const sideNdotL = Math.max(0, dot(sideNormUnit, LIGHT_DIR));
-          const sideLight = 0.52 * (0.28 + 0.72 * sideNdotL) + tile.emissive * 0.35;
-
-          const sr = clamp(Math.round(tile.rgb[0] * sideLight), 0, 255);
-          const sg = clamp(Math.round(tile.rgb[1] * sideLight), 0, 255);
-          const sb = clamp(Math.round(tile.rgb[2] * sideLight), 0, 255);
-
-          ctx.beginPath();
-          ctx.moveTo(basePts[k].x, basePts[k].y);
-          ctx.lineTo(basePts[next].x, basePts[next].y);
-          ctx.lineTo(topPts[next].x, topPts[next].y);
-          ctx.lineTo(topPts[k].x, topPts[k].y);
-          ctx.closePath();
-
-          ctx.fillStyle = `rgb(${sr}, ${sg}, ${sb})`;
-          ctx.fill();
-          ctx.lineWidth = 0.6;
-          ctx.strokeStyle = `rgb(${sr}, ${sg}, ${sb})`;
-          ctx.stroke();
-        }
-      }
-
       // Draw Tile Top Face
       tracePolygon(topPts);
       ctx.fillStyle = topFill;
@@ -861,9 +897,9 @@
       ctx.strokeStyle = topFill;
       ctx.stroke();
 
-      // Project & Draw Glowing White-Light Hexagon Border
+      // Project & Draw Glowing White-Light Hexagon Border (flush on tile polygon plane)
       const innerPts = new Array(sides);
-      const innerScale = elev + 0.003;
+      const innerScale = elev + 0.0015;
       for (let k = 0; k < sides; k++) {
         const ri = scale(rotatePoint(tile.innerCorners[k]), innerScale);
         innerPts[k] = project(ri, cx, cy, focalLength);
@@ -871,8 +907,6 @@
 
       const pulse = 0.5 + 0.5 * Math.sin(time * 0.002 + tile.phase);
       const rimFade = clamp(entry.facingDot * 1.45, 0.30, 1.0);
-      const isSelected = entry.isSelected;
-      const isHovered = entry.isHovered;
 
       tracePolygon(innerPts);
 
@@ -1140,7 +1174,7 @@
     if (canvas.setPointerCapture) {
       try {
         canvas.setPointerCapture(e.pointerId);
-      } catch (_) {}
+      } catch (_) { }
     }
 
     if (activePointers.size === 2) {
@@ -1331,7 +1365,7 @@
     if (canvas.releasePointerCapture) {
       try {
         canvas.releasePointerCapture(e.pointerId);
-      } catch (_) {}
+      } catch (_) { }
     }
 
     if (wasPinchGesture) {
@@ -1412,8 +1446,9 @@
       adjustZoom(ZOOM_STEP);
     } else if (e.key === "-" || e.key === "_") {
       adjustZoom(-ZOOM_STEP);
-    } else if (e.key === "0" || e.key === "Escape") {
-      resetActiveView();
+    } else if (e.key === "Escape") {
+      selectedHexByPlanet[targetIndex] = null;
+      selectionPulse = null;
     }
   }
 
@@ -1465,9 +1500,6 @@
       zoomOutBtn.addEventListener("click", function () {
         adjustZoom(-ZOOM_STEP);
       });
-    }
-    if (resetViewBtn) {
-      resetViewBtn.addEventListener("click", resetActiveView);
     }
   }
 

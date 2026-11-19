@@ -1,0 +1,230 @@
+/**
+ * Space Colonization: Idle
+ * Colony Currencies State, Idle Formatting & HUD Sync
+ */
+
+(function () {
+  "use strict";
+
+  const SUFFIXES = ["", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No", "Dc"];
+
+  const state = {
+    credits: { amount: 0, rate: 0 },
+    ore: { amount: 0, rate: 0 }
+  };
+
+  const dom = {
+    credits: {
+      valEl: document.getElementById("val-credits"),
+      rateEl: document.getElementById("rate-credits"),
+      lastVal: "",
+      lastRate: "",
+      bumpTimer: 0
+    },
+    ore: {
+      valEl: document.getElementById("val-ore"),
+      rateEl: document.getElementById("rate-ore"),
+      lastVal: "",
+      lastRate: "",
+      bumpTimer: 0
+    }
+  };
+
+  let tickerId = 0;
+  let lastTickTime = 0;
+
+  function formatNumber(value) {
+    const n = Math.max(0, Number(value) || 0);
+    if (n < 1000) {
+      return Math.floor(n).toString();
+    }
+
+    let scaled = n;
+    let tier = 0;
+    while (scaled >= 1000 && tier < SUFFIXES.length - 1) {
+      scaled /= 1000;
+      tier++;
+    }
+
+    if (scaled >= 1000) {
+      return n.toExponential(2);
+    }
+
+    let decimals = scaled < 10 ? 2 : scaled < 100 ? 1 : 0;
+    let str = scaled.toFixed(decimals);
+    if (Number(str) >= 1000 && tier < SUFFIXES.length - 1) {
+      tier++;
+      str = "1.00";
+    }
+
+    return str + SUFFIXES[tier];
+  }
+
+  function formatRate(rate) {
+    const r = Math.max(0, Number(rate) || 0);
+    if (r <= 0) {
+      return "";
+    }
+    if (r < 10) {
+      return "+" + r.toFixed(1).replace(/\.0$/, "") + "/s";
+    }
+    if (r < 1000) {
+      return "+" + Math.floor(r) + "/s";
+    }
+    return "+" + formatNumber(r) + "/s";
+  }
+
+  function renderCurrency(key) {
+    const entry = state[key];
+    const ui = dom[key];
+    if (!entry || !ui) return;
+
+    const valText = formatNumber(entry.amount);
+    if (ui.valEl && valText !== ui.lastVal) {
+      ui.lastVal = valText;
+      ui.valEl.textContent = valText;
+    }
+
+    const rateText = formatRate(entry.rate);
+    if (ui.rateEl && rateText !== ui.lastRate) {
+      ui.lastRate = rateText;
+      ui.rateEl.textContent = rateText;
+    }
+  }
+
+  function bumpValueElement(key) {
+    const ui = dom[key];
+    if (!ui || !ui.valEl) return;
+
+    ui.valEl.classList.add("is-bumped");
+    if (ui.bumpTimer) {
+      window.clearTimeout(ui.bumpTimer);
+    }
+    ui.bumpTimer = window.setTimeout(function () {
+      ui.valEl.classList.remove("is-bumped");
+      ui.bumpTimer = 0;
+    }, 160);
+  }
+
+  function hasActiveIncome() {
+    return state.credits.rate > 0 || state.ore.rate > 0;
+  }
+
+  function tick(now) {
+    if (!hasActiveIncome()) {
+      tickerId = 0;
+      return;
+    }
+
+    const dtSec = Math.min((now - lastTickTime) / 1000, 1);
+    lastTickTime = now;
+
+    if (dtSec > 0) {
+      if (state.credits.rate > 0) {
+        state.credits.amount += state.credits.rate * dtSec;
+        renderCurrency("credits");
+      }
+      if (state.ore.rate > 0) {
+        state.ore.amount += state.ore.rate * dtSec;
+        renderCurrency("ore");
+      }
+    }
+
+    tickerId = window.requestAnimationFrame(tick);
+  }
+
+  function ensureTicker() {
+    if (hasActiveIncome() && !tickerId) {
+      lastTickTime = performance.now();
+      tickerId = window.requestAnimationFrame(tick);
+    }
+  }
+
+  function get(key) {
+    return state[key] ? state[key].amount : 0;
+  }
+
+  function getAll() {
+    return {
+      credits: state.credits.amount,
+      ore: state.ore.amount
+    };
+  }
+
+  function set(key, amount) {
+    if (!state[key]) return;
+    state[key].amount = Math.max(0, Number(amount) || 0);
+    renderCurrency(key);
+  }
+
+  function add(key, delta) {
+    if (!state[key]) return 0;
+    const val = Number(delta) || 0;
+    if (val === 0) return state[key].amount;
+
+    state[key].amount = Math.max(0, state[key].amount + val);
+    renderCurrency(key);
+    bumpValueElement(key);
+    return state[key].amount;
+  }
+
+  function canAfford(costs) {
+    if (!costs) return true;
+    for (const key in costs) {
+      if (Object.prototype.hasOwnProperty.call(costs, key)) {
+        const req = Math.max(0, Number(costs[key]) || 0);
+        if (!state[key] || state[key].amount < req) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  function spend(costs) {
+    if (!canAfford(costs)) {
+      return false;
+    }
+    for (const key in costs) {
+      if (Object.prototype.hasOwnProperty.call(costs, key)) {
+        const req = Math.max(0, Number(costs[key]) || 0);
+        if (req > 0 && state[key]) {
+          state[key].amount = Math.max(0, state[key].amount - req);
+          renderCurrency(key);
+          bumpValueElement(key);
+        }
+      }
+    }
+    return true;
+  }
+
+  function setRate(key, ratePerSec) {
+    if (!state[key]) return;
+    state[key].rate = Math.max(0, Number(ratePerSec) || 0);
+    renderCurrency(key);
+    ensureTicker();
+  }
+
+  function init() {
+    renderCurrency("credits");
+    renderCurrency("ore");
+    ensureTicker();
+  }
+
+  window.GameCurrencies = {
+    formatNumber: formatNumber,
+    get: get,
+    getAll: getAll,
+    set: set,
+    add: add,
+    spend: spend,
+    canAfford: canAfford,
+    setRate: setRate
+  };
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+})();
