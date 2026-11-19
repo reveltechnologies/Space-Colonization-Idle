@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" stroke-linejoin="round" stroke-linecap="round">
+  <!-- Main lightning bolt -->
+  <polygon points="59,8 21,54 47,54 37,92 79,43 52,43" fill="#ffe047" stroke="#1b1147" stroke-width="6.5"/>
+  <!-- Lower warm amber cel-shade bevel -->
+  <polygon points="48,54 39,87 74,45 55,45" fill="#ff9c1a"/>
+  <!-- Crisp top-left highlight gleam -->
+  <path d="M55 15 L29 48 L43 48" fill="none" stroke="#fff8c4" stroke-width="4.5"/>
+  <!-- Re-stroke crisp outer ink silhouette -->
+  <polygon points="59,8 21,54 47,54 37,92 79,43 52,43" fill="none" stroke="#1b1147" stroke-width="6.5"/>
+</svg>

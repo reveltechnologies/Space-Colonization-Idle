@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" stroke-linejoin="round" stroke-linecap="round">
+  <!-- Spacesuit collar & shoulders -->
+  <path d="M18 90 Q18 67 50 67 Q82 67 82 90 Z" fill="#ff6b5a" stroke="#1b1147" stroke-width="6"/>
+  <!-- Shoulder cel shade -->
+  <path d="M52 68 Q80 69 82 90 H50 Q52 78 52 68 Z" fill="#d94436"/>
+  <path d="M18 90 Q18 67 50 67 Q82 67 82 90 Z" fill="none" stroke="#1b1147" stroke-width="6"/>
+  <!-- Chest comm badge -->
+  <rect x="42" y="75" width="16" height="9" rx="4" fill="#ffe047" stroke="#1b1147" stroke-width="4"/>
+  <!-- Round space helmet -->
+  <circle cx="50" cy="42" r="29" fill="#ffffff" stroke="#1b1147" stroke-width="6"/>
+  <!-- Helmet lower-right rim shadow -->
+  <path d="M27 57 A29 29 0 0 0 77 32 A26 26 0 0 1 27 57 Z" fill="#d8e2f5"/>
+  <!-- Helmet earpods -->
+  <rect x="16" y="34" width="9" height="16" rx="4" fill="#ffb13b" stroke="#1b1147" stroke-width="4.5"/>
+  <rect x="75" y="34" width="9" height="16" rx="4" fill="#ffb13b" stroke="#1b1147" stroke-width="4.5"/>
+  <circle cx="50" cy="42" r="29" fill="none" stroke="#1b1147" stroke-width="6"/>
+  <!-- Curved cyan visor -->
+  <rect x="29" y="28" width="42" height="26" rx="13" fill="#4cc9ff" stroke="#1b1147" stroke-width="5.5"/>
+  <!-- Visor specular glint -->
+  <ellipse cx="42" cy="36" rx="8" ry="3.5" transform="rotate(-18 42 36)" fill="#c9f6ff"/>
+</svg>

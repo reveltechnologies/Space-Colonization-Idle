@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" stroke-linejoin="round" stroke-linecap="round">
+  <!-- Wooden handle diagonal bottom-left to top-right -->
+  <path d="M16 84 L74 26 L82 34 L24 92 Z" fill="#d88c42" stroke="#1b1147" stroke-width="6"/>
+  <!-- Handle underside shade -->
+  <path d="M21 89 L79 31 L82 34 L24 92 Z" fill="#9c5922"/>
+  <path d="M16 84 L74 26 L82 34 L24 92 Z" fill="none" stroke="#1b1147" stroke-width="6"/>
+  <!-- Chunky curved steel pickaxe head arching top-left to bottom-right -->
+  <path d="M21 15 Q54 11 85 45 L89 79 L64 60 Q46 40 24 31 Z" fill="#b8cae2" stroke="#1b1147" stroke-width="6"/>
+  <!-- Lower steel bevel shade -->
+  <path d="M35 28 Q57 35 76 62 L89 79 L64 60 Q46 40 24 31 Z" fill="#7489a8"/>
+  <!-- Handle collar cap -->
+  <rect x="57" y="27" width="16" height="16" rx="4" transform="rotate(-45 65 35)" fill="#ffb13b" stroke="#1b1147" stroke-width="5.5"/>
+  <!-- Crisp top steel edge highlight -->
+  <path d="M27 19 Q52 17 77 42" fill="none" stroke="#ffffff" stroke-width="4.5"/>
+  <!-- Re-stroke pick head silhouette -->
+  <path d="M21 15 Q54 11 85 45 L89 79 L64 60 Q46 40 24 31 Z" fill="none" stroke="#1b1147" stroke-width="6"/>
+  <!-- Tiny bright cyan ore sparkle star -->
+  <polygon points="84,12 87,19 94,22 87,25 84,32 81,25 74,22 81,19" fill="#5fd8f8" stroke="#1b1147" stroke-width="3.5"/>
+</svg>

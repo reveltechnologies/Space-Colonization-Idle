@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" stroke-linejoin="round" stroke-linecap="round">
+  <!-- Top-left: Power Gold -->
+  <rect x="11" y="11" width="34" height="34" rx="9" fill="#ffd83b" stroke="#1b1147" stroke-width="6"/>
+  <path d="M17 20 Q28 16 39 20" fill="none" stroke="#fff7c2" stroke-width="4"/>
+  <!-- Top-right: Mining Orange -->
+  <rect x="55" y="11" width="34" height="34" rx="9" fill="#ff9f38" stroke="#1b1147" stroke-width="6"/>
+  <path d="M61 20 Q72 16 83 20" fill="none" stroke="#ffe1b5" stroke-width="4"/>
+  <!-- Bottom-left: Colony Coral -->
+  <rect x="11" y="55" width="34" height="34" rx="9" fill="#ff6b5a" stroke="#1b1147" stroke-width="6"/>
+  <path d="M17 64 Q28 60 39 64" fill="none" stroke="#ffc6bf" stroke-width="4"/>
+  <!-- Bottom-right: Science Cyan -->
+  <rect x="55" y="55" width="34" height="34" rx="9" fill="#37a8ff" stroke="#1b1147" stroke-width="6"/>
+  <path d="M61 64 Q72 60 83 64" fill="none" stroke="#bce8ff" stroke-width="4"/>
+</svg>

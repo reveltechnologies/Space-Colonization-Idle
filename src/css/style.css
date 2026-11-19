@@ -521,7 +521,11 @@ img {
   --b: var(--purple-light);
   flex: 1 0 auto;
   height: 38px;
-  padding: 0 12px;
+  padding: 0 11px 0 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
   border-width: 3px;
   border-radius: 999px;
   color: #ffffff;
@@ -533,6 +537,20 @@ img {
     inset 0 -3px 0 rgba(0, 0, 0, 0.2),
     0 3px 0 var(--ink);
   text-shadow: 0 -1.5px 0 var(--ink), 0 1.5px 0 var(--ink), 1.5px 0 0 var(--ink), -1.5px 0 0 var(--ink);
+}
+
+.build-cat-icon {
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+  display: block;
+  object-fit: contain;
+  filter: drop-shadow(0 1.5px 0 rgba(27, 17, 71, 0.35));
+}
+
+.build-cat-label {
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .build-cat-btn:active {
@@ -729,8 +747,34 @@ img {
 .build-card-badge {
   position: absolute;
   top: 5px;
+  left: 5px;
+  right: auto;
+  z-index: 2;
+}
+
+.build-card-cat-badge {
+  position: absolute;
+  top: 5px;
   right: 5px;
   z-index: 2;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--cat-badge-bg, #ffffff);
+  border: 2px solid var(--ink);
+  box-shadow:
+    inset 0 -2px 0 rgba(0, 0, 0, 0.14),
+    0 2px 0 var(--ink);
+}
+
+.build-card-cat-icon {
+  width: 76%;
+  height: 76%;
+  display: block;
+  object-fit: contain;
 }
 
 .build-card-badge.is-built {
@@ -889,9 +933,9 @@ img {
   background: #e7e1ee;
 }
 
-.build-card.is-terrain-blocked .build-card-stage {
+.build-card.is-terrain-blocked .build-card-preview {
   filter: saturate(0.45);
-  opacity: 0.8;
+  opacity: 0.72;
 }
 
 .build-card.is-terrain-blocked .build-card-name {
@@ -940,7 +984,7 @@ body.build-menu-open .planet-dots {
 }
 
 /* ---------- Wide desktop unified single-row Studio header ---------- */
-@media (min-width: 960px) and (min-height: 521px) {
+@media (min-width: 1020px) and (min-height: 521px) {
   .build-drawer-header {
     flex-wrap: nowrap;
     gap: 14px;
@@ -969,10 +1013,16 @@ body.build-menu-open .planet-dots {
 
   .build-cat-btn {
     flex: 0 0 auto;
-    min-width: 72px;
+    min-width: 0;
     height: 40px;
-    padding: 0 15px;
-    font-size: 13.5px;
+    padding: 0 12px 0 8px;
+    gap: 5px;
+    font-size: 13px;
+  }
+
+  .build-cat-icon {
+    width: 18px;
+    height: 18px;
   }
 
   .build-header-actions {
@@ -1045,12 +1095,17 @@ body.build-menu-open .planet-dots {
     height: 52px;
   }
 
+  .build-card-cat-badge {
+    width: 24px;
+    height: 24px;
+  }
+
   .build-card-action {
     min-height: 40px;
   }
 }
 
-@media (max-width: 440px) {
+@media (max-width: 460px) {
   .build-biome-badge {
     width: 36px;
     height: 36px;
@@ -1096,10 +1151,25 @@ body.build-menu-open .planet-dots {
     border-radius: 12px;
   }
 
+  .build-categories {
+    gap: 5px;
+    overflow: visible;
+  }
+
   .build-cat-btn {
-    height: 35px;
-    padding: 0 10px;
-    font-size: 11.5px;
+    flex: 1 1 0%;
+    min-width: 0;
+    height: 44px;
+    padding: 3px 3px 4px;
+    flex-direction: column;
+    gap: 2px;
+    border-radius: 13px;
+    font-size: 9.5px;
+  }
+
+  .build-cat-icon {
+    width: 19px;
+    height: 19px;
   }
 }
 
@@ -1178,8 +1248,14 @@ body.build-menu-open .planet-dots {
 
   .build-cat-btn {
     height: 32px;
-    padding: 0 9px;
+    padding: 0 8px 0 6px;
+    gap: 4px;
     font-size: 11px;
+  }
+
+  .build-cat-icon {
+    width: 15px;
+    height: 15px;
   }
 
   .build-unbuildable-banner {
@@ -1231,6 +1307,18 @@ body.build-menu-open .planet-dots {
     height: 44px;
   }
 
+  .build-card-badge {
+    top: 4px;
+    left: 4px;
+  }
+
+  .build-card-cat-badge {
+    width: 22px;
+    height: 22px;
+    top: 4px;
+    right: 4px;
+  }
+
   .build-card-badge.is-locked {
     width: 19px;
     height: 19px;
@@ -1274,6 +1362,29 @@ body.build-menu-open .planet-dots {
 
   .build-cost-val {
     font-size: 12.5px;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 520px) and (max-width: 739px) {
+  .build-categories {
+    gap: 4px;
+    overflow: visible;
+  }
+
+  .build-cat-btn {
+    flex: 1 1 0%;
+    min-width: 0;
+    height: 36px;
+    padding: 2px 2px 3px;
+    flex-direction: column;
+    gap: 1px;
+    border-radius: 11px;
+    font-size: 9px;
+  }
+
+  .build-cat-icon {
+    width: 16px;
+    height: 16px;
   }
 }
 
@@ -1353,12 +1464,6 @@ body.build-menu-open .planet-dots {
     height: 17px;
   }
 
-  .build-cat-btn {
-    height: 32px;
-    padding: 0 8px;
-    font-size: 10.5px;
-  }
-
   .build-list {
     gap: 6px;
     padding: 6px;
@@ -1383,6 +1488,23 @@ body.build-menu-open .planet-dots {
   .build-card-icon {
     width: 37px;
     height: 37px;
+  }
+
+  .build-card-badge {
+    top: 3px;
+    left: 3px;
+  }
+
+  .build-card-badge.is-built {
+    font-size: 8.5px;
+    padding: 1px 5px;
+  }
+
+  .build-card-cat-badge {
+    width: 20px;
+    height: 20px;
+    top: 3px;
+    right: 3px;
   }
 
   .build-card-name {

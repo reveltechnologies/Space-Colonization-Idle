@@ -7,11 +7,11 @@
   "use strict";
 
   const CATEGORIES = [
-    { id: "all", label: "All" },
-    { id: "power", label: "Power" },
-    { id: "mining", label: "Mining" },
-    { id: "colony", label: "Colony" },
-    { id: "science", label: "Science" }
+    { id: "all",     label: "All",     iconSrc: "./assets/ui/cat-all.svg",     accent: "#ffc83a", badgeBg: "#fff6cc" },
+    { id: "power",   label: "Power",   iconSrc: "./assets/ui/cat-power.svg",   accent: "#ffc83a", badgeBg: "#fff6cc" },
+    { id: "mining",  label: "Mining",  iconSrc: "./assets/ui/cat-mining.svg",  accent: "#ffb13b", badgeBg: "#ffefd6" },
+    { id: "colony",  label: "Colony",  iconSrc: "./assets/ui/cat-colony.svg",  accent: "#ff6b5a", badgeBg: "#ffe6e3" },
+    { id: "science", label: "Science", iconSrc: "./assets/ui/cat-science.svg", accent: "#37a8ff", badgeBg: "#e0f4ff" }
   ];
 
   const TERRAIN_GROUPS = {
@@ -119,6 +119,15 @@
 
   function getTerrainGroup(terrainId) {
     return TERRAIN_GROUPS[terrainId] || TERRAIN_GROUPS.solid;
+  }
+
+  function getCategory(categoryId) {
+    for (let i = 0; i < CATEGORIES.length; i++) {
+      if (CATEGORIES[i].id === categoryId) {
+        return CATEGORIES[i];
+      }
+    }
+    return CATEGORIES[0];
   }
 
   function canBuildOnBiome(buildingId, biomeId) {
@@ -261,10 +270,19 @@
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "build-cat-btn" + (cat.id === activeCategory ? " active" : "");
-      btn.textContent = cat.label;
       btn.setAttribute("role", "tab");
       btn.setAttribute("aria-selected", cat.id === activeCategory ? "true" : "false");
       btn.setAttribute("data-category", cat.id);
+      const catIcon = document.createElement("img");
+      catIcon.className = "build-cat-icon";
+      catIcon.src = cat.iconSrc;
+      catIcon.alt = "";
+      catIcon.draggable = false;
+      const catLabel = document.createElement("span");
+      catLabel.className = "build-cat-label";
+      catLabel.textContent = cat.label;
+      btn.appendChild(catIcon);
+      btn.appendChild(catLabel);
       btn.addEventListener("click", function () {
         activeCategory = cat.id;
         renderCategories();
@@ -340,6 +358,21 @@
         badge.textContent = "✕";
         stage.appendChild(badge);
       }
+
+      const cat = getCategory(b.category);
+      const catBadge = document.createElement("span");
+      catBadge.className = "build-card-cat-badge";
+      catBadge.title = cat.label;
+      catBadge.setAttribute("data-category-badge", cat.id);
+      catBadge.style.setProperty("--cat-badge-bg", cat.badgeBg);
+      catBadge.style.setProperty("--cat-badge-accent", cat.accent);
+      const catBadgeIcon = document.createElement("img");
+      catBadgeIcon.className = "build-card-cat-icon";
+      catBadgeIcon.src = cat.iconSrc;
+      catBadgeIcon.alt = "";
+      catBadgeIcon.draggable = false;
+      catBadge.appendChild(catBadgeIcon);
+      stage.appendChild(catBadge);
 
       const preview = document.createElement("span");
       preview.className = "build-card-preview";
@@ -1672,6 +1705,7 @@
     getBiome: getBiome,
     getBuilding: getBuilding,
     getTerrainGroup: getTerrainGroup,
+    getCategory: getCategory,
     canBuildOnBiome: canBuildOnBiome,
     canAffordBuilding: canAffordBuilding,
     setHandlers: setHandlers,

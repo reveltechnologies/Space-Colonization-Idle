@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" stroke-linejoin="round" stroke-linecap="round">
+  <!-- Erlenmeyer flask glass silhouette -->
+  <path d="M38 19 H62 V38 L85 77 Q89 87 77 89 H23 Q11 87 15 77 L38 38 Z" fill="#edf8ff" stroke="#1b1147" stroke-width="6"/>
+  <!-- Electric cyan lab liquid fill -->
+  <path d="M29 55 H71 L83 76 Q86 85 75 86 H25 Q14 85 17 76 Z" fill="#37a8ff"/>
+  <!-- Bright liquid meniscus -->
+  <ellipse cx="50" cy="55" rx="21" ry="4.5" fill="#7ee8ff"/>
+  <!-- Glass specular streak -->
+  <path d="M44 26 V39 L24 74" fill="none" stroke="#ffffff" stroke-width="5"/>
+  <!-- Flanged flask neck rim -->
+  <rect x="33" y="13" width="34" height="9" rx="4.5" fill="#ffffff" stroke="#1b1147" stroke-width="5.5"/>
+  <!-- Outer ink silhouette -->
+  <path d="M38 22 H62 V38 L85 77 Q89 87 77 89 H23 Q11 87 15 77 L38 38 Z" fill="none" stroke="#1b1147" stroke-width="6"/>
+  <!-- Bubbling cyan lab orbs -->
+  <circle cx="43" cy="70" r="6" fill="#a6f4ff" stroke="#1b1147" stroke-width="4"/>
+  <circle cx="59" cy="63" r="4.5" fill="#ffffff" stroke="#1b1147" stroke-width="3.5"/>
+  <circle cx="52" cy="40" r="5" fill="#a6f4ff" stroke="#1b1147" stroke-width="3.5"/>
+</svg>

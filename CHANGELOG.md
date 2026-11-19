@@ -5,6 +5,28 @@ All notable changes to **Space Colonization: Idle** will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.0-alpha.10] - 2026-11-19
+
+### Added
+- **Cartoon Category Icons for Build Menu**:
+  - Designed 5 custom cel-shaded vector SVG icons matching the game's bold `#1b1147` ink, specular glints, and cartoon color palette:
+    - **All** (`cat-all.svg`): 4-color rounded quad mosaic tile.
+    - **Energy** (`cat-power.svg`): Amber lightning bolt with dynamic energy rays.
+    - **Extraction** (`cat-mining.svg`): Beveled steel pickaxe over an ore-speckled boulder.
+    - **Colony** (`cat-colony.svg`): Astronaut bust in red suit with cyan helmet glint.
+    - **Research** (`cat-science.svg`): Bubbling Erlenmeyer lab flask with glowing cyan liquid.
+- **Category Filter Tabs with Category Icons**:
+  - Integrated the category icons directly into the category filter tabs (`.build-cat-btn`) alongside text labels.
+  - Implemented responsive Icon-above-Label stacked layout on mobile portrait screens (`<= 460px`) and compact landscape mode (`<= 739px`) so all 5 category tabs fit cleanly edge-to-edge without overflow or scrollbars.
+- **Card Stage Category Corner Badges**:
+  - Added a circular category badge socket (`.build-card-cat-badge`) at the **top-right corner** of every building card's photo/preview stage.
+  - Emphasized each building's category with category-themed radial background tints, thick borders, and crisp vector category icons.
+
+### Changed
+- **Stage Badge Alignment**:
+  - Relocated existing status badges (`BUILT` gold ribbon pill and `✕` red lock indicator) to the **top-left corner** (`.build-card-badge`) to ensure zero visual overlap with the new top-right category badges.
+  - Isolated terrain-blocked card dimming to the central preview artwork only, ensuring top-left and top-right corner badges remain bright, crisp, and readable on incompatible tiles.
+
 ## [0.1.0-alpha.9] - 2026-11-19
 
 ### Added
