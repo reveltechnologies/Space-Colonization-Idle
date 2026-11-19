@@ -244,6 +244,7 @@
         innerCorners: innerCorners,
         sides: outerCorners.length,
         phase: (vIdx * 1.37) % (Math.PI * 2),
+        biome: "highlands",
         rgb: [148, 163, 184],
         baseElev: 1.0,
         currentElev: 1.0,
@@ -266,18 +267,27 @@
       const n = noise3D(nx, ny, nz, 101);
       const polar = Math.abs(ny);
 
-      if (n > 0.35 || polar > 0.82) {
-        tile.rgb = [203, 213, 225];
+      if (polar > 0.83) {
+        tile.biome = "glacier";
+        tile.rgb = [216, 236, 250];
         tile.baseElev = 1.028;
-        tile.spec = 0.25;
+        tile.spec = 0.34;
+        tile.emissive = 0;
+      } else if (n > 0.22) {
+        tile.biome = "mountains";
+        tile.rgb = [192, 206, 224];
+        tile.baseElev = 1.038;
+        tile.spec = 0.20;
         tile.emissive = 0;
       } else if (n < -0.15) {
+        tile.biome = "crater";
         tile.rgb = [71, 85, 105];
         tile.baseElev = 1.0;
         tile.spec = 0.05;
         tile.emissive = 0;
       } else {
-        tile.rgb = [148, 163, 184];
+        tile.biome = "highlands";
+        tile.rgb = [140, 154, 176];
         tile.baseElev = 1.018;
         tile.spec = 0.08;
         tile.emissive = 0;
@@ -296,27 +306,38 @@
       const n = noise3D(nx, ny, nz, 207);
       const polar = Math.abs(ny);
 
-      if (polar > 0.80) {
-        tile.rgb = [226, 232, 240];
-        tile.baseElev = 1.022;
-        tile.spec = 0.30;
+      if (polar > 0.88) {
+        tile.biome = "glacier";
+        tile.rgb = [226, 238, 248];
+        tile.baseElev = 1.024;
+        tile.spec = 0.32;
         tile.emissive = 0;
-      } else if (n > 0.36) {
-        tile.rgb = [52, 211, 153];
-        tile.baseElev = 1.038;
-        tile.spec = 0.10;
+      } else if (n > 0.34) {
+        tile.biome = "mountains";
+        tile.rgb = [148, 163, 184];
+        tile.baseElev = 1.044;
+        tile.spec = 0.18;
         tile.emissive = 0;
-      } else if (n > 0.05) {
-        tile.rgb = n > 0.20 ? [16, 185, 129] : [5, 150, 105];
-        tile.baseElev = 1.025;
+      } else if (n > 0.16) {
+        tile.biome = "forest";
+        tile.rgb = [16, 152, 104];
+        tile.baseElev = 1.028;
+        tile.spec = 0.09;
+        tile.emissive = 0;
+      } else if (n > 0.04) {
+        tile.biome = "plains";
+        tile.rgb = [64, 212, 134];
+        tile.baseElev = 1.020;
         tile.spec = 0.12;
         tile.emissive = 0;
       } else if (n > -0.12) {
+        tile.biome = "ocean";
         tile.rgb = [14, 165, 233];
         tile.baseElev = 1.0;
         tile.spec = 0.45;
         tile.emissive = 0;
       } else {
+        tile.biome = "ocean";
         tile.rgb = [2, 132, 199];
         tile.baseElev = 1.0;
         tile.spec = 0.55;
@@ -336,17 +357,26 @@
       const n = noise3D(nx, ny, nz, 319);
       const ridge = Math.abs(noise3D(nx * 1.4, ny * 1.4, nz * 1.4, 733));
 
-      if (ridge < 0.16 || n < -0.30) {
+      if (ridge < 0.13 || n < -0.35) {
+        tile.biome = "lava";
         tile.rgb = n < -0.40 ? [251, 191, 36] : [245, 158, 11];
         tile.baseElev = 1.0;
         tile.spec = 0.18;
         tile.emissive = 0.65;
-      } else if (n > 0.15) {
-        tile.rgb = n > 0.35 ? [194, 65, 12] : [154, 52, 18];
-        tile.baseElev = 1.030;
+      } else if (n > 0.28) {
+        tile.biome = "volcano";
+        tile.rgb = [194, 65, 12];
+        tile.baseElev = 1.040;
         tile.spec = 0.10;
-        tile.emissive = 0.05;
+        tile.emissive = 0.08;
+      } else if (n > 0.06) {
+        tile.biome = "canyon";
+        tile.rgb = [154, 52, 18];
+        tile.baseElev = 1.028;
+        tile.spec = 0.10;
+        tile.emissive = 0.04;
       } else {
+        tile.biome = "ashlands";
         tile.rgb = [59, 24, 18];
         tile.baseElev = 1.016;
         tile.spec = 0.15;
@@ -1483,7 +1513,7 @@
         selectionPulse = { planetId: hit.planetId, tileId: hit.hexId, startTime: now };
         if (window.GameBuildings) {
           const placed = buildingsByPlanet[hit.planetId][hit.hexId];
-          window.GameBuildings.openForTile(hit.planetId, hit.hexId, placed ? placed.id : null);
+          window.GameBuildings.openForTile(hit.planetId, hit.hexId, placed ? placed.id : null, tile ? tile.biome : null);
         }
       }
       lastTapTime = 0;
@@ -1513,7 +1543,7 @@
         selectionPulse = { planetId: hit.planetId, tileId: hit.hexId, startTime: now };
         if (window.GameBuildings) {
           const placed = buildingsByPlanet[hit.planetId][hit.hexId];
-          window.GameBuildings.openForTile(hit.planetId, hit.hexId, placed ? placed.id : null);
+          window.GameBuildings.openForTile(hit.planetId, hit.hexId, placed ? placed.id : null, tile ? tile.biome : null);
         }
       }
     } else if (!onPlanet) {

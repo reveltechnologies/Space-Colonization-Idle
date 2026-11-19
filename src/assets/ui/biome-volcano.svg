@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" stroke-linejoin="round" stroke-linecap="round">
+  <ellipse cx="50" cy="89" rx="40" ry="5" fill="#1b1147" opacity="0.28"/>
+  <!-- Billowing charcoal-violet smoke puff -->
+  <path d="M36 30 Q30 16 44 14 Q52 6 65 13 Q78 14 75 26 Q72 34 58 32 Q45 36 36 30 Z" fill="#6d5f8c" stroke="#1b1147" stroke-width="4.5"/>
+  <path d="M40 24 Q42 15 53 13 Q63 13 68 18 Q58 18 46 25 Z" fill="#a396c4"/>
+  <path d="M36 30 Q30 16 44 14 Q52 6 65 13 Q78 14 75 26 Q72 34 58 32 Q45 36 36 30 Z" fill="none" stroke="#1b1147" stroke-width="4.5"/>
+  <!-- Tapered volcanic peak -->
+  <path d="M11 86 L36 38 H64 L89 86 Z" fill="#5d3448" stroke="#1b1147" stroke-width="5"/>
+  <path d="M14 84 L36 40 H46 L31 84 Z" fill="#8a4754"/>
+  <path d="M64 38 L89 86 H66 L56 38 Z" fill="#3d2036"/>
+  <path d="M11 86 L36 38 H64 L89 86 Z" fill="none" stroke="#1b1147" stroke-width="5"/>
+  <!-- Glowing crater rim & dripping lava tongue -->
+  <path d="M36 38 Q50 44 64 38 L61 55 Q56 49 51 68 Q47 52 43 59 L39 48 Z" fill="#ff5a2a" stroke="#1b1147" stroke-width="4.5"/>
+  <path d="M41 39 Q50 43 59 39 L56 50 Q53 47 51 59 Q48 48 45 52 Z" fill="#ffc83a"/>
+  <path d="M36 38 Q50 44 64 38" fill="none" stroke="#fff3b0" stroke-width="3"/>
+</svg>

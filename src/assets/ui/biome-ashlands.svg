@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" stroke-linejoin="round" stroke-linecap="round">
+  <ellipse cx="50" cy="89" rx="40" ry="5" fill="#1b1147" opacity="0.28"/>
+  <!-- Drifting ash cloud puff -->
+  <path d="M35 28 Q32 17 44 17 Q50 11 59 17 Q68 18 65 26 Q55 30 35 28 Z" fill="#b2a7cc" stroke="#1b1147" stroke-width="4"/>
+  <!-- Left obsidian spire -->
+  <path d="M18 79 L31 36 L47 77 Z" fill="#5b4d7a" stroke="#1b1147" stroke-width="5"/>
+  <path d="M18 79 L31 36 L33 78 Z" fill="#988bb8"/>
+  <path d="M18 79 L31 36 L47 77 Z" fill="none" stroke="#1b1147" stroke-width="5"/>
+  <!-- Right taller basalt spire -->
+  <path d="M49 79 L70 25 L84 79 Z" fill="#3d3257" stroke="#1b1147" stroke-width="5"/>
+  <path d="M49 79 L70 25 L66 79 Z" fill="#776899"/>
+  <path d="M49 79 L70 25 L84 79 Z" fill="none" stroke="#1b1147" stroke-width="5"/>
+  <!-- Center jagged shard -->
+  <path d="M36 79 L49 48 L60 79 Z" fill="#4f4269" stroke="#1b1147" stroke-width="4.5"/>
+  <!-- Cracked dark basalt base mound & glowing ember crack -->
+  <path d="M10 81 Q50 68 90 81 Q90 89 50 89 Q10 89 10 81 Z" fill="#4f4269" stroke="#1b1147" stroke-width="5"/>
+  <path d="M34 84 L48 77 L62 83" stroke="#ff8c2a" stroke-width="5" fill="none"/>
+  <path d="M36 84 L48 77.5 L60 83" stroke="#ffe07d" stroke-width="2.2" fill="none"/>
+</svg>

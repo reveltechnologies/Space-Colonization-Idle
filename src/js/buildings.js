@@ -57,10 +57,29 @@
     }
   ];
 
+  const BIOMES = {
+    mountains: { id: "mountains", name: "Mountains", accent: "#94a3b8", badgeBg: "#edf4ff", iconSrc: "./assets/ui/biome-mountains.svg" },
+    glacier:   { id: "glacier",   name: "Glacier",   accent: "#5fd8f8", badgeBg: "#e6faff", iconSrc: "./assets/ui/biome-glacier.svg" },
+    highlands: { id: "highlands", name: "Highlands", accent: "#a78bfa", badgeBg: "#f2eeff", iconSrc: "./assets/ui/biome-highlands.svg" },
+    crater:    { id: "crater",    name: "Crater",    accent: "#7c8ba8", badgeBg: "#eceff8", iconSrc: "./assets/ui/biome-crater.svg" },
+    forest:    { id: "forest",    name: "Forest",    accent: "#22c55e", badgeBg: "#e8fce9", iconSrc: "./assets/ui/biome-forest.svg" },
+    plains:    { id: "plains",    name: "Plains",    accent: "#84e148", badgeBg: "#f2ffe4", iconSrc: "./assets/ui/biome-plains.svg" },
+    ocean:     { id: "ocean",     name: "Ocean",     accent: "#37a8ff", badgeBg: "#e3f5ff", iconSrc: "./assets/ui/biome-ocean.svg" },
+    lava:      { id: "lava",      name: "Lava",      accent: "#ff8c2a", badgeBg: "#fff0dc", iconSrc: "./assets/ui/biome-lava.svg" },
+    volcano:   { id: "volcano",   name: "Volcano",   accent: "#ff5a4d", badgeBg: "#ffe8e6", iconSrc: "./assets/ui/biome-volcano.svg" },
+    canyon:    { id: "canyon",    name: "Canyon",    accent: "#e87d3e", badgeBg: "#ffefe3", iconSrc: "./assets/ui/biome-canyon.svg" },
+    ashlands:  { id: "ashlands",  name: "Ashlands",  accent: "#8d7ab8", badgeBg: "#f0ecf9", iconSrc: "./assets/ui/biome-ashlands.svg" }
+  };
+
+  function getBiome(biomeId) {
+    return (biomeId && BIOMES[biomeId]) || BIOMES.highlands;
+  }
+
   // --- Drawer UI References & State ---
 
   const drawerEl = document.getElementById("build-drawer");
-  const planetBadgeEl = document.getElementById("build-planet-badge");
+  const biomeBadgeEl = document.getElementById("build-biome-badge");
+  const biomeIconEl = document.getElementById("build-biome-icon");
   const titleEl = document.getElementById("build-tile-title");
   const categoriesEl = document.getElementById("build-categories");
   const listEl = document.getElementById("build-list");
@@ -71,6 +90,7 @@
   let currentPlanetId = 0;
   let currentTileId = null;
   let currentPlacedId = null;
+  let currentBiomeId = null;
   let menuOpen = false;
   let callbacks = {
     onPlace: null,
@@ -166,16 +186,23 @@
     }
   }
 
-  function openForTile(planetId, tileId, placedBuildingId) {
+  function openForTile(planetId, tileId, placedBuildingId, biomeId) {
     currentPlanetId = planetId;
     currentTileId = tileId;
     currentPlacedId = placedBuildingId || null;
 
-    if (planetBadgeEl) {
-      planetBadgeEl.textContent = "Planet " + (planetId + 1);
+    const biome = getBiome(biomeId);
+    currentBiomeId = biome.id;
+
+    if (biomeBadgeEl) {
+      biomeBadgeEl.style.setProperty("--biome-accent", biome.accent);
+      biomeBadgeEl.style.setProperty("--biome-bg", biome.badgeBg);
+    }
+    if (biomeIconEl) {
+      biomeIconEl.src = biome.iconSrc;
     }
     if (titleEl) {
-      titleEl.textContent = "Tile #" + tileId;
+      titleEl.textContent = biome.name;
     }
 
     syncRemoveButton();
@@ -187,6 +214,7 @@
 
     menuOpen = true;
     if (drawerEl) {
+      drawerEl.setAttribute("data-biome", biome.id);
       drawerEl.classList.add("is-open");
       drawerEl.setAttribute("aria-hidden", "false");
     }
@@ -208,6 +236,7 @@
     menuOpen = false;
     currentTileId = null;
     currentPlacedId = null;
+    currentBiomeId = null;
     if (drawerEl) {
       drawerEl.classList.remove("is-open");
       drawerEl.setAttribute("aria-hidden", "true");
@@ -1338,6 +1367,8 @@
   window.GameBuildings = {
     CATEGORIES: CATEGORIES,
     BUILDINGS: BUILDINGS,
+    BIOMES: BIOMES,
+    getBiome: getBiome,
     setHandlers: setHandlers,
     openForTile: openForTile,
     updateCurrentBuilding: updateCurrentBuilding,

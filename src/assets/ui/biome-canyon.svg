@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" stroke-linejoin="round" stroke-linecap="round">
+  <ellipse cx="50" cy="89" rx="42" ry="5" fill="#1b1147" opacity="0.24"/>
+  <!-- Sunlit warm gorge backdrop -->
+  <path d="M30 85 L34 28 H66 L70 85 Z" fill="#ffd494" stroke="#1b1147" stroke-width="4"/>
+  <circle cx="50" cy="40" r="8" fill="#fff2ad"/>
+  <!-- Left stepped terracotta cliff -->
+  <path d="M8 86 V22 H36 L43 46 H47 L41 86 Z" fill="#d95b26" stroke="#1b1147" stroke-width="5"/>
+  <path d="M10 24 H35 L38 35 H10 Z" fill="#ff964f"/>
+  <path d="M10 54 H44 L43 66 H10 Z" fill="#a33b17"/>
+  <path d="M8 86 V22 H36 L43 46 H47 L41 86 Z" fill="none" stroke="#1b1147" stroke-width="5"/>
+  <!-- Right stepped sandstone cliff -->
+  <path d="M92 86 V28 H64 L57 54 H53 L59 86 Z" fill="#c74b1e" stroke="#1b1147" stroke-width="5"/>
+  <path d="M64 30 H90 V41 H61 Z" fill="#f58842"/>
+  <path d="M55 60 H90 V71 H57 Z" fill="#8f3012"/>
+  <path d="M92 86 V28 H64 L57 54 H53 L59 86 Z" fill="none" stroke="#1b1147" stroke-width="5"/>
+  <!-- Sunlit canyon floor mound -->
+  <path d="M34 86 Q50 72 66 86 Z" fill="#ffb15a" stroke="#1b1147" stroke-width="4.5"/>
+</svg>

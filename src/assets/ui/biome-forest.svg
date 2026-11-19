@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" stroke-linejoin="round" stroke-linecap="round">
+  <ellipse cx="50" cy="89" rx="38" ry="5" fill="#1b1147" opacity="0.24"/>
+  <!-- Tree trunks -->
+  <rect x="22" y="68" width="9" height="16" rx="2" fill="#c47228" stroke="#1b1147" stroke-width="4"/>
+  <rect x="69" y="68" width="9" height="16" rx="2" fill="#c47228" stroke="#1b1147" stroke-width="4"/>
+  <rect x="44" y="65" width="12" height="20" rx="2" fill="#c47228" stroke="#1b1147" stroke-width="4"/>
+  <!-- Back-left pine -->
+  <path d="M11 72 L26.5 34 L42 72 Z" fill="#1ca35c" stroke="#1b1147" stroke-width="4.5"/>
+  <path d="M11 72 L26.5 34 L27 72 Z" fill="#4ee088"/>
+  <path d="M11 72 L26.5 34 L42 72 Z" fill="none" stroke="#1b1147" stroke-width="4.5"/>
+  <!-- Back-right pine -->
+  <path d="M58 72 L73.5 36 L89 72 Z" fill="#158a4d" stroke="#1b1147" stroke-width="4.5"/>
+  <path d="M58 72 L73.5 36 L74 72 Z" fill="#3bcc74"/>
+  <path d="M58 72 L73.5 36 L89 72 Z" fill="none" stroke="#1b1147" stroke-width="4.5"/>
+  <!-- Center hero two-tier evergreen -->
+  <path d="M26 69 L50 38 L74 69 Z" fill="#22c55e" stroke="#1b1147" stroke-width="5"/>
+  <path d="M26 69 L50 38 L50 69 Z" fill="#7bf062"/>
+  <path d="M50 38 L74 69 L50 69 Z" fill="#148c4c"/>
+  <path d="M26 69 L50 38 L74 69 Z" fill="none" stroke="#1b1147" stroke-width="5"/>
+  <path d="M31 48 L50 13 L69 48 Z" fill="#22c55e" stroke="#1b1147" stroke-width="5"/>
+  <path d="M31 48 L50 13 L50 48 Z" fill="#7bf062"/>
+  <path d="M50 13 L69 48 L50 48 Z" fill="#148c4c"/>
+  <path d="M31 48 L50 13 L69 48 Z" fill="none" stroke="#1b1147" stroke-width="5"/>
+  <!-- Grassy base mound -->
+  <path d="M12 84 Q50 74 88 84 Q88 90 50 90 Q12 90 12 84 Z" fill="#6fd62e" stroke="#1b1147" stroke-width="4.5"/>
+</svg>

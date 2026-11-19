@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" stroke-linejoin="round" stroke-linecap="round">
+  <ellipse cx="50" cy="89" rx="40" ry="5" fill="#1b1147" opacity="0.24"/>
+  <!-- Sun rays + cheerful golden sun -->
+  <path d="M76 6 V10 M94 24 H90 M63 11 L66 14 M89 11 L86 14" stroke="#ffc83a" stroke-width="4" fill="none"/>
+  <circle cx="76" cy="24" r="11" fill="#ffc83a" stroke="#1b1147" stroke-width="4"/>
+  <circle cx="73" cy="21" r="4.5" fill="#fff2ad"/>
+  <!-- Back right hill -->
+  <path d="M34 84 Q66 36 92 64 V84 Q63 87 34 84 Z" fill="#4ec433" stroke="#1b1147" stroke-width="5"/>
+  <path d="M43 72 Q66 43 89 65 Q68 53 43 72 Z" fill="#9df263"/>
+  <path d="M34 84 Q66 36 92 64 V84 Q63 87 34 84 Z" fill="none" stroke="#1b1147" stroke-width="5"/>
+  <!-- Front sweeping left hill -->
+  <path d="M8 84 V60 Q38 36 78 84 Q43 88 8 84 Z" fill="#7ce639" stroke="#1b1147" stroke-width="5"/>
+  <path d="M10 62 Q38 40 70 77 Q38 50 10 69 Z" fill="#b8ff6b"/>
+  <path d="M8 84 V60 Q38 36 78 84 Q43 88 8 84 Z" fill="none" stroke="#1b1147" stroke-width="5"/>
+  <!-- Grass tufts & warm yellow flower -->
+  <path d="M24 77 L21 68 M24 77 L26 67 M24 77 L29 70" stroke="#1b1147" stroke-width="3.5" fill="none"/>
+  <path d="M55 76 L53 69 M55 76 L58 68" stroke="#1b1147" stroke-width="3.5" fill="none"/>
+  <circle cx="40" cy="69" r="4.5" fill="#ffc83a" stroke="#1b1147" stroke-width="3"/>
+</svg>

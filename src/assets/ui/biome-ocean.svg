@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" stroke-linejoin="round" stroke-linecap="round">
+  <ellipse cx="50" cy="89" rx="40" ry="5" fill="#1b1147" opacity="0.24"/>
+  <!-- Back deep blue wave -->
+  <path d="M10 66 Q26 28 52 46 Q74 24 90 56 V84 Q50 90 10 84 Z" fill="#1a7fe0" stroke="#1b1147" stroke-width="5"/>
+  <path d="M56 44 Q72 28 87 52 Q72 38 56 48 Z" fill="#5fd8f8"/>
+  <path d="M10 66 Q26 28 52 46 Q74 24 90 56 V84 Q50 90 10 84 Z" fill="none" stroke="#1b1147" stroke-width="5"/>
+  <!-- Front curling hero wave -->
+  <path d="M8 82 V64 Q24 34 58 42 Q46 53 58 59 Q76 50 92 66 V82 Q50 90 8 82 Z" fill="#37a8ff" stroke="#1b1147" stroke-width="5"/>
+  <path d="M12 63 Q26 39 54 44 Q41 51 30 62 Q19 64 12 63 Z" fill="#7ee6ff"/>
+  <!-- White seafoam curl & scalloped crest -->
+  <path d="M40 41 Q52 38 61 43 Q50 51 58 57 Q44 59 42 50 Q46 46 40 41 Z" fill="#ffffff" stroke="#1b1147" stroke-width="3.5"/>
+  <path d="M58 59 Q69 52 79 59 Q71 64 60 63 Z" fill="#ffffff" stroke="#1b1147" stroke-width="3.5"/>
+  <path d="M8 82 V64 Q24 34 58 42 Q46 53 58 59 Q76 50 92 66 V82 Q50 90 8 82 Z" fill="none" stroke="#1b1147" stroke-width="5"/>
+  <!-- Spray droplets -->
+  <circle cx="52" cy="24" r="4.5" fill="#a6f4ff" stroke="#1b1147" stroke-width="3.5"/>
+  <circle cx="66" cy="30" r="3.5" fill="#ffffff" stroke="#1b1147" stroke-width="3"/>
+  <circle cx="38" cy="28" r="3.5" fill="#a6f4ff" stroke="#1b1147" stroke-width="3"/>
+</svg>

@@ -357,12 +357,14 @@ img {
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: clamp(5px, 0.9vw, 8px);
+  gap: clamp(7px, 1.1vw, 10px);
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .build-title {
+  min-width: 0;
+  padding: 2px 2px 4px 0;
   font-size: clamp(15px, min(2.3vw, 4.8vh), 22px);
   font-weight: 900;
   color: #ffffff;
@@ -373,15 +375,27 @@ img {
   text-shadow: var(--outline);
 }
 
-.build-planet-badge {
+.build-biome-badge {
   flex-shrink: 0;
-  padding: 2px clamp(6px, 0.9vw, 9px) 3px;
-  border-radius: 999px;
-  background: var(--yellow);
-  border: 2.5px solid var(--ink);
-  color: var(--ink);
-  font-size: clamp(9.5px, min(1.25vw, 2.7vh), 11px);
-  line-height: 1.1;
+  width: clamp(34px, min(5.8vw, 9.2vh), 44px);
+  height: clamp(34px, min(5.8vw, 9.2vh), 44px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--biome-bg, #edf4ff);
+  border: 3px solid var(--ink);
+  box-shadow:
+    inset 0 0 0 2.5px var(--biome-accent, var(--yellow)),
+    inset 0 -4px 0 rgba(0, 0, 0, 0.14),
+    0 3px 0 var(--ink);
+}
+
+.build-biome-icon {
+  width: 76%;
+  height: 76%;
+  display: block;
+  object-fit: contain;
 }
 
 .build-header-actions {
@@ -646,8 +660,9 @@ body.build-menu-open .planet-dots {
     font-size: clamp(16px, 4.5vw, 20px);
   }
 
-  .build-planet-badge {
-    font-size: 10.5px;
+  .build-biome-badge {
+    width: 38px;
+    height: 38px;
   }
 
   .build-remove-btn,

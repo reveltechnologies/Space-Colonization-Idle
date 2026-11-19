@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" stroke-linejoin="round" stroke-linecap="round">
+  <ellipse cx="50" cy="89" rx="40" ry="5" fill="#1b1147" opacity="0.24"/>
+  <!-- Back tall flat-topped mesa -->
+  <path d="M36 80 L44 26 H76 L86 80 Z" fill="#9aa8c7" stroke="#1b1147" stroke-width="5"/>
+  <path d="M64 26 H76 L86 80 H72 Z" fill="#6f7ea0"/>
+  <path d="M44 26 H76 L78 34 H43 Z" fill="#dde6f7"/>
+  <path d="M36 80 L44 26 H76 L86 80 Z" fill="none" stroke="#1b1147" stroke-width="5"/>
+  <!-- Front lower stepped plateau -->
+  <path d="M10 85 L19 48 H56 L66 85 Z" fill="#b5c2de" stroke="#1b1147" stroke-width="5"/>
+  <path d="M19 48 H56 L58 55 H17 Z" fill="#eef3fc"/>
+  <path d="M46 48 H56 L66 85 H53 Z" fill="#8897b8"/>
+  <path d="M21 68 H44" stroke="#7d8cad" stroke-width="3.5" fill="none"/>
+  <path d="M10 85 L19 48 H56 L66 85 Z" fill="none" stroke="#1b1147" stroke-width="5"/>
+  <!-- Chunky foreground boulder -->
+  <path d="M65 85 Q65 67 78 67 Q91 67 91 85 Z" fill="#8393b5" stroke="#1b1147" stroke-width="4.5"/>
+  <path d="M70 76 Q74 70 81 71" stroke="#c4d1eb" stroke-width="4" fill="none"/>
+</svg>

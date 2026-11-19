@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" stroke-linejoin="round" stroke-linecap="round">
+  <ellipse cx="50" cy="88" rx="38" ry="5" fill="#1b1147" opacity="0.24"/>
+  <!-- Back-right mountain peak -->
+  <path d="M42 84 L68 30 L92 84 Z" fill="#7e8fb2" stroke="#1b1147" stroke-width="5"/>
+  <path d="M68 30 L56 54 L66 84 L42 84 Z" fill="#9fb1d4"/>
+  <path d="M68 30 L57 52 Q64 47 68 53 Q73 47 79 52 Z" fill="#ffffff" stroke="#1b1147" stroke-width="4"/>
+  <path d="M42 84 L68 30 L92 84 Z" fill="none" stroke="#1b1147" stroke-width="5"/>
+  <!-- Main front-left mountain peak -->
+  <path d="M8 85 L44 18 L78 85 Z" fill="#96a8c8" stroke="#1b1147" stroke-width="5"/>
+  <path d="M44 18 L78 85 L52 85 Z" fill="#6d7ea3"/>
+  <path d="M44 18 L28 48 Q36 42 44 50 Q52 43 60 48 Z" fill="#ffffff"/>
+  <path d="M44 50 Q52 43 60 48 L56 40 Q49 41 44 45 Z" fill="#d8eeff"/>
+  <path d="M28 48 Q36 42 44 50 Q52 43 60 48" fill="none" stroke="#1b1147" stroke-width="4"/>
+  <path d="M8 85 L44 18 L78 85 Z" fill="none" stroke="#1b1147" stroke-width="5"/>
+</svg>
