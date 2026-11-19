@@ -511,6 +511,7 @@
   let width = window.innerWidth;
   let height = window.innerHeight;
   let scrollPos = 0;
+  let lastRenderScrollPos = 0;
   let targetIndex = 0;
   let activeDotIndex = 0;
 
@@ -1478,8 +1479,6 @@
     const dtSec = dtMs / 1000;
     lastFrameTime = time;
 
-    const prevScroll = scrollPos;
-
     let targetShiftX = 0;
     let targetShiftY = 0;
     let targetScale = 1;
@@ -1536,7 +1535,8 @@
       }
     }
 
-    const dScroll = scrollPos - prevScroll;
+    const dScroll = scrollPos - lastRenderScrollPos;
+    lastRenderScrollPos = scrollPos;
     const zoomLerp = 1 - Math.exp(-10 * dtSec);
     const lookLerp = 1 - Math.exp(-9 * dtSec);
     const inertiaDecay = Math.exp(-5.5 * dtSec);
@@ -1751,10 +1751,6 @@
         const instPitchVel = clamp(dPitch / dtSec, -4.5, 4.5);
         activePlanet.spinVelY = activePlanet.spinVelY * 0.5 + instSpinVel * 0.5;
         activePlanet.pitchVelX = activePlanet.pitchVelX * 0.5 + instPitchVel * 0.5;
-
-        if (window.SpaceBackground && typeof window.SpaceBackground.addParallax === "function") {
-          window.SpaceBackground.addParallax(dx * 0.14);
-        }
       }
     } else if (gestureMode === "scroll") {
       pointerVelocity = pointerVelocity * 0.55 + (dx / dtMs) * 0.45;

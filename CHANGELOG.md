@@ -47,7 +47,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Full keyboard input isolation so typing planet names does not trigger camera/hotkey shortcuts.
     - Persisted player custom names in `localStorage` under `sci_planet_names_v1` across page reloads.
 
+### Changed
+- **Isolated Planet Orbit Drag**:
+  - Prevented the background starfield from shifting or panning when a player rotates or inspects a planet in 3D (`gestureMode === "orbit"`).
+  - Background parallax remains cleanly linked only to full planet carousel navigation swipe transitions (`dScroll`).
+
 ### Fixed
+- **Real-Time Background Parallax During Planet Swapping**:
+  - Fixed an issue where the background starfield remained frozen while dragging between planets and jumped abruptly only after releasing the drag.
+  - Replaced the render-local scroll snapshot with persistent cross-frame tracking (`lastRenderScrollPos`), delivering continuous, fluid real-time parallax to `window.SpaceBackground` both during active pointer dragging and throughout inertial snap deceleration.
 - **Subpixel Antialiasing Artifact on Numeric Zero**:
   - Eliminated the small dark pixel rendering quirk on the initial `0/0` energy text in Chromium:
     - Replaced multi-directional fractional `text-shadow` offsets (`±1.5px`) on `.planet-stat-value` with crisp 1px integer outlines that respect hollow glyph apertures.
@@ -255,6 +263,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Removed the Reset View button (`#btn-reset-view`) and `resetActiveView()` from `src/index.html`, `src/css/style.css`, and `src/js/planets.js`.
 
+### Changed
+- **Isolated Planet Orbit Drag**:
+  - Prevented the background starfield from shifting or panning when a player rotates or inspects a planet in 3D (`gestureMode === "orbit"`).
+  - Background parallax remains cleanly linked only to full planet carousel navigation swipe transitions (`dScroll`).
+
 ### Fixed
 - Fixed 3D planet hexagons (especially elevated/selected hexagons) disappearing prematurely near the planet's edge in `src/js/planets.js` by testing true polygon-plane orientation and projected area (`planeCenter`, `signedArea2D`), preserving extruded 3D side walls with selected white-light top-rim edges across the horizon, aligning inner white borders coplanar with tile faces, and sorting tiles by un-elevated `rotCenter.z`.
 
@@ -264,6 +277,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Three distinct 3D rotating geodesic hexagonal planets (Goldberg polyhedra) in `src/js/planets.js` (small cryo-lunar rocky planet, medium oceanic/emerald planet, and large volcanic/amber-mineral planet) with 3D tile relief, directional/specular lighting, atmospheric halos, and white-light highlighted buildable hexagons.
 - Horizontal planet carousel navigation with grow-to-middle scaling, strict single-planet visibility, background star parallax, and 3 transparent bottom indicator dots.
 - 3D planet inspection and selection QoL upgrades: free 360° orbit rotation with inertia, pinch/wheel/double-tap zoom (`1.0x`–`2.2x`), smart auto-spin pause during interaction, shortest-arc auto-focus on tile tap with selection pulse ring and forgiving hit-testing, translucent left/right planet arrows, and bottom-right zoom/reset controls.
+
+### Changed
+- **Isolated Planet Orbit Drag**:
+  - Prevented the background starfield from shifting or panning when a player rotates or inspects a planet in 3D (`gestureMode === "orbit"`).
+  - Background parallax remains cleanly linked only to full planet carousel navigation swipe transitions (`dScroll`).
 
 ### Fixed
 - Fixed `.github/workflows/sync-documentation.yml` so it skips cleanly when `documentation_sync.enabled` is `false` in `config.yaml` and exits gracefully when no other remote branches exist.
