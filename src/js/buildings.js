@@ -14,12 +14,37 @@
     { id: "science", label: "Science" }
   ];
 
+  const TERRAIN_GROUPS = {
+    solid: {
+      id: "solid",
+      label: "Any Solid",
+      iconSrc: "./assets/ui/terrain-solid.svg"
+    },
+    surface: {
+      id: "surface",
+      label: "Surface",
+      iconSrc: "./assets/ui/terrain-surface.svg"
+    },
+    mountainous: {
+      id: "mountainous",
+      label: "Mountainous",
+      iconSrc: "./assets/ui/terrain-mountainous.svg"
+    }
+  };
+
+  const CURRENCY_ICONS = {
+    credits: "./assets/ui/icon-credits.svg",
+    ore: "./assets/ui/icon-ore.svg"
+  };
+
   const BUILDINGS = [
     {
       id: "mine",
       name: "Mine",
       category: "mining",
       tag: "Mining",
+      terrain: "mountainous",
+      cost: { credits: 100 },
       accent: "#ffb13b",
       iconSrc: "./assets/ui/bld-mine.svg"
     },
@@ -28,6 +53,8 @@
       name: "Research Lab",
       category: "science",
       tag: "Science",
+      terrain: "solid",
+      cost: { credits: 250, ore: 50 },
       accent: "#37a8ff",
       iconSrc: "./assets/ui/bld-research-lab.svg"
     },
@@ -36,6 +63,8 @@
       name: "House",
       category: "colony",
       tag: "Colony",
+      terrain: "surface",
+      cost: { credits: 75, ore: 10 },
       accent: "#ff6b5a",
       iconSrc: "./assets/ui/bld-house.svg"
     },
@@ -44,6 +73,8 @@
       name: "Windmill",
       category: "power",
       tag: "Power",
+      terrain: "surface",
+      cost: { credits: 120, ore: 25 },
       accent: "#3fd6c4",
       iconSrc: "./assets/ui/bld-windmill.svg"
     },
@@ -52,27 +83,65 @@
       name: "Solar Panel",
       category: "power",
       tag: "Power",
+      terrain: "solid",
+      cost: { credits: 50 },
       accent: "#ffc83a",
       iconSrc: "./assets/ui/bld-solar-panel.svg"
     }
   ];
 
   const BIOMES = {
-    mountains: { id: "mountains", name: "Mountains", accent: "#94a3b8", badgeBg: "#edf4ff", iconSrc: "./assets/ui/biome-mountains.svg" },
-    glacier:   { id: "glacier",   name: "Glacier",   accent: "#5fd8f8", badgeBg: "#e6faff", iconSrc: "./assets/ui/biome-glacier.svg" },
-    highlands: { id: "highlands", name: "Highlands", accent: "#a78bfa", badgeBg: "#f2eeff", iconSrc: "./assets/ui/biome-highlands.svg" },
-    crater:    { id: "crater",    name: "Crater",    accent: "#7c8ba8", badgeBg: "#eceff8", iconSrc: "./assets/ui/biome-crater.svg" },
-    forest:    { id: "forest",    name: "Forest",    accent: "#22c55e", badgeBg: "#e8fce9", iconSrc: "./assets/ui/biome-forest.svg" },
-    plains:    { id: "plains",    name: "Plains",    accent: "#84e148", badgeBg: "#f2ffe4", iconSrc: "./assets/ui/biome-plains.svg" },
-    ocean:     { id: "ocean",     name: "Ocean",     accent: "#37a8ff", badgeBg: "#e3f5ff", iconSrc: "./assets/ui/biome-ocean.svg" },
-    lava:      { id: "lava",      name: "Lava",      accent: "#ff8c2a", badgeBg: "#fff0dc", iconSrc: "./assets/ui/biome-lava.svg" },
-    volcano:   { id: "volcano",   name: "Volcano",   accent: "#ff5a4d", badgeBg: "#ffe8e6", iconSrc: "./assets/ui/biome-volcano.svg" },
-    canyon:    { id: "canyon",    name: "Canyon",    accent: "#e87d3e", badgeBg: "#ffefe3", iconSrc: "./assets/ui/biome-canyon.svg" },
-    ashlands:  { id: "ashlands",  name: "Ashlands",  accent: "#8d7ab8", badgeBg: "#f0ecf9", iconSrc: "./assets/ui/biome-ashlands.svg" }
+    mountains: { id: "mountains", name: "Mountains", terrains: ["solid", "mountainous"], accent: "#94a3b8", badgeBg: "#edf4ff", iconSrc: "./assets/ui/biome-mountains.svg" },
+    glacier:   { id: "glacier",   name: "Glacier",   terrains: ["solid"],                accent: "#5fd8f8", badgeBg: "#e6faff", iconSrc: "./assets/ui/biome-glacier.svg" },
+    highlands: { id: "highlands", name: "Highlands", terrains: ["solid", "surface"],     accent: "#a78bfa", badgeBg: "#f2eeff", iconSrc: "./assets/ui/biome-highlands.svg" },
+    crater:    { id: "crater",    name: "Crater",    terrains: ["solid", "mountainous"], accent: "#7c8ba8", badgeBg: "#eceff8", iconSrc: "./assets/ui/biome-crater.svg" },
+    forest:    { id: "forest",    name: "Forest",    terrains: ["solid", "surface"],     accent: "#22c55e", badgeBg: "#e8fce9", iconSrc: "./assets/ui/biome-forest.svg" },
+    plains:    { id: "plains",    name: "Plains",    terrains: ["solid", "surface"],     accent: "#84e148", badgeBg: "#f2ffe4", iconSrc: "./assets/ui/biome-plains.svg" },
+    ocean:     { id: "ocean",     name: "Ocean",     terrains: [],                       accent: "#37a8ff", badgeBg: "#e3f5ff", iconSrc: "./assets/ui/biome-ocean.svg" },
+    lava:      { id: "lava",      name: "Lava",      terrains: [],                       accent: "#ff8c2a", badgeBg: "#fff0dc", iconSrc: "./assets/ui/biome-lava.svg" },
+    volcano:   { id: "volcano",   name: "Volcano",   terrains: ["solid", "mountainous"], accent: "#ff5a4d", badgeBg: "#ffe8e6", iconSrc: "./assets/ui/biome-volcano.svg" },
+    canyon:    { id: "canyon",    name: "Canyon",    terrains: ["solid", "mountainous"], accent: "#e87d3e", badgeBg: "#ffefe3", iconSrc: "./assets/ui/biome-canyon.svg" },
+    ashlands:  { id: "ashlands",  name: "Ashlands",  terrains: ["solid", "surface"],     accent: "#8d7ab8", badgeBg: "#f0ecf9", iconSrc: "./assets/ui/biome-ashlands.svg" }
   };
 
   function getBiome(biomeId) {
     return (biomeId && BIOMES[biomeId]) || BIOMES.highlands;
+  }
+
+  function getBuilding(buildingId) {
+    for (let i = 0; i < BUILDINGS.length; i++) {
+      if (BUILDINGS[i].id === buildingId) {
+        return BUILDINGS[i];
+      }
+    }
+    return null;
+  }
+
+  function getTerrainGroup(terrainId) {
+    return TERRAIN_GROUPS[terrainId] || TERRAIN_GROUPS.solid;
+  }
+
+  function canBuildOnBiome(buildingId, biomeId) {
+    const b = getBuilding(buildingId);
+    if (!b) return false;
+    const biome = getBiome(biomeId);
+    return Boolean(biome && biome.terrains && biome.terrains.indexOf(b.terrain) !== -1);
+  }
+
+  function canAffordBuilding(buildingId) {
+    const b = getBuilding(buildingId);
+    if (!b || !b.cost) return true;
+    if (!window.GameCurrencies || typeof window.GameCurrencies.canAfford !== "function") {
+      return true;
+    }
+    return window.GameCurrencies.canAfford(b.cost);
+  }
+
+  function formatCostValue(amount) {
+    if (window.GameCurrencies && typeof window.GameCurrencies.formatNumber === "function") {
+      return window.GameCurrencies.formatNumber(amount);
+    }
+    return String(amount);
   }
 
   // --- Drawer UI References & State ---
@@ -131,11 +200,22 @@
       }
 
       const isBuilt = currentPlacedId === b.id;
+      const terrain = getTerrainGroup(b.terrain);
+      const terrainOk = canBuildOnBiome(b.id, currentBiomeId);
+      const affordable = canAffordBuilding(b.id);
+      const canPurchase = !isBuilt && terrainOk && affordable;
+
       const card = document.createElement("button");
       card.type = "button";
-      card.className = "build-card" + (isBuilt ? " is-built" : "");
+      card.className =
+        "build-card" +
+        (isBuilt ? " is-built" : "") +
+        (!isBuilt && !terrainOk ? " is-terrain-blocked" : "") +
+        (!isBuilt && terrainOk && !affordable ? " is-unaffordable" : "");
       card.setAttribute("data-building", b.id);
       card.setAttribute("data-category", b.category);
+      card.setAttribute("data-terrain", b.terrain);
+      card.setAttribute("aria-disabled", canPurchase || isBuilt ? "false" : "true");
       card.style.setProperty("--cat-accent", b.accent);
 
       const preview = document.createElement("span");
@@ -154,23 +234,56 @@
       nameEl.className = "build-card-name";
       nameEl.textContent = b.name;
 
-      const tagEl = document.createElement("span");
-      tagEl.className = "build-card-tag";
-      tagEl.textContent = b.tag;
-      tagEl.style.background = b.accent;
+      const terrainChip = document.createElement("span");
+      terrainChip.className = "build-terrain-chip " + (terrainOk ? "is-valid" : "is-invalid");
+      const tIcon = document.createElement("img");
+      tIcon.className = "build-terrain-icon";
+      tIcon.src = terrain.iconSrc;
+      tIcon.alt = "";
+      tIcon.draggable = false;
+      const tLabel = document.createElement("span");
+      tLabel.className = "build-terrain-label";
+      tLabel.textContent = terrain.label;
+      terrainChip.appendChild(tIcon);
+      terrainChip.appendChild(tLabel);
 
       info.appendChild(nameEl);
-      info.appendChild(tagEl);
+      info.appendChild(terrainChip);
 
       const actionBtn = document.createElement("span");
       actionBtn.className = "build-card-action";
-      actionBtn.textContent = isBuilt ? "BUILT" : "BUILD";
+
+      if (isBuilt) {
+        actionBtn.textContent = "BUILT";
+      } else {
+        const costOrder = ["credits", "ore"];
+        for (let c = 0; c < costOrder.length; c++) {
+          const key = costOrder[c];
+          const req = b.cost && b.cost[key];
+          if (!req || req <= 0) continue;
+          const hasEnough = !window.GameCurrencies || window.GameCurrencies.get(key) >= req;
+          const item = document.createElement("span");
+          item.className = "build-cost-item" + (hasEnough ? "" : " is-short");
+          const cIcon = document.createElement("img");
+          cIcon.className = "build-cost-icon";
+          cIcon.src = CURRENCY_ICONS[key];
+          cIcon.alt = "";
+          cIcon.draggable = false;
+          const cVal = document.createElement("span");
+          cVal.className = "build-cost-val";
+          cVal.textContent = formatCostValue(req);
+          item.appendChild(cIcon);
+          item.appendChild(cVal);
+          actionBtn.appendChild(item);
+        }
+      }
 
       card.appendChild(preview);
       card.appendChild(info);
       card.appendChild(actionBtn);
 
       card.addEventListener("click", function () {
+        if (!canPurchase) return;
         if (typeof callbacks.onPlace === "function") {
           callbacks.onPlace(b.id);
         }
@@ -279,6 +392,14 @@
     removeBtn.addEventListener("click", function () {
       if (typeof callbacks.onRemove === "function") {
         callbacks.onRemove();
+      }
+    });
+  }
+
+  if (window.GameCurrencies && typeof window.GameCurrencies.onChange === "function") {
+    window.GameCurrencies.onChange(function () {
+      if (menuOpen) {
+        renderBuildingCards();
       }
     });
   }
@@ -1366,9 +1487,14 @@
 
   window.GameBuildings = {
     CATEGORIES: CATEGORIES,
+    TERRAIN_GROUPS: TERRAIN_GROUPS,
     BUILDINGS: BUILDINGS,
     BIOMES: BIOMES,
     getBiome: getBiome,
+    getBuilding: getBuilding,
+    getTerrainGroup: getTerrainGroup,
+    canBuildOnBiome: canBuildOnBiome,
+    canAffordBuilding: canAffordBuilding,
     setHandlers: setHandlers,
     openForTile: openForTile,
     updateCurrentBuilding: updateCurrentBuilding,

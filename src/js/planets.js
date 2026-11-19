@@ -1715,6 +1715,15 @@
           const existing = buildingsByPlanet[targetIndex][tileId];
           if (existing && existing.id === buildingId) return;
 
+          const planet = planets[targetIndex];
+          const tile = planet && planet.tileById[tileId];
+          const bld = window.GameBuildings.getBuilding(buildingId);
+          if (!bld || !tile) return;
+          if (!window.GameBuildings.canBuildOnBiome(buildingId, tile.biome)) return;
+          if (bld.cost && window.GameCurrencies && !window.GameCurrencies.spend(bld.cost)) {
+            return;
+          }
+
           const now = performance.now();
           buildingsByPlanet[targetIndex][tileId] = {
             id: buildingId,

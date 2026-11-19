@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" stroke-linejoin="round" stroke-linecap="round">
+  <!-- Back-right warm volcanic/canyon peak -->
+  <path d="M44 85 L71 25 L93 85 Z" fill="#d96b38"/>
+  <path d="M71 25 L59 54 L70 85 L44 85 Z" fill="#ffa863"/>
+  <path d="M44 85 L71 25 L93 85 Z" fill="none" stroke="#1b1147" stroke-width="6.5"/>
+  <!-- Front-left bold slate alpine peak -->
+  <path d="M7 86 L41 16 L75 86 Z" fill="#94a8c9"/>
+  <path d="M41 16 L75 86 L48 86 Z" fill="#637596"/>
+  <!-- Bright snow/mineral cap -->
+  <path d="M41 16 L26 47 Q34 42 41 49 Q49 43 56 47 Z" fill="#ffffff"/>
+  <path d="M26 47 Q34 42 41 49 Q49 43 56 47" fill="none" stroke="#1b1147" stroke-width="4.5"/>
+  <path d="M7 86 L41 16 L75 86 Z" fill="none" stroke="#1b1147" stroke-width="6.5"/>
+</svg>

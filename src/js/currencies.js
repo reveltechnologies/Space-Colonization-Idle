@@ -9,9 +9,24 @@
   const SUFFIXES = ["", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No", "Dc"];
 
   const state = {
-    credits: { amount: 0, rate: 0 },
-    ore: { amount: 0, rate: 0 }
+    credits: { amount: 500, rate: 0 },
+    ore: { amount: 100, rate: 0 }
   };
+
+  const listeners = [];
+
+  function notifyChange() {
+    const snap = getAll();
+    for (let i = 0; i < listeners.length; i++) {
+      listeners[i](snap);
+    }
+  }
+
+  function onChange(fn) {
+    if (typeof fn === "function") {
+      listeners.push(fn);
+    }
+  }
 
   const dom = {
     credits: {
@@ -77,12 +92,14 @@
   function renderCurrency(key) {
     const entry = state[key];
     const ui = dom[key];
-    if (!entry || !ui) return;
+    if (!entry || !ui) return false;
 
+    let changed = false;
     const valText = formatNumber(entry.amount);
     if (ui.valEl && valText !== ui.lastVal) {
       ui.lastVal = valText;
       ui.valEl.textContent = valText;
+      changed = true;
     }
 
     const rateText = formatRate(entry.rate);
@@ -90,6 +107,8 @@
       ui.lastRate = rateText;
       ui.rateEl.textContent = rateText;
     }
+
+    return changed;
   }
 
   function bumpValueElement(key) {
@@ -120,13 +139,17 @@
     lastTickTime = now;
 
     if (dtSec > 0) {
+      let changed = false;
       if (state.credits.rate > 0) {
         state.credits.amount += state.credits.rate * dtSec;
-        renderCurrency("credits");
+        if (renderCurrency("credits")) changed = true;
       }
       if (state.ore.rate > 0) {
         state.ore.amount += state.ore.rate * dtSec;
-        renderCurrency("ore");
+        if (renderCurrency("ore")) changed = true;
+      }
+      if (changed) {
+        notifyChange();
       }
     }
 
@@ -155,6 +178,7 @@
     if (!state[key]) return;
     state[key].amount = Math.max(0, Number(amount) || 0);
     renderCurrency(key);
+    notifyChange();
   }
 
   function add(key, delta) {
@@ -165,6 +189,7 @@
     state[key].amount = Math.max(0, state[key].amount + val);
     renderCurrency(key);
     bumpValueElement(key);
+    notifyChange();
     return state[key].amount;
   }
 
@@ -195,6 +220,7 @@
         }
       }
     }
+    notifyChange();
     return true;
   }
 
@@ -219,7 +245,8 @@
     add: add,
     spend: spend,
     canAfford: canAfford,
-    setRate: setRate
+    setRate: setRate,
+    onChange: onChange
   };
 
   if (document.readyState === "loading") {

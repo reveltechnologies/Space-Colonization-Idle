@@ -5,6 +5,48 @@ All notable changes to **Space Colonization: Idle** will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.0-alpha.8] - 2026-11-19
+
+### Added
+- **11 Tile Biomes with Cel-Shaded Biome Icons**:
+  - Deterministic procedural biome assignment across all 3 planets:
+    - Planet 1 (Rocky Core): *Mountains*, *Glacier*, *Highlands*, *Crater*.
+    - Planet 2 (Terraformed / Oceanic): *Mountains*, *Glacier*, *Forest*, *Plains*, *Ocean*.
+    - Planet 3 (Volcanic): *Volcano*, *Canyon*, *Lava*, *Ashlands*.
+  - 11 custom hand-crafted cartoon SVG biome icons in `src/assets/ui/` (`biome-mountains.svg`, `biome-glacier.svg`, `biome-highlands.svg`, `biome-crater.svg`, `biome-forest.svg`, `biome-plains.svg`, `biome-ocean.svg`, `biome-lava.svg`, `biome-volcano.svg`, `biome-canyon.svg`, `biome-ashlands.svg`).
+  - Building Menu header badge socket (`.build-biome-badge` + `.build-biome-icon`) replacing raw `Tile #N` text with the active tile's biome icon and capitalized biome name (e.g., `Crater`, `Mountains`, `Forest`).
+- **Cross-Planet Terrain Placement Rules & Icons**:
+  - Three universal terrain compatibility groups with dedicated cel-shaded cartoon SVG icons:
+    - *Any Solid* (`terrain-solid.svg`): Allows construction across solid ground types.
+    - *Surface* (`terrain-surface.svg`): Restricts construction to walkable open ground and plateaus.
+    - *Mountainous* (`terrain-mountainous.svg`): Requires rugged, elevated rock formations, craters, or ridges.
+  - Per-building terrain requirements:
+    - Mine: *Mountainous* only (Crater, Mountains, Volcano).
+    - House & Windmill: *Surface* only (Highlands, Forest, Plains, Ashlands).
+    - Research Lab & Solar Panel: *Any Solid* (all solid biomes).
+    - Uninhabitable biomes (*Ocean*, *Lava*) disallow all construction.
+  - Interactive terrain requirement chips (`.build-terrain-chip`) on each building card showing real-time placement validity (`#e2f9d4` badge when valid; `#ffd7d2` with warning indicator and card lock when invalid).
+- **Building Resource Costs & Currency Integration**:
+  - Attached construction resource costs:
+    - Mine: `100 SC`
+    - Research Lab: `250 SC`, `50 Ore`
+    - House: `75 SC`, `10 Ore`
+    - Windmill: `120 SC`, `25 Ore`
+    - Solar Panel: `50 SC`
+  - Seed balances configured for early-game colony testing (`500 SC`, `100 Ore`).
+  - Added live `onChange` subscription listener pattern to `currencies.js` updating building card affordability states in real time.
+  - Stacked currency cost rows inside card action buttons with red highlight indicators (`.is-short`) and disabled states (`is-unaffordable`) when player funds are insufficient.
+  - Automatic balance deduction on confirmed tile placement.
+
+### Changed
+- **Demolition Hammer Strike Precision & Geometry Alignment**:
+  - Dynamic 3D contact target calculation (`targetZ`) mapped to exact individual building model geometry (`Mine` 0.60, `Windmill` 0.75, `Research Lab` 0.38, `House` 0.36, `Solar Panel` 0.32).
+  - Hammer pivot anchor positioned along the tile surface normal offset by the tool reach length (`handleLen + headThick / 2`), eliminating radial and sideways overshoot at impact moment (`p = 0.32`, `swingAngle = 0.0°`).
+  - Flush alignment of the 8-spike starburst impact flash directly at the building contact point with an authentic elastic recoil rebound bounce (`-18°`).
+- **Building Drawer Layout Adaptability**:
+  - Upgraded card action button container to support multi-currency cost chips cleanly alongside the build CTA.
+  - Preserved fluid scaling and zero-clipping layout across mobile portrait, compact landscape, and desktop viewports.
+
 ## [0.1.0-alpha.7] - 2026-11-19
 
 ### Added

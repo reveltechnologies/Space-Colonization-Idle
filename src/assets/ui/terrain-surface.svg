@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" stroke-linejoin="round" stroke-linecap="round">
+  <!-- Open breeze/horizon accent lines -->
+  <path d="M22 26 H54 M64 26 H78" stroke="#37a8ff" stroke-width="6" fill="none"/>
+  <!-- Solid warm earthen/stone base slab underneath -->
+  <path d="M10 62 Q50 54 90 62 L85 84 Q50 91 15 84 Z" fill="#d98943"/>
+  <path d="M13 74 Q50 82 87 74 L85 84 Q50 91 15 84 Z" fill="#a65b22"/>
+  <path d="M10 62 Q50 54 90 62 L85 84 Q50 91 15 84 Z" fill="none" stroke="#1b1147" stroke-width="6.5"/>
+  <!-- Vibrant top surface crust layer -->
+  <path d="M10 47 Q50 38 90 47 L90 64 Q50 56 10 64 Z" fill="#5ce075"/>
+  <path d="M10 47 Q50 38 90 47 L90 54 Q50 46 10 54 Z" fill="#b6ff88"/>
+  <path d="M10 47 Q50 38 90 47 L90 64 Q50 56 10 64 Z" fill="none" stroke="#1b1147" stroke-width="6.5"/>
+</svg>
