@@ -2868,6 +2868,13 @@ body.build-menu-open .planet-dots {
   box-shadow: var(--chunk-shadow-down);
 }
 
+.tile-action-btn--research.is-below::after {
+  bottom: auto;
+  top: -9px;
+  border-top: none;
+  border-bottom: 9px solid var(--ink);
+}
+
 .tile-action-btn.is-hidden,
 body.research-modal-open .tile-action-btn,
 body.rocket-cargo-open .tile-action-btn,
@@ -2880,10 +2887,11 @@ body.rocket-cargo-open .tile-action-group {
   position: fixed;
   left: 0;
   top: 0;
+  width: 0;
+  height: 0;
   z-index: 4;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
+  display: block;
+  pointer-events: none;
   will-change: transform;
 }
 
@@ -2891,28 +2899,84 @@ body.rocket-cargo-open .tile-action-group {
   display: none;
 }
 
-.tile-action-group .tile-action-btn {
-  position: relative;
-  left: auto;
-  top: auto;
+.tile-action-group::after {
+  display: none;
 }
 
 .tile-action-group .tile-action-btn::after {
   display: none;
 }
 
-.tile-action-group::after {
-  content: "";
+.tile-action-group .tile-action-btn:first-child {
   position: absolute;
-  left: 50%;
-  bottom: -9px;
+  left: auto;
+  right: var(--half-clear, 54px);
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: auto;
+}
+
+.tile-action-group .tile-action-btn:last-child {
+  position: absolute;
+  left: var(--half-clear, 54px);
+  right: auto;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: auto;
+}
+
+.tile-action-group .tile-action-btn:first-child:active,
+.tile-action-group .tile-action-btn:last-child:active {
+  margin-top: 2px;
+  transform: translateY(-50%);
+}
+
+.tile-action-group.is-single .tile-action-btn:first-child,
+.tile-action-group.is-single .tile-action-btn:last-child {
+  position: absolute;
+  left: 0;
+  right: auto;
+  top: auto;
+  bottom: var(--top-clear, 54px);
   transform: translateX(-50%);
-  width: 0;
-  height: 0;
-  border-left: 8px solid transparent;
-  border-right: 8px solid transparent;
-  border-top: 9px solid var(--ink);
-  pointer-events: none;
+  pointer-events: auto;
+}
+
+.tile-action-group.is-single.is-below .tile-action-btn:first-child,
+.tile-action-group.is-single.is-below .tile-action-btn:last-child {
+  bottom: auto;
+  top: var(--bot-clear, 54px);
+}
+
+.tile-action-group.is-single .tile-action-btn:first-child:active,
+.tile-action-group.is-single .tile-action-btn:last-child:active {
+  margin-top: 2px;
+  transform: translateX(-50%);
+}
+
+.tile-action-group.is-arched {
+  width: auto;
+  height: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tile-action-group.is-arched .tile-action-btn:first-child,
+.tile-action-group.is-arched .tile-action-btn:last-child {
+  position: relative;
+  left: auto;
+  right: auto;
+  top: auto;
+  bottom: auto;
+  transform: none;
+  pointer-events: auto;
+}
+
+.tile-action-group.is-arched .tile-action-btn:first-child:active,
+.tile-action-group.is-arched .tile-action-btn:last-child:active {
+  margin-top: 2px;
+  transform: none;
 }
 
 .tile-action-btn--cargo {

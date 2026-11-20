@@ -593,11 +593,23 @@
   const citizensHudState = { planet: -1, max: -1, curr: -1, bumpTimer: 0 };
   const energyHudState = { planet: -1, max: -1, curr: -1, bumpTimer: 0 };
   const bricksHudState = { planet: -1, amount: -1, rateText: "", bumpTimer: 0 };
-  const researchButtonAnchor = { visible: false, x: 0, y: 0, planetId: -1 };
+  const researchButtonAnchor = {
+    visible: false,
+    x: 0,
+    y: 0,
+    isBelow: false,
+    planetId: -1
+  };
   const rocketActionAnchor = {
     visible: false,
     x: 0,
     y: 0,
+    cx: 0,
+    cy: 0,
+    minY: 0,
+    maxY: 0,
+    halfClearX: 48,
+    halfClearY: 48,
     planetId: -1,
     tileId: null,
     buildingId: null
@@ -606,6 +618,12 @@
     visible: false,
     x: 0,
     y: 0,
+    cx: 0,
+    cy: 0,
+    minY: 0,
+    maxY: 0,
+    halfClearX: 48,
+    halfClearY: 48,
     planetId: -1,
     tileId: null,
     buildingId: null
@@ -1668,13 +1686,18 @@
             window.GameBuildings && typeof window.GameBuildings.getBuilding === "function"
               ? window.GameBuildings.getBuilding(entry.placed.id)
               : null;
+          const activeFp =
+            placedDef && placedDef.tradeVariant
+              ? getActiveTradeFlightProgressForTile(planet.id, tile.id, time)
+              : null;
           const bOpts =
             placedDef && placedDef.tradeVariant
               ? {
                   tradeEnabled: Boolean(entry.placed.tradeEnabled),
                   tradeProgress: entry.placed.tradeEnabled
                     ? clamp01((entry.placed.tradeTimer || 0) / placedDef.tradeIntervalSec)
-                    : 0
+                    : 0,
+                  flightProgress: activeFp !== null ? activeFp : undefined
                 }
               : undefined;
 
@@ -1705,53 +1728,62 @@
           window.GameBuildings.renderTileEffect(ctx, eff, buildingFrame, time);
         }
 
-        if (
+        const needsTileActionBounds =
           isFocused &&
           isSelected &&
           entry.placed &&
-          entry.placed.id === "research_center" &&
-          (!eff || eff.type !== "demolish")
-        ) {
-          const anchorWorld = add(entry.elevPlaneCenter, scale(rotNormal, tile.hexScale * elev * 1.08));
-          const anchorPt = project(anchorWorld, cx, cy, focalLength);
-          researchButtonAnchor.visible = true;
-          researchButtonAnchor.planetId = planet.id;
-          researchButtonAnchor.x = clamp(anchorPt.x, 76, Math.max(76, width - 76));
-          researchButtonAnchor.y = clamp(anchorPt.y, 72, Math.max(72, height - 24));
-        }
+          (!eff || eff.type !== "demolish");
+        if (needsTileActionBounds) {
+          const isResearchCenter = entry.placed.id === "research_center";
+          const isLaunchRocket =
+            !entry.placed.isLanded &&
+            (entry.placed.id === "space_rocket_1" || entry.placed.id === "space_rocket_2") &&
+            planet.id + 1 < PLANET_COUNT;
+          const placedBDef = window.GameBuildings ? window.GameBuildings.getBuilding(entry.placed.id) : null;
+          const isTradeBuilding = Boolean(placedBDef && placedBDef.tradeVariant);
 
-        if (
-          isFocused &&
-          isSelected &&
-          entry.placed &&
-          !entry.placed.isLanded &&
-          (entry.placed.id === "space_rocket_1" || entry.placed.id === "space_rocket_2") &&
-          planet.id + 1 < PLANET_COUNT &&
-          (!eff || eff.type !== "demolish")
-        ) {
-          const anchorWorld = add(entry.elevPlaneCenter, scale(rotNormal, tile.hexScale * elev * 1.24));
-          const anchorPt = project(anchorWorld, cx, cy, focalLength);
-          rocketActionAnchor.visible = true;
-          rocketActionAnchor.planetId = planet.id;
-          rocketActionAnchor.tileId = tile.id;
-          rocketActionAnchor.buildingId = entry.placed.id;
-          rocketActionAnchor.x = clamp(anchorPt.x, 128, Math.max(128, width - 128));
-          rocketActionAnchor.y = clamp(anchorPt.y, 76, Math.max(76, height - 24));
-        }
-
-        const tradeDef =
-          isFocused && isSelected && entry.placed && window.GameBuildings
-            ? window.GameBuildings.getBuilding(entry.placed.id)
-            : null;
-        if (tradeDef && tradeDef.tradeVariant && (!eff || eff.type !== "demolish")) {
-          const anchorWorld = add(entry.elevPlaneCenter, scale(rotNormal, tile.hexScale * elev * 1.22));
-          const anchorPt = project(anchorWorld, cx, cy, focalLength);
-          tradeActionAnchor.visible = true;
-          tradeActionAnchor.planetId = planet.id;
-          tradeActionAnchor.tileId = tile.id;
-          tradeActionAnchor.buildingId = entry.placed.id;
-          tradeActionAnchor.x = clamp(anchorPt.x, 146, Math.max(146, width - 146));
-          tradeActionAnchor.y = clamp(anchorPt.y, 76, Math.max(76, height - 24));
+          if (isResearchCenter || isLaunchRocket || isTradeBuilding) {
+            const bBounds = computeSelectedBuildingScreenBounds(entry, buildingFrame, cx, cy, focalLength);
+            if (isResearchCenter) {
+              const topY = bBounds.minY - 14;
+              const flipBelow = topY < 82;
+              researchButtonAnchor.visible = true;
+              researchButtonAnchor.planetId = planet.id;
+              researchButtonAnchor.isBelow = flipBelow;
+              researchButtonAnchor.x = clamp(bBounds.cx, 84, Math.max(84, width - 84));
+              researchButtonAnchor.y = flipBelow
+                ? Math.min(height - 56, bBounds.maxY + 14)
+                : topY;
+            }
+            if (isLaunchRocket) {
+              rocketActionAnchor.visible = true;
+              rocketActionAnchor.planetId = planet.id;
+              rocketActionAnchor.tileId = tile.id;
+              rocketActionAnchor.buildingId = entry.placed.id;
+              rocketActionAnchor.cx = bBounds.cx;
+              rocketActionAnchor.cy = bBounds.cy;
+              rocketActionAnchor.minY = bBounds.minY;
+              rocketActionAnchor.maxY = bBounds.maxY;
+              rocketActionAnchor.halfClearX = bBounds.halfClearX;
+              rocketActionAnchor.halfClearY = bBounds.halfClearY;
+              rocketActionAnchor.x = bBounds.cx;
+              rocketActionAnchor.y = bBounds.minY - 14;
+            }
+            if (isTradeBuilding) {
+              tradeActionAnchor.visible = true;
+              tradeActionAnchor.planetId = planet.id;
+              tradeActionAnchor.tileId = tile.id;
+              tradeActionAnchor.buildingId = entry.placed.id;
+              tradeActionAnchor.cx = bBounds.cx;
+              tradeActionAnchor.cy = bBounds.cy;
+              tradeActionAnchor.minY = bBounds.minY;
+              tradeActionAnchor.maxY = bBounds.maxY;
+              tradeActionAnchor.halfClearX = bBounds.halfClearX;
+              tradeActionAnchor.halfClearY = bBounds.halfClearY;
+              tradeActionAnchor.x = bBounds.cx;
+              tradeActionAnchor.y = bBounds.minY - 14;
+            }
+          }
         }
       }
     }
@@ -2214,229 +2246,174 @@
     ctx.restore();
   }
 
-  const FLIGHT_ROCKET_STYLES = {
-    space_rocket_1: {
-      twin: false,
-      hull: "#f8fafc",
-      nose: "#ff5a4d",
-      finL: "#ff5a4d",
-      finR: "#e03e31",
-      porthole: "#38bdf8"
-    },
-    space_rocket_2: {
-      twin: true,
-      hull: "#1e293b",
-      nose: "#f59e0b",
-      boosterBody: "#e2e8f0",
-      boosterNose: "#f59e0b",
-      porthole: "#38bdf8"
-    },
-    trade_rocket_1: {
-      twin: false,
-      hull: "#f8fafc",
-      nose: "#ffb129",
-      finL: "#10b981",
-      finR: "#059669",
-      porthole: "#ffd84d"
-    },
-    trade_rocket_2: {
-      twin: true,
-      hull: "#f8fafc",
-      nose: "#06b6d4",
-      boosterBody: "#06b6d4",
-      boosterNose: "#ffd84d",
-      porthole: "#ffd84d"
-    },
-    trade_rocket_3: {
-      twin: true,
-      hull: "#1e293b",
-      nose: "#ffd84d",
-      boosterBody: "#ffd84d",
-      boosterNose: "#f59e0b",
-      porthole: "#38bdf8"
+  function buildRotatedRocketBasis(rotT, rotB, rotN, pitchIntoT, rollAngle) {
+    const cosP = Math.cos(pitchIntoT);
+    const sinP = Math.sin(pitchIntoT);
+    const pitchedN = normalize(add(scale(rotN, cosP), scale(rotT, sinP)));
+    const pitchedT = normalize(sub(scale(rotT, cosP), scale(rotN, sinP)));
+    const pitchedB = normalize(cross(pitchedN, pitchedT));
+    const cosR = Math.cos(rollAngle);
+    const sinR = Math.sin(rollAngle);
+    return {
+      rotT: add(scale(pitchedT, cosR), scale(pitchedB, sinR)),
+      rotB: sub(scale(pitchedB, cosR), scale(pitchedT, sinR)),
+      rotN: pitchedN
+    };
+  }
+
+  function buildScreenSpace3DFrame(screenX, screenY, angleRad, pxHeight, rollAngle, atmo) {
+    const vx = Math.cos(angleRad);
+    const vy = Math.sin(angleRad);
+    const nWorld = normalize({ x: vx, y: -vy, z: 0.24 });
+    const tmp = Math.abs(nWorld.z) < 0.9 ? vec3(0, 0, 1) : vec3(0, 1, 0);
+    const t0 = normalize(cross(tmp, nWorld));
+    const b0 = cross(nWorld, t0);
+    const cosR = Math.cos(rollAngle || 0);
+    const sinR = Math.sin(rollAngle || 0);
+    const focalLength = 420;
+    const scale3D = (pxHeight * CAM_DIST) / focalLength;
+
+    return {
+      origin: vec3(0, 0, 0),
+      rotT: add(scale(t0, cosR), scale(b0, sinR)),
+      rotB: sub(scale(b0, cosR), scale(t0, sinR)),
+      rotN: nWorld,
+      scale: scale3D,
+      phase: 0,
+      cx: screenX,
+      cy: screenY,
+      focalLength: focalLength,
+      camVec: CAM_VEC,
+      lightDir: LIGHT_DIR,
+      halfVec: HALF_VEC,
+      atmo: atmo || { r: 165, g: 215, b: 255 },
+      isSelected: false,
+      project: project
+    };
+  }
+
+  function getActiveTradeFlightProgressForTile(planetId, tileId, time) {
+    for (let i = 0; i < activeTradeFlights.length; i++) {
+      const tf = activeTradeFlights[i];
+      if (tf.planetIdx === planetId && tf.tileId === tileId) {
+        return clamp01((time - tf.startTime) / tf.duration);
+      }
     }
-  };
+    return null;
+  }
 
-  function drawFlightRocket(ctx, x, y, angleRad, scalePx, rocketId, thrust, alpha, time) {
-    if (scalePx <= 2 || alpha <= 0.02) return;
-    const style = FLIGHT_ROCKET_STYLES[rocketId] || FLIGHT_ROCKET_STYLES.space_rocket_1;
-    const isTwin = style.twin;
+  function computeSelectedBuildingScreenBounds(entry, buildingFrame, cx, cy, focalLength) {
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    let maxY = -Infinity;
 
-    ctx.save();
-    ctx.globalAlpha *= clamp01(alpha);
-    ctx.translate(x, y);
-    ctx.rotate(angleRad + Math.PI * 0.5);
-    ctx.lineJoin = "round";
-    ctx.lineCap = "round";
-
-    const s = scalePx;
-    const inkW = Math.max(1.8, s * 0.075);
-
-    // Exhaust plume
-    if (thrust > 0.02) {
-      const flicker = 0.88 + 0.24 * Math.sin(time * 0.045);
-      const flameLen = s * (isTwin ? 1.15 : 0.95) * thrust * flicker;
-      const flameW = s * (isTwin ? 0.34 : 0.25);
-
-      function drawPlume(ox, oy, w, l) {
-        ctx.beginPath();
-        ctx.moveTo(ox - w, oy);
-        ctx.quadraticCurveTo(ox - w * 0.65, oy + l * 0.6, ox, oy + l);
-        ctx.quadraticCurveTo(ox + w * 0.65, oy + l * 0.6, ox + w, oy);
-        ctx.closePath();
-        ctx.fillStyle = "#ff5a4d";
-        ctx.fill();
-        ctx.lineWidth = Math.max(1.4, inkW * 0.8);
-        ctx.strokeStyle = "#1b1147";
-        ctx.stroke();
-
-        ctx.beginPath();
-        ctx.moveTo(ox - w * 0.62, oy);
-        ctx.quadraticCurveTo(ox - w * 0.35, oy + l * 0.5, ox, oy + l * 0.74);
-        ctx.quadraticCurveTo(ox + w * 0.35, oy + l * 0.5, ox + w * 0.62, oy);
-        ctx.closePath();
-        ctx.fillStyle = "#ffc83a";
-        ctx.fill();
-
-        ctx.beginPath();
-        ctx.moveTo(ox - w * 0.28, oy);
-        ctx.lineTo(ox, oy + l * 0.42);
-        ctx.lineTo(ox + w * 0.28, oy);
-        ctx.closePath();
-        ctx.fillStyle = "#ffffff";
-        ctx.fill();
-      }
-
-      if (isTwin) {
-        drawPlume(-s * 0.34, s * 0.42, flameW * 0.56, flameLen * 0.78);
-        drawPlume(s * 0.34, s * 0.42, flameW * 0.56, flameLen * 0.78);
-      }
-      drawPlume(0, s * 0.48, flameW, flameLen);
+    const pts = entry.topPts;
+    for (let k = 0; k < pts.length; k++) {
+      if (pts[k].x < minX) minX = pts[k].x;
+      if (pts[k].x > maxX) maxX = pts[k].x;
+      if (pts[k].y < minY) minY = pts[k].y;
+      if (pts[k].y > maxY) maxY = pts[k].y;
     }
 
-    if (isTwin) {
-      // Twin side boosters
-      const bXs = [-s * 0.34, s * 0.34];
-      for (let b = 0; b < 2; b++) {
-        const bx = bXs[b];
-        ctx.beginPath();
-        ctx.rect(bx - s * 0.11, -s * 0.16, s * 0.22, s * 0.56);
-        ctx.fillStyle = style.boosterBody;
-        ctx.fill();
-        ctx.lineWidth = inkW;
-        ctx.strokeStyle = "#1b1147";
-        ctx.stroke();
-
-        ctx.beginPath();
-        ctx.moveTo(bx - s * 0.11, -s * 0.16);
-        ctx.lineTo(bx, -s * 0.36);
-        ctx.lineTo(bx + s * 0.11, -s * 0.16);
-        ctx.closePath();
-        ctx.fillStyle = style.boosterNose;
-        ctx.fill();
-        ctx.stroke();
+    const o = buildingFrame.origin;
+    const tV = buildingFrame.rotT;
+    const bV = buildingFrame.rotB;
+    const nV = buildingFrame.rotN;
+    const s = buildingFrame.scale;
+    const zLevels = [0.48, 1.08];
+    const rad = 0.62;
+    for (let zi = 0; zi < zLevels.length; zi++) {
+      const lz = zLevels[zi];
+      for (let a = 0; a < 6; a++) {
+        const ang = (Math.PI * 2 * a) / 6;
+        const lx = Math.cos(ang) * rad;
+        const ly = Math.sin(ang) * rad;
+        const sp = project(
+          {
+            x: o.x + (tV.x * lx + bV.x * ly + nV.x * lz) * s,
+            y: o.y + (tV.y * lx + bV.y * ly + nV.y * lz) * s,
+            z: o.z + (tV.z * lx + bV.z * ly + nV.z * lz) * s
+          },
+          cx,
+          cy,
+          focalLength
+        );
+        if (sp.x < minX) minX = sp.x;
+        if (sp.x > maxX) maxX = sp.x;
+        if (sp.y < minY) minY = sp.y;
+        if (sp.y > maxY) maxY = sp.y;
       }
+    }
 
-      // Main starship core
-      ctx.beginPath();
-      ctx.moveTo(-s * 0.22, s * 0.42);
-      ctx.lineTo(-s * 0.22, -s * 0.44);
-      ctx.quadraticCurveTo(0, -s * 0.92, s * 0.22, -s * 0.44);
-      ctx.lineTo(s * 0.22, s * 0.42);
-      ctx.closePath();
-      ctx.fillStyle = style.hull;
-      ctx.fill();
-      ctx.lineWidth = inkW;
-      ctx.strokeStyle = "#1b1147";
-      ctx.stroke();
+    const peakSp = project(
+      { x: o.x + nV.x * 1.08 * s, y: o.y + nV.y * 1.08 * s, z: o.z + nV.z * 1.08 * s },
+      cx,
+      cy,
+      focalLength
+    );
+    if (peakSp.x < minX) minX = peakSp.x;
+    if (peakSp.x > maxX) maxX = peakSp.x;
+    if (peakSp.y < minY) minY = peakSp.y;
+    if (peakSp.y > maxY) maxY = peakSp.y;
 
-      // Nose cone & thruster bell
-      ctx.beginPath();
-      ctx.moveTo(-s * 0.19, -s * 0.46);
-      ctx.quadraticCurveTo(0, -s * 0.92, s * 0.19, -s * 0.46);
-      ctx.closePath();
-      ctx.fillStyle = style.nose;
-      ctx.fill();
-      ctx.stroke();
+    const bCx = (minX + maxX) * 0.5;
+    const bCy = (minY + maxY) * 0.5;
+    return {
+      minX: minX,
+      maxX: maxX,
+      minY: minY,
+      maxY: maxY,
+      cx: bCx,
+      cy: bCy,
+      halfClearX: Math.max(26, (maxX - minX) * 0.5),
+      halfClearY: Math.max(26, (maxY - minY) * 0.5)
+    };
+  }
 
-      ctx.beginPath();
-      ctx.moveTo(-s * 0.14, s * 0.42);
-      ctx.lineTo(s * 0.14, s * 0.42);
-      ctx.lineTo(s * 0.19, s * 0.54);
-      ctx.lineTo(-s * 0.19, s * 0.54);
-      ctx.closePath();
-      ctx.fillStyle = "#ffc83a";
-      ctx.fill();
-      ctx.stroke();
+  function positionActionGroupAroundBuilding(groupEl, anchor, isSingle, defaultYOffset) {
+    if (isSingle) {
+      groupEl.classList.add("is-single");
+      groupEl.classList.remove("is-arched");
+      const topClear = Math.round(anchor.halfClearY + (defaultYOffset || 14));
+      const willFlipBelow = anchor.cy - topClear - 46 < 74;
+      groupEl.classList.toggle("is-below", willFlipBelow);
+      groupEl.style.setProperty("--top-clear", topClear + "px");
+      groupEl.style.setProperty("--bot-clear", topClear + "px");
+      groupEl.style.transform =
+        "translate3d(" + clamp(anchor.cx, 96, Math.max(96, width - 96)).toFixed(1) + "px, " + anchor.cy.toFixed(1) + "px, 0)";
+      return;
+    }
+
+    groupEl.classList.remove("is-single");
+    groupEl.classList.remove("is-below");
+    const halfClear = Math.round(anchor.halfClearX + 16);
+    const fitsFlanking =
+      anchor.cx - halfClear - 148 >= 8 && anchor.cx + halfClear + 148 <= width - 8;
+
+    if (fitsFlanking) {
+      groupEl.classList.remove("is-arched");
+      groupEl.style.setProperty("--half-clear", halfClear + "px");
+      groupEl.style.transform =
+        "translate3d(" +
+        anchor.cx.toFixed(1) +
+        "px, " +
+        clamp(anchor.cy, 78, Math.max(78, height - 48)).toFixed(1) +
+        "px, 0)";
     } else {
-      // Delta fins
-      ctx.beginPath();
-      ctx.moveTo(-s * 0.20, s * 0.14);
-      ctx.lineTo(-s * 0.44, s * 0.44);
-      ctx.lineTo(-s * 0.18, s * 0.38);
-      ctx.closePath();
-      ctx.fillStyle = style.finL;
-      ctx.fill();
-      ctx.lineWidth = inkW;
-      ctx.strokeStyle = "#1b1147";
-      ctx.stroke();
-
-      ctx.beginPath();
-      ctx.moveTo(s * 0.20, s * 0.14);
-      ctx.lineTo(s * 0.44, s * 0.44);
-      ctx.lineTo(s * 0.18, s * 0.38);
-      ctx.closePath();
-      ctx.fillStyle = style.finR;
-      ctx.fill();
-      ctx.stroke();
-
-      // Thruster bell
-      ctx.beginPath();
-      ctx.moveTo(-s * 0.13, s * 0.40);
-      ctx.lineTo(s * 0.13, s * 0.40);
-      ctx.lineTo(s * 0.17, s * 0.52);
-      ctx.lineTo(-s * 0.17, s * 0.52);
-      ctx.closePath();
-      ctx.fillStyle = "#ffc83a";
-      ctx.fill();
-      ctx.stroke();
-
-      // Hull
-      ctx.beginPath();
-      ctx.moveTo(-s * 0.21, s * 0.40);
-      ctx.lineTo(-s * 0.21, -s * 0.36);
-      ctx.quadraticCurveTo(0, -s * 0.86, s * 0.21, -s * 0.36);
-      ctx.lineTo(s * 0.21, s * 0.40);
-      ctx.closePath();
-      ctx.fillStyle = style.hull;
-      ctx.fill();
-      ctx.stroke();
-
-      // Nose
-      ctx.beginPath();
-      ctx.moveTo(-s * 0.185, -s * 0.40);
-      ctx.quadraticCurveTo(0, -s * 0.86, s * 0.185, -s * 0.40);
-      ctx.closePath();
-      ctx.fillStyle = style.nose;
-      ctx.fill();
-      ctx.stroke();
+      groupEl.classList.add("is-arched");
+      const topY = anchor.minY - 14;
+      const useBelow = topY < 82;
+      const archY = useBelow ? Math.min(height - 56, anchor.maxY + 14) : topY;
+      groupEl.style.transform =
+        "translate3d(" +
+        clamp(anchor.cx, 140, Math.max(140, width - 140)).toFixed(1) +
+        "px, " +
+        archY.toFixed(1) +
+        "px, 0) translate(-50%, " +
+        (useBelow ? "0" : "-100%") +
+        ")";
     }
-
-    // Cockpit / emblem window
-    ctx.beginPath();
-    ctx.arc(0, -s * 0.18, s * 0.115, 0, Math.PI * 2);
-    ctx.fillStyle = style.porthole;
-    ctx.fill();
-    ctx.lineWidth = Math.max(1.4, inkW * 0.78);
-    ctx.strokeStyle = "#1b1147";
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.arc(-s * 0.035, -s * 0.21, s * 0.038, 0, Math.PI * 2);
-    ctx.fillStyle = "#e0f7ff";
-    ctx.fill();
-
-    ctx.restore();
   }
 
   function getPlanetTileScreenInfo(planet, transform, tile) {
@@ -3109,8 +3086,17 @@
         drawSmokePuffCloud(ctx, pt.x, pt.y, pt.r * (0.7 + age * 0.75), (1 - age) * 0.78, false);
       }
 
-      if (rAlpha > 0.02 && rx > -120 && rx < width + 120 && ry > -120 && ry < height + 120) {
-        drawFlightRocket(ctx, rx, ry, rAngle, rScale, flight.rocketId, thrust, rAlpha, time);
+      if (rAlpha > 0.02 && rx > -120 && rx < width + 120 && ry > -120 && ry < height + 120 && window.GameBuildings && typeof window.GameBuildings.renderRocketVessel3D === "function") {
+        const atmoTint = elapsed < flight.liftoffDur ? srcPlanet.atmosphere : destPlanet.atmosphere;
+        const rollSpin = (elapsed * 0.0022) % (Math.PI * 2);
+        const vesselFrame = buildScreenSpace3DFrame(rx, ry, rAngle, rScale * 1.45, rollSpin, atmoTint);
+        ctx.save();
+        ctx.globalAlpha *= clamp01(rAlpha);
+        window.GameBuildings.renderRocketVessel3D(ctx, flight.rocketId, vesselFrame, time, 1, {
+          thrust: thrust,
+          zOffset: -0.44
+        });
+        ctx.restore();
       }
     }
   }
@@ -3153,8 +3139,7 @@
     }
 
     tileRocketActionsEl.classList.remove("is-hidden");
-    tileRocketActionsEl.style.transform =
-      "translate3d(" + rocketActionAnchor.x.toFixed(1) + "px, " + rocketActionAnchor.y.toFixed(1) + "px, 0) translate(-50%, -100%)";
+    positionActionGroupAroundBuilding(tileRocketActionsEl, rocketActionAnchor, false, 14);
   }
 
   function showTradeNoticeToast(bDef, planetIdx, templateKey, variant) {
@@ -3256,18 +3241,56 @@
       const tInfo = tf.tile ? getPlanetTileScreenInfo(planet, tr, tf.tile) : null;
       const padX = tInfo && tInfo.z > -0.15 ? tInfo.basePt.x : tr.x;
       const padY = tInfo && tInfo.z > -0.15 ? tInfo.basePt.y : tr.y - tr.scaledRadius * 0.4;
-      const padNx = tInfo && tInfo.z > -0.15 ? tInfo.nx : 0.25;
-      const padNy = tInfo && tInfo.z > -0.15 ? tInfo.ny : -0.97;
 
-      const climb = tr.scaledRadius * (0.14 + 1.35 * tf.speedMult * p * p);
-      const rx = padX + padNx * climb;
-      const ry = padY + padNy * climb;
-      const rAngle = Math.atan2(padNy, padNx);
-      const rScale = clamp(tr.scaledRadius * 0.115 * lerp(1, 0.72, p), 11, 24);
-      const fadeAlpha = p > 0.74 ? 1 - (p - 0.74) / 0.26 : 1;
+      if (p < 0.78 && window.GameBuildings && typeof window.GameBuildings.renderRocketVessel3D === "function" && tf.tile) {
+        const pitchX = clamp(planet.basePitch + planet.pitchOffset, -MAX_PITCH, MAX_PITCH);
+        const rotatePoint = createRotator(planet.spinY, pitchX, planet.roll);
+        const rotNormal = rotatePoint(tf.tile.normal);
+        const rotT = rotatePoint(tf.tile.tangentT);
+        const rotB = rotatePoint(tf.tile.tangentB);
+        const rotPlaneCenter = rotatePoint(tf.tile.planeCenter);
+        const elev = tf.tile.currentElev || tf.tile.baseElev || 1.02;
+        const elevCenter = scale(rotPlaneCenter, elev);
+        const unitScale = tf.tile.hexScale * elev;
+
+        const climbN = (0.56 + 6.2 * tf.speedMult * p * p) * unitScale;
+        const turnT = 1.45 * tf.speedMult * p * p * p * unitScale;
+        const worldOrigin = add(add(elevCenter, scale(rotNormal, climbN)), scale(rotT, turnT));
+
+        if (worldOrigin.z > -0.35 && worldOrigin.z < 2.55) {
+          const focalLength = tr.scaledRadius * Math.sqrt(CAM_DIST * CAM_DIST - 1);
+          const basis = buildRotatedRocketBasis(rotT, rotB, rotNormal, Math.min(0.68, p * 0.85), p * Math.PI * 1.4);
+          const vesselFrame = {
+            origin: worldOrigin,
+            rotT: basis.rotT,
+            rotB: basis.rotB,
+            rotN: basis.rotN,
+            scale: unitScale * lerp(1, 0.72, p),
+            phase: tf.tile.phase || 0,
+            cx: tr.x,
+            cy: tr.y,
+            focalLength: focalLength,
+            camVec: CAM_VEC,
+            lightDir: LIGHT_DIR,
+            halfVec: HALF_VEC,
+            atmo: planet.atmosphere,
+            isSelected: false,
+            project: project
+          };
+          const fadeAlpha = p > 0.56 ? 1 - (p - 0.56) / 0.22 : 1;
+          ctx.save();
+          ctx.globalAlpha *= clamp01(tr.alpha * fadeAlpha);
+          window.GameBuildings.renderRocketVessel3D(ctx, tf.rocketId, vesselFrame, time, 1, {
+            thrust: 1.15,
+            zOffset: -0.44
+          });
+          ctx.restore();
+        }
+      }
 
       if (p < 0.55) {
         const smP = p / 0.55;
+        const smokeScale = clamp(tr.scaledRadius * 0.115, 11, 24);
         for (let s = 0; s < 3; s++) {
           const ang = s * 2.1 + smP * 0.4;
           const spread = tr.scaledRadius * (0.04 + 0.12 * smP);
@@ -3275,17 +3298,16 @@
             ctx,
             padX + Math.cos(ang) * spread,
             padY + Math.sin(ang) * spread * 0.7,
-            rScale * 0.34 * (1 - smP * 0.4),
+            smokeScale * 0.34 * (1 - smP * 0.4),
             tr.alpha * (1 - smP) * 0.78,
             true
           );
         }
       }
 
-      drawFlightRocket(ctx, rx, ry, rAngle, rScale, tf.rocketId, 1.0, tr.alpha * fadeAlpha, time);
-
-      // Rising cel-shaded profit label ("+20 SC (-5)")
-      const lblY = padY - tr.scaledRadius * 0.12 - 36 * easeOutCubic(p);
+      // Rising cel-shaded profit label offset cleanly to the side so it never obscures the 3D rocket
+      const lblX = padX + (padX <= tr.x ? -1 : 1) * clamp(tr.scaledRadius * 0.16, 18, 34);
+      const lblY = padY - tr.scaledRadius * 0.10 - 38 * easeOutCubic(p);
       const lblAlpha = p > 0.68 ? 1 - (p - 0.68) / 0.32 : 1;
       const lblText = t("trade.floating_gain", {
         credits: formatPlanetStat(tf.earned),
@@ -3299,9 +3321,9 @@
       ctx.lineJoin = "round";
       ctx.lineWidth = 4;
       ctx.strokeStyle = "#1b1147";
-      ctx.strokeText(lblText, padX, lblY);
+      ctx.strokeText(lblText, lblX, lblY);
       ctx.fillStyle = "#ffe44d";
-      ctx.fillText(lblText, padX, lblY);
+      ctx.fillText(lblText, lblX, lblY);
       ctx.restore();
     }
   }
@@ -3334,12 +3356,14 @@
       tileTradeToggleLabelEl.textContent = t(enabled ? "trade.btn_stop" : "trade.btn_enable");
     }
 
+    let hasUpgradeBtn = false;
     if (tileTradeUpgradeBtn) {
       const nextDef =
         bDef.nextVariantId && window.GameBuildings
           ? window.GameBuildings.getBuilding(bDef.nextVariantId)
           : null;
       if (nextDef) {
+        hasUpgradeBtn = true;
         tileTradeUpgradeBtn.classList.remove("is-hidden");
         const canAfford =
           window.GameBuildings && typeof window.GameBuildings.canAffordBuilding === "function"
@@ -3358,8 +3382,7 @@
     }
 
     tileTradeActionsEl.classList.remove("is-hidden");
-    tileTradeActionsEl.style.transform =
-      "translate3d(" + tradeActionAnchor.x.toFixed(1) + "px, " + tradeActionAnchor.y.toFixed(1) + "px, 0) translate(-50%, -100%)";
+    positionActionGroupAroundBuilding(tileTradeActionsEl, tradeActionAnchor, !hasUpgradeBtn, 14);
   }
 
   // --- Main Render Loop ---
@@ -3551,8 +3574,15 @@
         cargoModalState.open;
       if (researchButtonAnchor.visible && !modalActive) {
         tileResearchBtn.classList.remove("is-hidden");
+        tileResearchBtn.classList.toggle("is-below", Boolean(researchButtonAnchor.isBelow));
         tileResearchBtn.style.transform =
-          "translate3d(" + researchButtonAnchor.x.toFixed(1) + "px, " + researchButtonAnchor.y.toFixed(1) + "px, 0) translate(-50%, -100%)";
+          "translate3d(" +
+          researchButtonAnchor.x.toFixed(1) +
+          "px, " +
+          researchButtonAnchor.y.toFixed(1) +
+          "px, 0) translate(-50%, " +
+          (researchButtonAnchor.isBelow ? "0" : "-100%") +
+          ")";
       } else {
         tileResearchBtn.classList.add("is-hidden");
       }
