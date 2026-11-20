@@ -41,6 +41,13 @@
   const tileRocketCargoLabelEl = document.getElementById("tile-rocket-cargo-label");
   const tileRocketLaunchBtn = document.getElementById("btn-tile-rocket-launch");
   const tileRocketLaunchIconEl = document.getElementById("tile-rocket-launch-icon");
+  const tileTradeActionsEl = document.getElementById("tile-trade-actions");
+  const tileTradeToggleBtn = document.getElementById("btn-tile-trade-toggle");
+  const tileTradeToggleIconEl = document.getElementById("tile-trade-toggle-icon");
+  const tileTradeToggleLabelEl = document.getElementById("tile-trade-toggle-label");
+  const tileTradeUpgradeBtn = document.getElementById("btn-tile-trade-upgrade");
+  const tileTradeUpgradeIconEl = document.getElementById("tile-trade-upgrade-icon");
+  const tileTradeUpgradeLabelEl = document.getElementById("tile-trade-upgrade-label");
   const followRocketBtn = document.getElementById("btn-follow-rocket");
   const followRocketIconEl = document.getElementById("follow-rocket-icon");
   const followRocketLabelEl = document.getElementById("follow-rocket-label");
@@ -595,7 +602,17 @@
     tileId: null,
     buildingId: null
   };
+  const tradeActionAnchor = {
+    visible: false,
+    x: 0,
+    y: 0,
+    planetId: -1,
+    tileId: null,
+    buildingId: null
+  };
   const activeFlights = [];
+  const activeTradeFlights = [];
+  const TRADE_FLIGHT_BASE_MS = 1400;
   let nextFlightId = 1;
   let followingFlightId = null;
   const cargoModalState = { open: false, planetId: -1, tileId: null };
@@ -1044,11 +1061,15 @@
     selectionPulse = null;
     researchButtonAnchor.visible = false;
     rocketActionAnchor.visible = false;
+    tradeActionAnchor.visible = false;
     if (tileResearchBtn) {
       tileResearchBtn.classList.add("is-hidden");
     }
     if (tileRocketActionsEl) {
       tileRocketActionsEl.classList.add("is-hidden");
+    }
+    if (tileTradeActionsEl) {
+      tileTradeActionsEl.classList.add("is-hidden");
     }
     if (cargoModalState.open) {
       closeRocketCargoModal();
@@ -1643,6 +1664,20 @@
             }
           }
         } else if (entry.placed) {
+          const placedDef =
+            window.GameBuildings && typeof window.GameBuildings.getBuilding === "function"
+              ? window.GameBuildings.getBuilding(entry.placed.id)
+              : null;
+          const bOpts =
+            placedDef && placedDef.tradeVariant
+              ? {
+                  tradeEnabled: Boolean(entry.placed.tradeEnabled),
+                  tradeProgress: entry.placed.tradeEnabled
+                    ? clamp01((entry.placed.tradeTimer || 0) / placedDef.tradeIntervalSec)
+                    : 0
+                }
+              : undefined;
+
           if (eff && eff.type === "build") {
             const bp = clamp((time - eff.startTime) / eff.duration, 0, 1);
             if (eff.prevBuildingId && bp < 0.20) {
@@ -1653,10 +1688,8 @@
               const k = clamp((bp - 0.16) / 0.44, 0, 1);
               const pop = easeOutBack(k);
               const stretch = Math.sin(k * Math.PI) * 0.18;
-              window.GameBuildings.renderBuilding3D(ctx, entry.placed.id, buildingFrame, time, pop, {
-                scaleXY: 1 - stretch * 0.45,
-                scaleZ: 1 + stretch
-              });
+              const buildOpts = Object.assign({ scaleXY: 1 - stretch * 0.45, scaleZ: 1 + stretch }, bOpts || {});
+              window.GameBuildings.renderBuilding3D(ctx, entry.placed.id, buildingFrame, time, pop, buildOpts);
             }
           } else {
             const buildElapsed = time - entry.placed.placedAt;
@@ -1664,7 +1697,7 @@
               buildElapsed >= 0 && buildElapsed < 280
                 ? easeOutBack(buildElapsed / 280)
                 : 1;
-            window.GameBuildings.renderBuilding3D(ctx, entry.placed.id, buildingFrame, time, buildScale);
+            window.GameBuildings.renderBuilding3D(ctx, entry.placed.id, buildingFrame, time, buildScale, bOpts);
           }
         }
 
@@ -1704,6 +1737,21 @@
           rocketActionAnchor.buildingId = entry.placed.id;
           rocketActionAnchor.x = clamp(anchorPt.x, 128, Math.max(128, width - 128));
           rocketActionAnchor.y = clamp(anchorPt.y, 76, Math.max(76, height - 24));
+        }
+
+        const tradeDef =
+          isFocused && isSelected && entry.placed && window.GameBuildings
+            ? window.GameBuildings.getBuilding(entry.placed.id)
+            : null;
+        if (tradeDef && tradeDef.tradeVariant && (!eff || eff.type !== "demolish")) {
+          const anchorWorld = add(entry.elevPlaneCenter, scale(rotNormal, tile.hexScale * elev * 1.22));
+          const anchorPt = project(anchorWorld, cx, cy, focalLength);
+          tradeActionAnchor.visible = true;
+          tradeActionAnchor.planetId = planet.id;
+          tradeActionAnchor.tileId = tile.id;
+          tradeActionAnchor.buildingId = entry.placed.id;
+          tradeActionAnchor.x = clamp(anchorPt.x, 146, Math.max(146, width - 146));
+          tradeActionAnchor.y = clamp(anchorPt.y, 76, Math.max(76, height - 24));
         }
       }
     }
@@ -2166,9 +2214,53 @@
     ctx.restore();
   }
 
+  const FLIGHT_ROCKET_STYLES = {
+    space_rocket_1: {
+      twin: false,
+      hull: "#f8fafc",
+      nose: "#ff5a4d",
+      finL: "#ff5a4d",
+      finR: "#e03e31",
+      porthole: "#38bdf8"
+    },
+    space_rocket_2: {
+      twin: true,
+      hull: "#1e293b",
+      nose: "#f59e0b",
+      boosterBody: "#e2e8f0",
+      boosterNose: "#f59e0b",
+      porthole: "#38bdf8"
+    },
+    trade_rocket_1: {
+      twin: false,
+      hull: "#f8fafc",
+      nose: "#ffb129",
+      finL: "#10b981",
+      finR: "#059669",
+      porthole: "#ffd84d"
+    },
+    trade_rocket_2: {
+      twin: true,
+      hull: "#f8fafc",
+      nose: "#06b6d4",
+      boosterBody: "#06b6d4",
+      boosterNose: "#ffd84d",
+      porthole: "#ffd84d"
+    },
+    trade_rocket_3: {
+      twin: true,
+      hull: "#1e293b",
+      nose: "#ffd84d",
+      boosterBody: "#ffd84d",
+      boosterNose: "#f59e0b",
+      porthole: "#38bdf8"
+    }
+  };
+
   function drawFlightRocket(ctx, x, y, angleRad, scalePx, rocketId, thrust, alpha, time) {
     if (scalePx <= 2 || alpha <= 0.02) return;
-    const isTier2 = rocketId === "space_rocket_2";
+    const style = FLIGHT_ROCKET_STYLES[rocketId] || FLIGHT_ROCKET_STYLES.space_rocket_1;
+    const isTwin = style.twin;
 
     ctx.save();
     ctx.globalAlpha *= clamp01(alpha);
@@ -2183,8 +2275,8 @@
     // Exhaust plume
     if (thrust > 0.02) {
       const flicker = 0.88 + 0.24 * Math.sin(time * 0.045);
-      const flameLen = s * (isTier2 ? 1.15 : 0.95) * thrust * flicker;
-      const flameW = s * (isTier2 ? 0.34 : 0.25);
+      const flameLen = s * (isTwin ? 1.15 : 0.95) * thrust * flicker;
+      const flameW = s * (isTwin ? 0.34 : 0.25);
 
       function drawPlume(ox, oy, w, l) {
         ctx.beginPath();
@@ -2215,21 +2307,21 @@
         ctx.fill();
       }
 
-      if (isTier2) {
+      if (isTwin) {
         drawPlume(-s * 0.34, s * 0.42, flameW * 0.56, flameLen * 0.78);
         drawPlume(s * 0.34, s * 0.42, flameW * 0.56, flameLen * 0.78);
       }
       drawPlume(0, s * 0.48, flameW, flameLen);
     }
 
-    if (isTier2) {
+    if (isTwin) {
       // Twin side boosters
       const bXs = [-s * 0.34, s * 0.34];
       for (let b = 0; b < 2; b++) {
         const bx = bXs[b];
         ctx.beginPath();
         ctx.rect(bx - s * 0.11, -s * 0.16, s * 0.22, s * 0.56);
-        ctx.fillStyle = "#e2e8f0";
+        ctx.fillStyle = style.boosterBody;
         ctx.fill();
         ctx.lineWidth = inkW;
         ctx.strokeStyle = "#1b1147";
@@ -2240,30 +2332,30 @@
         ctx.lineTo(bx, -s * 0.36);
         ctx.lineTo(bx + s * 0.11, -s * 0.16);
         ctx.closePath();
-        ctx.fillStyle = "#f59e0b";
+        ctx.fillStyle = style.boosterNose;
         ctx.fill();
         ctx.stroke();
       }
 
-      // Main starship core (navy & gold)
+      // Main starship core
       ctx.beginPath();
       ctx.moveTo(-s * 0.22, s * 0.42);
       ctx.lineTo(-s * 0.22, -s * 0.44);
       ctx.quadraticCurveTo(0, -s * 0.92, s * 0.22, -s * 0.44);
       ctx.lineTo(s * 0.22, s * 0.42);
       ctx.closePath();
-      ctx.fillStyle = "#1e293b";
+      ctx.fillStyle = style.hull;
       ctx.fill();
       ctx.lineWidth = inkW;
       ctx.strokeStyle = "#1b1147";
       ctx.stroke();
 
-      // Golden nose cone & thruster bell
+      // Nose cone & thruster bell
       ctx.beginPath();
       ctx.moveTo(-s * 0.19, -s * 0.46);
       ctx.quadraticCurveTo(0, -s * 0.92, s * 0.19, -s * 0.46);
       ctx.closePath();
-      ctx.fillStyle = "#f59e0b";
+      ctx.fillStyle = style.nose;
       ctx.fill();
       ctx.stroke();
 
@@ -2283,7 +2375,7 @@
       ctx.lineTo(-s * 0.44, s * 0.44);
       ctx.lineTo(-s * 0.18, s * 0.38);
       ctx.closePath();
-      ctx.fillStyle = "#ff5a4d";
+      ctx.fillStyle = style.finL;
       ctx.fill();
       ctx.lineWidth = inkW;
       ctx.strokeStyle = "#1b1147";
@@ -2294,7 +2386,7 @@
       ctx.lineTo(s * 0.44, s * 0.44);
       ctx.lineTo(s * 0.18, s * 0.38);
       ctx.closePath();
-      ctx.fillStyle = "#e03e31";
+      ctx.fillStyle = style.finR;
       ctx.fill();
       ctx.stroke();
 
@@ -2309,31 +2401,31 @@
       ctx.fill();
       ctx.stroke();
 
-      // White hull
+      // Hull
       ctx.beginPath();
       ctx.moveTo(-s * 0.21, s * 0.40);
       ctx.lineTo(-s * 0.21, -s * 0.36);
       ctx.quadraticCurveTo(0, -s * 0.86, s * 0.21, -s * 0.36);
       ctx.lineTo(s * 0.21, s * 0.40);
       ctx.closePath();
-      ctx.fillStyle = "#f8fafc";
+      ctx.fillStyle = style.hull;
       ctx.fill();
       ctx.stroke();
 
-      // Crimson nose
+      // Nose
       ctx.beginPath();
       ctx.moveTo(-s * 0.185, -s * 0.40);
       ctx.quadraticCurveTo(0, -s * 0.86, s * 0.185, -s * 0.40);
       ctx.closePath();
-      ctx.fillStyle = "#ff5a4d";
+      ctx.fillStyle = style.nose;
       ctx.fill();
       ctx.stroke();
     }
 
-    // Cyan cockpit porthole
+    // Cockpit / emblem window
     ctx.beginPath();
     ctx.arc(0, -s * 0.18, s * 0.115, 0, Math.PI * 2);
-    ctx.fillStyle = "#38bdf8";
+    ctx.fillStyle = style.porthole;
     ctx.fill();
     ctx.lineWidth = Math.max(1.4, inkW * 0.78);
     ctx.strokeStyle = "#1b1147";
@@ -3065,6 +3157,211 @@
       "translate3d(" + rocketActionAnchor.x.toFixed(1) + "px, " + rocketActionAnchor.y.toFixed(1) + "px, 0) translate(-50%, -100%)";
   }
 
+  function showTradeNoticeToast(bDef, planetIdx, templateKey, variant) {
+    const pName = '<strong class="game-toast-strong">' + getPlanetName(planets[planetIdx], planetIdx) + "</strong>";
+    const bStrong = '<strong class="game-toast-strong">' + bDef.name + "</strong>";
+    const iconImg = '<img class="game-toast-icon" src="' + bDef.iconSrc + '" alt="" draggable="false" />';
+    showGameToast(
+      "<span>" + iconImg + t(templateKey, { building: bStrong, planet: pName }) + "</span>",
+      variant
+    );
+  }
+
+  function spawnTradeRocketFlight(planetIdx, tileId, bDef, sold, earned, time) {
+    const planet = planets[planetIdx];
+    const tile = planet && planet.tileById[tileId];
+    activeTradeFlights.push({
+      planetIdx: planetIdx,
+      tileId: tileId,
+      tile: tile,
+      rocketId: bDef.id,
+      speedMult: bDef.tradeSpeedMult || 1,
+      sold: sold,
+      earned: earned,
+      startTime: time,
+      duration: Math.round(TRADE_FLIGHT_BASE_MS / (bDef.tradeSpeedMult || 1))
+    });
+  }
+
+  function tickTradeRockets(time, dtSec) {
+    let totalActiveCreditsPerSec = 0;
+
+    for (let pIdx = 0; pIdx < PLANET_COUNT; pIdx++) {
+      const buildings = buildingsByPlanet[pIdx];
+      if (!buildings || !window.GameBuildings) continue;
+      const keys = Object.keys(buildings);
+      for (let i = 0; i < keys.length; i++) {
+        const tileId = keys[i];
+        const bInfo = buildings[tileId];
+        if (!bInfo || !bInfo.id) continue;
+        const bDef = window.GameBuildings.getBuilding(bInfo.id);
+        if (!bDef || !bDef.tradeVariant) continue;
+
+        if (!bInfo.tradeEnabled) continue;
+
+        const avail = Math.floor(bricksByPlanet[pIdx] || 0);
+        if (avail <= 0) {
+          bInfo.tradeEnabled = false;
+          bInfo.tradeTimer = 0;
+          showTradeNoticeToast(bDef, pIdx, "toast.trade_auto_stopped");
+          continue;
+        }
+
+        bInfo.tradeTimer = (bInfo.tradeTimer || 0) + dtSec;
+        if (bInfo.tradeTimer >= bDef.tradeIntervalSec) {
+          bInfo.tradeTimer = 0;
+          const sold = Math.min(avail, bDef.bricksPerLaunch);
+          const earned = sold * bDef.creditsPerBrick;
+          bricksByPlanet[pIdx] = Math.max(0, bricksByPlanet[pIdx] - sold);
+          if (window.GameCurrencies && typeof window.GameCurrencies.add === "function") {
+            window.GameCurrencies.add("credits", earned);
+          }
+          spawnTradeRocketFlight(pIdx, tileId, bDef, sold, earned, time);
+
+          if (Math.floor(bricksByPlanet[pIdx] || 0) <= 0) {
+            bInfo.tradeEnabled = false;
+            bInfo.tradeTimer = 0;
+            showTradeNoticeToast(bDef, pIdx, "toast.trade_auto_stopped");
+          }
+        }
+
+        if (bInfo.tradeEnabled) {
+          totalActiveCreditsPerSec += (bDef.bricksPerLaunch * bDef.creditsPerBrick) / bDef.tradeIntervalSec;
+        }
+      }
+    }
+
+    if (window.GameCurrencies && typeof window.GameCurrencies.setDisplayRate === "function") {
+      window.GameCurrencies.setDisplayRate("credits", totalActiveCreditsPerSec);
+    }
+  }
+
+  function updateAndDrawTradeFlights(time) {
+    if (activeTradeFlights.length === 0) return;
+
+    for (let i = activeTradeFlights.length - 1; i >= 0; i--) {
+      const tf = activeTradeFlights[i];
+      const p = (time - tf.startTime) / tf.duration;
+      if (p >= 1) {
+        activeTradeFlights.splice(i, 1);
+        continue;
+      }
+
+      if (Math.abs(tf.planetIdx - scrollPos) >= 0.999) {
+        continue;
+      }
+
+      const planet = planets[tf.planetIdx];
+      const tr = getPlanetTransform(planet, tf.planetIdx);
+      const tInfo = tf.tile ? getPlanetTileScreenInfo(planet, tr, tf.tile) : null;
+      const padX = tInfo && tInfo.z > -0.15 ? tInfo.basePt.x : tr.x;
+      const padY = tInfo && tInfo.z > -0.15 ? tInfo.basePt.y : tr.y - tr.scaledRadius * 0.4;
+      const padNx = tInfo && tInfo.z > -0.15 ? tInfo.nx : 0.25;
+      const padNy = tInfo && tInfo.z > -0.15 ? tInfo.ny : -0.97;
+
+      const climb = tr.scaledRadius * (0.14 + 1.35 * tf.speedMult * p * p);
+      const rx = padX + padNx * climb;
+      const ry = padY + padNy * climb;
+      const rAngle = Math.atan2(padNy, padNx);
+      const rScale = clamp(tr.scaledRadius * 0.115 * lerp(1, 0.72, p), 11, 24);
+      const fadeAlpha = p > 0.74 ? 1 - (p - 0.74) / 0.26 : 1;
+
+      if (p < 0.55) {
+        const smP = p / 0.55;
+        for (let s = 0; s < 3; s++) {
+          const ang = s * 2.1 + smP * 0.4;
+          const spread = tr.scaledRadius * (0.04 + 0.12 * smP);
+          drawSmokePuffCloud(
+            ctx,
+            padX + Math.cos(ang) * spread,
+            padY + Math.sin(ang) * spread * 0.7,
+            rScale * 0.34 * (1 - smP * 0.4),
+            tr.alpha * (1 - smP) * 0.78,
+            true
+          );
+        }
+      }
+
+      drawFlightRocket(ctx, rx, ry, rAngle, rScale, tf.rocketId, 1.0, tr.alpha * fadeAlpha, time);
+
+      // Rising cel-shaded profit label ("+20 SC (-5)")
+      const lblY = padY - tr.scaledRadius * 0.12 - 36 * easeOutCubic(p);
+      const lblAlpha = p > 0.68 ? 1 - (p - 0.68) / 0.32 : 1;
+      const lblText = t("trade.floating_gain", {
+        credits: formatPlanetStat(tf.earned),
+        bricks: formatPlanetStat(tf.sold)
+      });
+      ctx.save();
+      ctx.globalAlpha = clamp01(tr.alpha * lblAlpha);
+      ctx.font = "900 " + Math.round(clamp(tr.scaledRadius * 0.08, 12, 16)) + "px 'Fredoka', 'Nunito', system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.lineJoin = "round";
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = "#1b1147";
+      ctx.strokeText(lblText, padX, lblY);
+      ctx.fillStyle = "#ffe44d";
+      ctx.fillText(lblText, padX, lblY);
+      ctx.restore();
+    }
+  }
+
+  function updateTradeActionOverlay() {
+    if (!tileTradeActionsEl) return;
+    const modalBlocking =
+      (window.GameResearch && typeof window.GameResearch.isOpen === "function" && window.GameResearch.isOpen()) ||
+      cargoModalState.open;
+    if (!tradeActionAnchor.visible || modalBlocking) {
+      tileTradeActionsEl.classList.add("is-hidden");
+      return;
+    }
+
+    const placed =
+      buildingsByPlanet[tradeActionAnchor.planetId] &&
+      buildingsByPlanet[tradeActionAnchor.planetId][tradeActionAnchor.tileId];
+    const bDef = placed && window.GameBuildings ? window.GameBuildings.getBuilding(placed.id) : null;
+    if (!placed || !bDef || !bDef.tradeVariant) {
+      tileTradeActionsEl.classList.add("is-hidden");
+      return;
+    }
+
+    const enabled = Boolean(placed.tradeEnabled);
+    if (tileTradeToggleBtn) {
+      tileTradeToggleBtn.classList.toggle("is-active", enabled);
+      tileTradeToggleBtn.classList.toggle("is-stopped", !enabled);
+    }
+    if (tileTradeToggleLabelEl) {
+      tileTradeToggleLabelEl.textContent = t(enabled ? "trade.btn_stop" : "trade.btn_enable");
+    }
+
+    if (tileTradeUpgradeBtn) {
+      const nextDef =
+        bDef.nextVariantId && window.GameBuildings
+          ? window.GameBuildings.getBuilding(bDef.nextVariantId)
+          : null;
+      if (nextDef) {
+        tileTradeUpgradeBtn.classList.remove("is-hidden");
+        const canAfford =
+          window.GameBuildings && typeof window.GameBuildings.canAffordBuilding === "function"
+            ? window.GameBuildings.canAffordBuilding(nextDef.id)
+            : true;
+        tileTradeUpgradeBtn.classList.toggle("is-disabled", !canAfford);
+        if (tileTradeUpgradeIconEl) {
+          tileTradeUpgradeIconEl.src = nextDef.iconSrc;
+        }
+        if (tileTradeUpgradeLabelEl) {
+          tileTradeUpgradeLabelEl.textContent = t("trade.btn_upgrade", { name: nextDef.name });
+        }
+      } else {
+        tileTradeUpgradeBtn.classList.add("is-hidden");
+      }
+    }
+
+    tileTradeActionsEl.classList.remove("is-hidden");
+    tileTradeActionsEl.style.transform =
+      "translate3d(" + tradeActionAnchor.x.toFixed(1) + "px, " + tradeActionAnchor.y.toFixed(1) + "px, 0) translate(-50%, -100%)";
+  }
+
   // --- Main Render Loop ---
 
   function render(time) {
@@ -3088,6 +3385,7 @@
         }
       }
     }
+    tickTradeRockets(time, dtSec);
     updatePlanetBricksHud(false);
     updatePlanetCitizenHud(false);
     if (cargoModalState.open) {
@@ -3100,6 +3398,7 @@
 
     researchButtonAnchor.visible = false;
     rocketActionAnchor.visible = false;
+    tradeActionAnchor.visible = false;
 
     let targetShiftX = 0;
     let targetShiftY = 0;
@@ -3244,6 +3543,7 @@
     }
 
     updateAndDrawActiveFlights(time);
+    updateAndDrawTradeFlights(time);
 
     if (tileResearchBtn) {
       const modalActive =
@@ -3259,6 +3559,7 @@
     }
 
     updateRocketActionOverlay();
+    updateTradeActionOverlay();
     updateFollowRocketButton();
 
     window.requestAnimationFrame(render);
@@ -3714,6 +4015,47 @@
       });
     }
 
+    if (tileTradeToggleBtn) {
+      tileTradeToggleBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        const pId = tradeActionAnchor.planetId;
+        const tId = tradeActionAnchor.tileId;
+        const placed = pId >= 0 && tId ? buildingsByPlanet[pId] && buildingsByPlanet[pId][tId] : null;
+        const bDef = placed && window.GameBuildings ? window.GameBuildings.getBuilding(placed.id) : null;
+        if (!placed || !bDef || !bDef.tradeVariant) return;
+
+        if (placed.tradeEnabled) {
+          placed.tradeEnabled = false;
+          placed.tradeTimer = 0;
+          showTradeNoticeToast(bDef, pId, "toast.trade_stopped");
+        } else {
+          if (Math.floor(bricksByPlanet[pId] || 0) <= 0) {
+            showTradeNoticeToast(bDef, pId, "toast.trade_no_bricks_to_start");
+            return;
+          }
+          placed.tradeEnabled = true;
+          placed.tradeTimer = 0;
+          showTradeNoticeToast(bDef, pId, "toast.trade_started", "success");
+        }
+        updateTradeActionOverlay();
+      });
+    }
+
+    if (tileTradeUpgradeBtn) {
+      tileTradeUpgradeBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        const pId = tradeActionAnchor.planetId;
+        const tId = tradeActionAnchor.tileId;
+        const placed = pId >= 0 && tId ? buildingsByPlanet[pId] && buildingsByPlanet[pId][tId] : null;
+        const bDef = placed && window.GameBuildings ? window.GameBuildings.getBuilding(placed.id) : null;
+        if (!placed || !bDef || !bDef.nextVariantId) return;
+
+        if (window.GameBuildings && typeof window.GameBuildings.openConfirmForBuilding === "function") {
+          window.GameBuildings.openConfirmForBuilding(bDef.nextVariantId);
+        }
+      });
+    }
+
     if (followRocketBtn) {
       followRocketBtn.addEventListener("click", function (e) {
         e.stopPropagation();
@@ -3904,13 +4246,30 @@
 
           const prevCap = calculatePlanetCitizenCapacity(targetIndex);
           const now = performance.now();
+          const hasBricks = Math.floor(bricksByPlanet[targetIndex] || 0) >= 1;
+          const existingDef =
+            existing && existing.id && window.GameBuildings
+              ? window.GameBuildings.getBuilding(existing.id)
+              : null;
+          const wasTrade = Boolean(existingDef && existingDef.tradeVariant);
+          const initialTradeEnabled =
+            bld.tradeVariant
+              ? wasTrade
+                ? Boolean(existing.tradeEnabled) && hasBricks
+                : hasBricks
+              : false;
           buildingsByPlanet[targetIndex][tileId] = {
             id: buildingId,
             placedAt: now,
             isLanded: false,
             loadedBricks: 0,
-            landedCitizens: 0
+            landedCitizens: 0,
+            tradeEnabled: initialTradeEnabled,
+            tradeTimer: 0
           };
+          if (bld.tradeVariant && !hasBricks) {
+            showTradeNoticeToast(bld, targetIndex, "toast.trade_auto_stopped");
+          }
           const newCap = calculatePlanetCitizenCapacity(targetIndex);
           const capDiff = newCap - prevCap;
           if (capDiff > 0) {

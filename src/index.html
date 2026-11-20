@@ -135,6 +135,18 @@
     </button>
   </div>
 
+  <!-- Floating World-Anchored Tile Action Buttons (Trade Rocket Toggle & Upgrade) -->
+  <div id="tile-trade-actions" class="tile-action-group is-hidden">
+    <button id="btn-tile-trade-toggle" class="tile-action-btn tile-action-btn--trade-toggle" type="button" aria-label="Toggle Trade Rocket" data-i18n-aria-label="aria.trade_toggle">
+      <img id="tile-trade-toggle-icon" class="tile-action-icon" src="./assets/ui/icon-credits.svg" alt="" draggable="false" />
+      <span id="tile-trade-toggle-label" class="tile-action-label" data-i18n="trade.btn_stop">Stop Trading</span>
+    </button>
+    <button id="btn-tile-trade-upgrade" class="tile-action-btn tile-action-btn--trade-upgrade is-hidden" type="button" aria-label="Upgrade Trade Rocket" data-i18n-aria-label="aria.trade_upgrade">
+      <img id="tile-trade-upgrade-icon" class="tile-action-icon" src="./assets/ui/bld-trade-rocket-2.svg" alt="" draggable="false" />
+      <span id="tile-trade-upgrade-label" class="tile-action-label">Upgrade</span>
+    </button>
+  </div>
+
   <!-- Floating Follow Rocket Button (During Active Interplanetary Flight) -->
   <button id="btn-follow-rocket" class="follow-rocket-btn is-hidden" type="button" aria-label="Follow Rocket" data-i18n-aria-label="aria.follow_rocket">
     <img id="follow-rocket-icon" class="follow-rocket-icon" src="./assets/ui/bld-space-rocket-1.svg" alt="" draggable="false" />

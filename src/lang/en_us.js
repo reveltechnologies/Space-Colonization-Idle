@@ -39,7 +39,9 @@
       rocket_cargo_modal: "Rocket Cargo",
       close_rocket_cargo: "Close Rocket Cargo",
       follow_rocket: "Follow Rocket",
-      rocket_bricks_slider: "Construction Bricks to Load"
+      rocket_bricks_slider: "Construction Bricks to Load",
+      trade_toggle: "Toggle Trade Rocket",
+      trade_upgrade: "Upgrade Trade Rocket"
     },
     currencies: {
       credits: "Credits",
@@ -176,7 +178,30 @@
         name: "Space Rocket II",
         specialty: "Tier II Heavy Starship",
         description: "Heavy multi-stage deep-space starship fitted with twin strap-on boosters, carrying a larger Citizen crew and heavy Construction Brick payload."
+      },
+      trade_rocket_1: {
+        name: "Trade Rocket I",
+        specialty: "Tier I Brick Trader",
+        description: "Automated commercial launchpad that regularly launches cargo shuttles to space, selling 5 Construction Bricks for 20 Space Credits every 6 seconds. Auto-stops if the planet runs out of Bricks."
+      },
+      trade_rocket_2: {
+        name: "Trade Rocket II",
+        specialty: "Tier II Express Trader",
+        description: "Upgraded twin-booster freighter terminal with faster turnaround and higher trade rates, selling 12 Construction Bricks for 60 Space Credits every 4 seconds."
+      },
+      trade_rocket_3: {
+        name: "Trade Rocket III",
+        specialty: "Tier III Heavy Starliner",
+        description: "High-velocity orbital trade port that rapidly dispatches heavy cargo starliners, selling 25 Construction Bricks for 150 Space Credits every 2.5 seconds."
       }
+    },
+    trade: {
+      btn_stop: "Stop Trading",
+      btn_enable: "Start Trading",
+      btn_upgrade: "Upgrade → {name}",
+      rate_chip: "{bricks} Bricks → +{credits} SC",
+      speed_chip: "Every {sec}s (+{rate}/s)",
+      floating_gain: "+{credits} SC (-{bricks})"
     },
     rocket: {
       launch_btn: "LAUNCH!",
@@ -233,7 +258,11 @@
       rocket_no_destination: "No further planet ahead to launch toward.",
       rocket_launched: "{rocket} launched toward {planet} with {citizens} Citizens and {bricks} Bricks!",
       rocket_landed_unlocked: "{planet} unlocked! Landed with {citizens} Citizens and {bricks} Bricks.",
-      rocket_landed_delivered: "{rocket} landed on {planet} with {citizens} Citizens and {bricks} Bricks!"
+      rocket_landed_delivered: "{rocket} landed on {planet} with {citizens} Citizens and {bricks} Bricks!",
+      trade_started: "{building} started selling Construction Bricks on {planet}.",
+      trade_stopped: "{building} stopped trading on {planet}.",
+      trade_auto_stopped: "{building} on {planet} auto-stopped — no Construction Bricks left!",
+      trade_no_bricks_to_start: "Cannot start {building} — no Construction Bricks left on {planet}!"
     },
     research: {
       title: "Research Tree",

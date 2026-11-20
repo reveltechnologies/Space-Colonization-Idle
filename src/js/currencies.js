@@ -18,8 +18,8 @@
     [""];
 
   const state = {
-    credits: { amount: 500, rate: 0 },
-    ore: { amount: 100, rate: 0 }
+    credits: { amount: 500, rate: 0, displayRate: 0 },
+    ore: { amount: 100, rate: 0, displayRate: 0 }
   };
 
   const listeners = [];
@@ -112,7 +112,7 @@
       changed = true;
     }
 
-    const rateText = formatRate(entry.rate);
+    const rateText = formatRate((entry.rate || 0) + (entry.displayRate || 0));
     if (ui.rateEl && rateText !== ui.lastRate) {
       ui.lastRate = rateText;
       ui.rateEl.textContent = rateText;
@@ -241,6 +241,12 @@
     ensureTicker();
   }
 
+  function setDisplayRate(key, ratePerSec) {
+    if (!state[key]) return;
+    state[key].displayRate = Math.max(0, Number(ratePerSec) || 0);
+    renderCurrency(key);
+  }
+
   function init() {
     renderCurrency("credits");
     renderCurrency("ore");
@@ -256,6 +262,7 @@
     spend: spend,
     canAfford: canAfford,
     setRate: setRate,
+    setDisplayRate: setDisplayRate,
     onChange: onChange
   };
 

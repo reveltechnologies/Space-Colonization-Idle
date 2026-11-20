@@ -98,6 +98,63 @@
       iconSrc: "./assets/ui/bld-mega-quarry.svg"
     },
     {
+      id: "trade_rocket_1",
+      name: t("buildings.trade_rocket_1.name"),
+      category: "mining",
+      tag: t("categories.mining"),
+      terrain: "solid",
+      tradeVariant: 1,
+      nextVariantId: "trade_rocket_2",
+      bricksPerLaunch: 5,
+      creditsPerBrick: 4,
+      tradeIntervalSec: 6.0,
+      tradeSpeedMult: 1.0,
+      specialtyLabel: t("buildings.trade_rocket_1.specialty"),
+      specialtyIconSrc: "./assets/ui/bld-trade-rocket-1.svg",
+      description: t("buildings.trade_rocket_1.description"),
+      cost: { credits: 140, ore: 20 },
+      accent: "#10b981",
+      iconSrc: "./assets/ui/bld-trade-rocket-1.svg"
+    },
+    {
+      id: "trade_rocket_2",
+      name: t("buildings.trade_rocket_2.name"),
+      category: "mining",
+      tag: t("categories.mining"),
+      terrain: "solid",
+      tradeVariant: 2,
+      nextVariantId: "trade_rocket_3",
+      bricksPerLaunch: 12,
+      creditsPerBrick: 5,
+      tradeIntervalSec: 4.0,
+      tradeSpeedMult: 1.35,
+      specialtyLabel: t("buildings.trade_rocket_2.specialty"),
+      specialtyIconSrc: "./assets/ui/bld-trade-rocket-2.svg",
+      description: t("buildings.trade_rocket_2.description"),
+      cost: { credits: 290, ore: 50 },
+      accent: "#06b6d4",
+      iconSrc: "./assets/ui/bld-trade-rocket-2.svg"
+    },
+    {
+      id: "trade_rocket_3",
+      name: t("buildings.trade_rocket_3.name"),
+      category: "mining",
+      tag: t("categories.mining"),
+      terrain: "solid",
+      tradeVariant: 3,
+      nextVariantId: null,
+      bricksPerLaunch: 25,
+      creditsPerBrick: 6,
+      tradeIntervalSec: 2.5,
+      tradeSpeedMult: 1.75,
+      specialtyLabel: t("buildings.trade_rocket_3.specialty"),
+      specialtyIconSrc: "./assets/ui/bld-trade-rocket-3.svg",
+      description: t("buildings.trade_rocket_3.description"),
+      cost: { credits: 480, ore: 95 },
+      accent: "#f59e0b",
+      iconSrc: "./assets/ui/bld-trade-rocket-3.svg"
+    },
+    {
       id: "research_center",
       name: t("buildings.research_center.name"),
       category: "science",
@@ -800,6 +857,19 @@
             t("rocket.tier_chip", { tier: b.rocketTier })
           )
         );
+      } else if (!showInvalidTerrain && b.tradeVariant) {
+        info.appendChild(
+          createCardInfoChip(
+            "build-trade-chip",
+            "build-bricks-icon",
+            CURRENCY_ICONS.credits,
+            "build-bricks-label",
+            t("trade.rate_chip", {
+              bricks: formatCostValue(b.bricksPerLaunch),
+              credits: formatCostValue(b.bricksPerLaunch * b.creditsPerBrick)
+            })
+          )
+        );
       } else {
         info.appendChild(
           createCardInfoChip(
@@ -1093,6 +1163,34 @@
             )
           );
         }
+        if (b.tradeVariant) {
+          const earnedPerLaunch = b.bricksPerLaunch * b.creditsPerBrick;
+          const scPerSec = earnedPerLaunch / b.tradeIntervalSec;
+          confirmBadgesEl.appendChild(
+            createCardInfoChip(
+              "build-trade-chip",
+              "build-bricks-icon",
+              CURRENCY_ICONS.credits,
+              "build-bricks-label",
+              t("trade.rate_chip", {
+                bricks: formatCostValue(b.bricksPerLaunch),
+                credits: formatCostValue(earnedPerLaunch)
+              })
+            )
+          );
+          confirmBadgesEl.appendChild(
+            createCardInfoChip(
+              "build-energy-chip",
+              "build-energy-icon",
+              CURRENCY_ICONS.credits,
+              "build-energy-label",
+              t("trade.speed_chip", {
+                sec: formatRateNumber(b.tradeIntervalSec),
+                rate: formatRateNumber(scPerSec)
+              })
+            )
+          );
+        }
       }
       if (b.maxPerPlanet) {
         confirmBadgesEl.appendChild(
@@ -1131,8 +1229,9 @@
         const key = costOrder[c];
         const req = b.cost && b.cost[key];
         if (!req || req <= 0) continue;
+        const hasEnough = !window.GameCurrencies || window.GameCurrencies.get(key) >= req;
         const item = document.createElement("span");
-        item.className = "build-cost-item";
+        item.className = "build-cost-item" + (hasEnough ? "" : " is-short");
         const cIcon = document.createElement("img");
         cIcon.className = "build-cost-icon";
         cIcon.src = CURRENCY_ICONS[key];
@@ -1146,6 +1245,15 @@
         confirmCostsEl.appendChild(item);
       }
       confirmCostsEl.classList.toggle("is-hidden", confirmCostsEl.childNodes.length === 0);
+    }
+
+    if (confirmBuildBtn) {
+      const canConfirm =
+        !isBuildingResearchLocked(b.id) &&
+        !isBuildingPlanetLimitReached(b.id, currentPlanetId, currentPlacedId) &&
+        canBuildOnBiome(b.id, currentBiomeId) &&
+        canAffordBuilding(b.id);
+      confirmBuildBtn.classList.toggle("is-disabled", !canConfirm);
     }
 
     if (drawerEl) {
@@ -1298,11 +1406,51 @@
     confirmBuildBtn.addEventListener("click", function () {
       const bId = pendingConfirmBuildingId;
       if (!bId) return;
+      if (!canAffordBuilding(bId)) {
+        const b = getBuilding(bId);
+        if (b) {
+          const bldImg = '<img class="game-toast-icon" src="' + b.iconSrc + '" alt="" draggable="false" />';
+          const bldStrong = '<strong class="game-toast-strong">' + b.name + "</strong>";
+          const missing = [];
+          const costOrder = ["credits", "ore"];
+          for (let c = 0; c < costOrder.length; c++) {
+            const key = costOrder[c];
+            const req = b.cost && b.cost[key];
+            if (!req || req <= 0) continue;
+            const has = (window.GameCurrencies && window.GameCurrencies.get(key)) || 0;
+            if (has < req) {
+              const diff = req - has;
+              const cIcon = CURRENCY_ICONS[key];
+              const cLabel = key === "credits" ? t("currencies.credits") : t("currencies.ore");
+              missing.push(
+                '<span class="game-toast-pill"><img class="game-toast-pill-icon" src="' +
+                  cIcon +
+                  '" alt="" draggable="false" /> ' +
+                  formatCostValue(diff) +
+                  " " +
+                  cLabel +
+                  "</span>"
+              );
+            }
+          }
+          if (missing.length > 0) {
+            showBuildErrorToast(
+              "<span>" +
+                bldImg +
+                t("toast.cannot_afford", {
+                  building: bldStrong,
+                  missing: missing.join(t("toast.missing_joiner"))
+                }) +
+                "</span>"
+            );
+          }
+        }
+        return;
+      }
       if (
         isBuildingResearchLocked(bId) ||
         isBuildingPlanetLimitReached(bId, currentPlanetId, currentPlacedId) ||
-        !canBuildOnBiome(bId, currentBiomeId) ||
-        !canAffordBuilding(bId)
+        !canBuildOnBiome(bId, currentBiomeId)
       ) {
         closeConfirmScene();
         renderBuildingCards();
@@ -2734,6 +2882,106 @@
     addMiniTurbine(0.35, -0.16, 0.115, 0.68, 0.075, 0.042, 0.30, time * 0.0054 + phase + 2.3);
   }
 
+  function getTradeBeaconStyle(opts, time, phase) {
+    const active = Boolean(opts && opts.tradeEnabled);
+    const prog = opts && opts.tradeProgress !== undefined ? clamp01(opts.tradeProgress) : 0;
+    const pulse = active ? 0.55 + 0.40 * Math.sin(time * 0.008 + phase) : 0.42;
+    return {
+      active: active,
+      prog: prog,
+      beaconCol: active ? [34, 197, 94] : [239, 68, 68],
+      beaconGlow: pulse,
+      preLaunchGlow: active && prog > 0.72 ? 0.50 + ((prog - 0.72) / 0.28) * 0.50 : 0.25
+    };
+  }
+
+  function buildTradeRocket1Model(m, time, phase, pxScale, opts) {
+    const st = getTradeBeaconStyle(opts, time, phase);
+    // Commercial slate & emerald trade launchpad
+    m.addPrism(0, 0, 0.0, 0.09, 0.62, 0.56, 8, Math.PI / 8, [71, 85, 105], { spec: 0.28 });
+    m.addPrism(0, 0, 0.09, 0.125, 0.34, 0.28, 8, 0, [16, 185, 129], { emissive: st.active ? 0.42 : 0.12 });
+
+    // Stacked terracotta brick crate next to pad
+    m.addBox(-0.30, -0.18, 0.15, 0.10, 0.08, 0.06, [232, 93, 63], { spec: 0.18 });
+    m.addBox(-0.30, -0.18, 0.23, 0.08, 0.065, 0.03, [255, 200, 58], { spec: 0.45 });
+
+    // Telemetry service tower + active/stopped status beacon
+    const lw = Math.max(1.2, pxScale * 0.05);
+    m.addBox(0.28, 0.10, 0.36, 0.055, 0.055, 0.27, [148, 163, 184], { spec: 0.32 });
+    m.addLine([0.22, 0.10, 0.52], [0.09, 0.02, 0.52], "#10b981", lw);
+    m.addPrism(0.28, 0.10, 0.63, 0.70, 0.04, 0.015, 6, 0, st.beaconCol, { emissive: st.beaconGlow });
+
+    // Docked commercial shuttle
+    const jx = st.active && st.prog > 0.78 ? Math.sin(time * 0.07 + phase) * 0.02 : 0;
+    m.addPrism(jx, 0, 0.125, 0.20, 0.11, 0.075, 8, 0, [255, 200, 58], { emissive: st.preLaunchGlow });
+    m.addBox(jx, 0, 0.25, 0.22, 0.04, 0.075, [16, 185, 129], { spec: 0.30 });
+    m.addBox(jx, 0, 0.25, 0.04, 0.22, 0.075, [5, 150, 105], { spec: 0.30 });
+    m.addPrism(jx, 0, 0.20, 0.68, 0.125, 0.115, 10, 0, [248, 250, 252], { spec: 0.48 });
+    m.addPrism(jx, 0, 0.68, 0.88, 0.115, 0.015, 10, 0, [255, 177, 41], { spec: 0.45 });
+    m.addBox(jx, -0.115, 0.48, 0.05, 0.02, 0.05, [255, 216, 77], { emissive: 0.55 });
+  }
+
+  function buildTradeRocket2Model(m, time, phase, pxScale, opts) {
+    const st = getTradeBeaconStyle(opts, time, phase);
+    // Express cyan-teal freighter terminal
+    m.addPrism(0, 0, 0.0, 0.10, 0.66, 0.60, 8, Math.PI / 8, [51, 65, 85], { spec: 0.28 });
+    m.addPrism(0, 0, 0.10, 0.135, 0.38, 0.32, 8, 0, [6, 182, 212], { emissive: st.active ? 0.45 : 0.12 });
+
+    // Cargo gantry & crates
+    const lw = Math.max(1.3, pxScale * 0.055);
+    m.addBox(-0.36, 0.0, 0.42, 0.055, 0.055, 0.32, [100, 116, 139], { spec: 0.35 });
+    m.addLine([-0.30, 0.0, 0.62], [-0.14, 0.0, 0.62], "#06b6d4", lw);
+    m.addPrism(-0.36, 0.0, 0.74, 0.81, 0.045, 0.015, 6, 0, st.beaconCol, { emissive: st.beaconGlow });
+    m.addBox(0.32, -0.20, 0.16, 0.095, 0.08, 0.06, [232, 93, 63], { spec: 0.18 });
+    m.addBox(-0.28, -0.26, 0.15, 0.085, 0.075, 0.05, [245, 158, 11], { spec: 0.35 });
+
+    // Twin cyan cargo side boosters
+    const jx = st.active && st.prog > 0.78 ? Math.sin(time * 0.08 + phase) * 0.022 : 0;
+    m.addPrism(jx - 0.19, 0, 0.135, 0.19, 0.065, 0.045, 8, 0, [255, 200, 58], { emissive: st.preLaunchGlow });
+    m.addPrism(jx - 0.19, 0, 0.19, 0.56, 0.075, 0.07, 8, 0, [6, 182, 212], { spec: 0.42 });
+    m.addPrism(jx - 0.19, 0, 0.56, 0.68, 0.07, 0.012, 8, 0, [255, 216, 77], { spec: 0.42 });
+
+    m.addPrism(jx + 0.19, 0, 0.135, 0.19, 0.065, 0.045, 8, 0, [255, 200, 58], { emissive: st.preLaunchGlow });
+    m.addPrism(jx + 0.19, 0, 0.19, 0.56, 0.075, 0.07, 8, 0, [8, 145, 178], { spec: 0.42 });
+    m.addPrism(jx + 0.19, 0, 0.56, 0.68, 0.07, 0.012, 8, 0, [255, 216, 77], { spec: 0.42 });
+
+    // Central white-and-cyan express freighter hull
+    m.addPrism(jx, 0, 0.135, 0.21, 0.115, 0.085, 8, 0, [255, 200, 58], { emissive: st.preLaunchGlow });
+    m.addPrism(jx, 0, 0.21, 0.74, 0.13, 0.12, 10, 0, [248, 250, 252], { spec: 0.48 });
+    m.addPrism(jx, 0, 0.74, 0.96, 0.12, 0.016, 10, 0, [6, 182, 212], { spec: 0.45 });
+    m.addBox(jx, -0.125, 0.52, 0.055, 0.02, 0.055, [255, 216, 77], { emissive: 0.62 });
+  }
+
+  function buildTradeRocket3Model(m, time, phase, pxScale, opts) {
+    const st = getTradeBeaconStyle(opts, time, phase);
+    // Grand orbital gold starliner port
+    m.addPrism(0, 0, 0.0, 0.10, 0.70, 0.64, 6, 0, [30, 41, 59], { spec: 0.35 });
+    m.addPrism(0, 0, 0.10, 0.135, 0.56, 0.52, 6, 0, [245, 158, 11], { emissive: st.active ? 0.50 : 0.14 });
+
+    // Flanking active/stopped telemetry pylons
+    m.addBox(-0.40, 0, 0.44, 0.05, 0.05, 0.30, [148, 163, 184], { spec: 0.35 });
+    m.addBox(0.40, 0, 0.44, 0.05, 0.05, 0.30, [148, 163, 184], { spec: 0.35 });
+    m.addPrism(-0.40, 0, 0.74, 0.81, 0.04, 0.015, 6, 0, st.beaconCol, { emissive: st.beaconGlow });
+    m.addPrism(0.40, 0, 0.74, 0.81, 0.04, 0.015, 6, 0, st.beaconCol, { emissive: st.beaconGlow });
+
+    const jx = st.active && st.prog > 0.78 ? Math.sin(time * 0.09 + phase) * 0.024 : 0;
+    // Cyan wing fins & twin heavy golden boosters
+    m.addBox(jx, 0, 0.28, 0.32, 0.04, 0.09, [56, 189, 248], { spec: 0.42 });
+    m.addPrism(jx - 0.22, 0, 0.135, 0.19, 0.068, 0.048, 8, 0, [255, 90, 77], { emissive: st.preLaunchGlow });
+    m.addPrism(jx - 0.22, 0, 0.19, 0.60, 0.08, 0.075, 8, 0, [255, 216, 77], { spec: 0.50 });
+    m.addPrism(jx - 0.22, 0, 0.60, 0.73, 0.075, 0.014, 8, 0, [245, 158, 11], { spec: 0.45 });
+
+    m.addPrism(jx + 0.22, 0, 0.135, 0.19, 0.068, 0.048, 8, 0, [255, 90, 77], { emissive: st.preLaunchGlow });
+    m.addPrism(jx + 0.22, 0, 0.19, 0.60, 0.08, 0.075, 8, 0, [245, 158, 11], { spec: 0.50 });
+    m.addPrism(jx + 0.22, 0, 0.60, 0.73, 0.075, 0.014, 8, 0, [217, 119, 6], { spec: 0.45 });
+
+    // Heavy navy & gold starliner core
+    m.addPrism(jx, 0, 0.135, 0.22, 0.125, 0.09, 8, 0, [255, 200, 58], { emissive: st.preLaunchGlow });
+    m.addPrism(jx, 0, 0.22, 0.80, 0.145, 0.135, 10, 0, [30, 41, 59], { spec: 0.52 });
+    m.addPrism(jx, 0, 0.80, 1.04, 0.135, 0.018, 10, 0, [255, 216, 77], { spec: 0.55 });
+    m.addBox(jx, -0.138, 0.56, 0.06, 0.02, 0.06, [56, 189, 248], { emissive: 0.82 });
+  }
+
   function renderBuilding3D(ctx, buildingId, frame, time, buildScale, opts) {
     if (!ctx || !frame) return;
 
@@ -2777,6 +3025,12 @@
       buildSpaceRocket1Model(collector, time, phase, pxScale);
     } else if (buildingId === "space_rocket_2") {
       buildSpaceRocket2Model(collector, time, phase, pxScale);
+    } else if (buildingId === "trade_rocket_1") {
+      buildTradeRocket1Model(collector, time, phase, pxScale, opts);
+    } else if (buildingId === "trade_rocket_2") {
+      buildTradeRocket2Model(collector, time, phase, pxScale, opts);
+    } else if (buildingId === "trade_rocket_3") {
+      buildTradeRocket3Model(collector, time, phase, pxScale, opts);
     }
 
     collector.drawAll(ctx);
@@ -3165,7 +3419,10 @@
       solar_array: 0.50,
       solar_tower: 0.76,
       space_rocket_1: 0.88,
-      space_rocket_2: 0.96
+      space_rocket_2: 0.96,
+      trade_rocket_1: 0.84,
+      trade_rocket_2: 0.90,
+      trade_rocket_3: 0.96
     };
     const targetZ = buildingImpactHeights[effect.buildingId] || 0.40;
 
@@ -3386,6 +3643,7 @@
     showToast: showBuildErrorToast,
     setHandlers: setHandlers,
     openForTile: openForTile,
+    openConfirmForBuilding: openConfirmScene,
     updateCurrentBuilding: updateCurrentBuilding,
     close: close,
     isOpen: isOpen,

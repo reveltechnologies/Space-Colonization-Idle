@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" stroke-linejoin="round" stroke-linecap="round">
+  <ellipse cx="50" cy="91" rx="42" ry="5.5" fill="#1b1147" opacity="0.28"/>
+  <!-- Commercial trade launchpad -->
+  <rect x="14" y="80" width="72" height="10" rx="4" fill="#475569" stroke="#1b1147" stroke-width="4.5"/>
+  <rect x="24" y="75" width="52" height="6" rx="2.5" fill="#10b981" stroke="#1b1147" stroke-width="3.5"/>
+
+  <!-- Stacked brick cargo crate on left deck -->
+  <rect x="16" y="64" width="16" height="14" rx="3" fill="#e85d3f" stroke="#1b1147" stroke-width="3.5"/>
+  <path d="M16 71 H32 M24 64 V71 M20 71 V78" stroke="#1b1147" stroke-width="2.5" fill="none"/>
+
+  <!-- Golden thruster bell -->
+  <polygon points="44,72 56,72 60,79 40,79" fill="#ffc83a" stroke="#1b1147" stroke-width="3.5"/>
+
+  <!-- Emerald trade shuttle fins -->
+  <polygon points="40,54 27,73 41,70" fill="#10b981" stroke="#1b1147" stroke-width="4"/>
+  <polygon points="60,54 73,73 59,70" fill="#059669" stroke="#1b1147" stroke-width="4"/>
+
+  <!-- White-and-teal trade fuselage -->
+  <path d="M40 71 V36 Q40 16 50 9 Q60 16 60 36 V71 Z" fill="#f8fafc" stroke="#1b1147" stroke-width="4.5"/>
+  <!-- Golden nose cone -->
+  <path d="M41.5 28 Q45 14 50 9 Q55 14 58.5 28 Z" fill="#ffb129" stroke="#1b1147" stroke-width="4"/>
+  <rect x="40" y="60" width="20" height="7" fill="#10b981" stroke="#1b1147" stroke-width="3.5"/>
+  <!-- Highlight streak -->
+  <path d="M44 33 V56" stroke="#ffffff" stroke-width="3.5"/>
+  <!-- Gold Space Credit coin emblem on hull -->
+  <circle cx="50" cy="44" r="7.5" fill="#ffd84d" stroke="#1b1147" stroke-width="3.5"/>
+  <circle cx="50" cy="44" r="3" fill="#ffb129"/>
+</svg>

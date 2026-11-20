@@ -1255,7 +1255,8 @@ img {
   font-variant-numeric: tabular-nums;
 }
 
-.build-bricks-chip {
+.build-bricks-chip,
+.build-trade-chip {
   max-width: 100%;
   display: inline-flex;
   align-items: center;
@@ -1266,6 +1267,12 @@ img {
   border-radius: 999px;
   background: #ffe4dc;
   color: #6e1c0e;
+}
+
+.build-trade-chip {
+  border-color: #059669;
+  background: #dcfce7;
+  color: #064e3b;
 }
 
 .build-bricks-icon {
@@ -1679,6 +1686,15 @@ img {
   --b: linear-gradient(180deg, #7ae437 0%, #58c01c 100%);
   flex: 1 1 240px;
   max-width: 340px;
+}
+
+.build-confirm-btn--confirm.is-disabled {
+  --b: linear-gradient(180deg, #5c566c 0%, #464054 100%);
+  color: #d4cfe0;
+}
+
+.build-confirm-costs .build-cost-item.is-short .build-cost-val {
+  color: #ff6e66;
 }
 
 .build-confirm-costs {
@@ -2908,6 +2924,27 @@ body.rocket-cargo-open .tile-action-group {
 }
 
 .tile-action-btn--launch.is-disabled {
+  filter: grayscale(0.55);
+  opacity: 0.78;
+}
+
+.tile-action-btn--trade-toggle {
+  --b: linear-gradient(180deg, #ff6b5e 0%, #dc2626 100%);
+}
+
+.tile-action-btn--trade-toggle.is-stopped {
+  --b: linear-gradient(180deg, #34d399 0%, #059669 100%);
+}
+
+.tile-action-btn--trade-upgrade {
+  --b: linear-gradient(180deg, #fbbf24 0%, #d97706 100%);
+}
+
+.tile-action-btn--trade-upgrade.is-hidden {
+  display: none;
+}
+
+.tile-action-btn--trade-upgrade.is-disabled {
   filter: grayscale(0.55);
   opacity: 0.78;
 }

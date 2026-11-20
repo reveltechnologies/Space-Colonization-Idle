@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" stroke-linejoin="round" stroke-linecap="round">
+  <ellipse cx="50" cy="91" rx="44" ry="5.5" fill="#1b1147" opacity="0.28"/>
+  <!-- Express trade terminal deck & crane gantry -->
+  <rect x="11" y="80" width="78" height="10" rx="4" fill="#334155" stroke="#1b1147" stroke-width="4.5"/>
+  <path d="M16 80 V26 H25 V80 Z" fill="#64748b" stroke="#1b1147" stroke-width="4"/>
+  <path d="M25 36 H36 M25 54 H34" stroke="#06b6d4" stroke-width="3.5"/>
+
+  <!-- Twin cyan-teal cargo side boosters -->
+  <path d="M30 74 V42 Q30 31 35.5 26 Q41 31 41 42 V74 Z" fill="#06b6d4" stroke="#1b1147" stroke-width="3.8"/>
+  <path d="M59 74 V42 Q59 31 64.5 26 Q70 31 70 42 V74 Z" fill="#0891b2" stroke="#1b1147" stroke-width="3.8"/>
+  <polygon points="31.5,74 39.5,74 41,79 30,79" fill="#ffc83a" stroke="#1b1147" stroke-width="3"/>
+  <polygon points="60.5,74 68.5,74 70,79 59,79" fill="#ffc83a" stroke="#1b1147" stroke-width="3"/>
+
+  <!-- Brick & Credit cargo pods -->
+  <rect x="29" y="53" width="12" height="10" rx="2.5" fill="#e85d3f" stroke="#1b1147" stroke-width="3"/>
+  <rect x="59" y="53" width="12" height="10" rx="2.5" fill="#e85d3f" stroke="#1b1147" stroke-width="3"/>
+
+  <!-- Main freighter core -->
+  <polygon points="44,73 56,73 59,80 41,80" fill="#ffc83a" stroke="#1b1147" stroke-width="3.5"/>
+  <path d="M40 73 V33 Q40 13 50 7 Q60 13 60 33 V73 Z" fill="#f8fafc" stroke="#1b1147" stroke-width="4.5"/>
+  <path d="M41.5 26 Q45 12 50 7 Q55 12 58.5 26 Z" fill="#06b6d4" stroke="#1b1147" stroke-width="4"/>
+  <rect x="40" y="61" width="20" height="7" fill="#06b6d4" stroke="#1b1147" stroke-width="3.5"/>
+  <!-- Gold coin badge -->
+  <circle cx="50" cy="43" r="8" fill="#ffd84d" stroke="#1b1147" stroke-width="3.5"/>
+  <path d="M46.5 41 L50 38 L53.5 41 L50 48 Z" fill="#ff9814" stroke="#1b1147" stroke-width="2"/>
+</svg>
