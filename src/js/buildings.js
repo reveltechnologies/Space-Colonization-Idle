@@ -67,6 +67,7 @@
       category: "mining",
       tag: t("categories.mining"),
       terrain: "mountainous",
+      nextVariantId: "deep_mine",
       bricksPerSec: 0.2,
       description: t("buildings.mine.description"),
       cost: { credits: 100 },
@@ -79,6 +80,7 @@
       category: "mining",
       tag: t("categories.mining"),
       terrain: "mountainous",
+      nextVariantId: "mega_quarry",
       bricksPerSec: 0.8,
       description: t("buildings.deep_mine.description"),
       cost: { credits: 230, ore: 40 },
@@ -91,6 +93,7 @@
       category: "mining",
       tag: t("categories.mining"),
       terrain: "mountainous",
+      nextVariantId: null,
       bricksPerSec: 2.5,
       description: t("buildings.mega_quarry.description"),
       cost: { credits: 460, ore: 90 },
@@ -161,6 +164,7 @@
       tag: t("categories.science"),
       terrain: "solid",
       maxPerPlanet: 1,
+      nextVariantId: null,
       researchPerSec: 0.25,
       description: t("buildings.research_center.description"),
       cost: { credits: 150, ore: 20 },
@@ -173,6 +177,7 @@
       category: "science",
       tag: t("categories.science"),
       terrain: "solid",
+      nextVariantId: "observatory",
       researchPerSec: 0.5,
       description: t("buildings.research_lab.description"),
       cost: { credits: 200, ore: 35 },
@@ -185,6 +190,7 @@
       category: "science",
       tag: t("categories.science"),
       terrain: "mountainous",
+      nextVariantId: "quantum_array",
       researchPerSec: 1.2,
       description: t("buildings.observatory.description"),
       cost: { credits: 340, ore: 60 },
@@ -197,6 +203,7 @@
       category: "science",
       tag: t("categories.science"),
       terrain: "solid",
+      nextVariantId: null,
       researchPerSec: 3.5,
       requiredResearch: "quantum_computing",
       description: t("buildings.quantum_array.description"),
@@ -210,6 +217,7 @@
       category: "colony",
       tag: t("categories.colony"),
       terrain: "surface",
+      nextVariantId: "big_house",
       citizenSlots: 2,
       description: t("buildings.small_house.description"),
       cost: { credits: 75, ore: 10 },
@@ -222,6 +230,7 @@
       category: "colony",
       tag: t("categories.colony"),
       terrain: "surface",
+      nextVariantId: "villa",
       citizenSlots: 6,
       description: t("buildings.big_house.description"),
       cost: { credits: 200, ore: 35 },
@@ -234,6 +243,7 @@
       category: "colony",
       tag: t("categories.colony"),
       terrain: "surface",
+      nextVariantId: null,
       citizenSlots: 15,
       description: t("buildings.villa.description"),
       cost: { credits: 450, ore: 90 },
@@ -246,6 +256,7 @@
       category: "power",
       tag: t("categories.power"),
       terrain: "solid",
+      nextVariantId: "solar_array",
       energySlots: 3,
       description: t("buildings.solar_panel.description"),
       cost: { credits: 50 },
@@ -258,6 +269,7 @@
       category: "power",
       tag: t("categories.power"),
       terrain: "solid",
+      nextVariantId: "solar_tower",
       energySlots: 8,
       description: t("buildings.solar_array.description"),
       cost: { credits: 160, ore: 25 },
@@ -270,6 +282,7 @@
       category: "power",
       tag: t("categories.power"),
       terrain: "solid",
+      nextVariantId: null,
       energySlots: 20,
       description: t("buildings.solar_tower.description"),
       cost: { credits: 400, ore: 75 },
@@ -282,6 +295,7 @@
       category: "power",
       tag: t("categories.power"),
       terrain: "surface",
+      nextVariantId: "wind_turbine",
       energySlots: 6,
       description: t("buildings.windmill.description"),
       cost: { credits: 120, ore: 25 },
@@ -294,6 +308,7 @@
       category: "power",
       tag: t("categories.power"),
       terrain: "surface",
+      nextVariantId: "wind_farm",
       energySlots: 16,
       description: t("buildings.wind_turbine.description"),
       cost: { credits: 280, ore: 55 },
@@ -306,6 +321,7 @@
       category: "power",
       tag: t("categories.power"),
       terrain: "surface",
+      nextVariantId: null,
       energySlots: 35,
       description: t("buildings.wind_farm.description"),
       cost: { credits: 480, ore: 95 },
@@ -319,6 +335,7 @@
       tag: t("categories.colony"),
       terrain: "surface",
       requiredResearch: "orbital_rocketry",
+      nextVariantId: "space_rocket_2",
       rocketTier: 1,
       rocketCitizens: 4,
       rocketMaxBricks: 200,
@@ -336,6 +353,7 @@
       tag: t("categories.colony"),
       terrain: "surface",
       requiredResearch: "heavy_starship",
+      nextVariantId: null,
       rocketTier: 2,
       rocketCitizens: 10,
       rocketMaxBricks: 600,
@@ -420,6 +438,25 @@
     if (placedId === b.id) return false;
     if (typeof callbacks.getBuildingCountOnPlanet !== "function") return false;
     return callbacks.getBuildingCountOnPlanet(planetId, b.id) >= b.maxPerPlanet;
+  }
+
+  function getNextUpgradeBuilding(buildingId, biomeId) {
+    let cur = getBuilding(buildingId);
+    if (!cur || !cur.nextVariantId) return null;
+    const visited = Object.create(null);
+    visited[cur.id] = true;
+    while (cur && cur.nextVariantId) {
+      const nextId = cur.nextVariantId;
+      if (visited[nextId]) return null;
+      visited[nextId] = true;
+      const nextDef = getBuilding(nextId);
+      if (!nextDef) return null;
+      if (!biomeId || canBuildOnBiome(nextDef.id, biomeId)) {
+        return nextDef;
+      }
+      cur = nextDef;
+    }
+    return null;
   }
 
   function formatCostValue(amount) {
@@ -676,6 +713,111 @@
     return chip;
   }
 
+  function showPurchaseBlockedToast(b, planetId, placedId, biomeId) {
+    if (!b) return true;
+    const researchLocked = isBuildingResearchLocked(b.id);
+    if (researchLocked) {
+      const bldImg = '<img class="game-toast-icon" src="' + b.iconSrc + '" alt="" draggable="false" />';
+      const bldStrong = '<strong class="game-toast-strong">' + b.name + "</strong>";
+      const resPill =
+        '<span class="game-toast-pill"><img class="game-toast-pill-icon" src="' +
+        STAT_ICONS.research +
+        '" alt="" draggable="false" /> ' +
+        t("research.nodes." + b.requiredResearch + ".name") +
+        "</span>";
+      showBuildErrorToast(
+        "<span>" + bldImg + t("toast.research_required", { building: bldStrong, research: resPill }) + "</span>"
+      );
+      return true;
+    }
+
+    const pId = planetId !== undefined && planetId !== null ? planetId : currentPlanetId;
+    const plId = placedId !== undefined ? placedId : currentPlacedId;
+    if (isBuildingPlanetLimitReached(b.id, pId, plId)) {
+      const bldImg = '<img class="game-toast-icon" src="' + b.iconSrc + '" alt="" draggable="false" />';
+      const bldStrong = '<strong class="game-toast-strong">' + b.name + "</strong>";
+      showBuildErrorToast(
+        "<span>" + bldImg + t("toast.planet_limit_reached", { building: bldStrong, limit: b.maxPerPlanet }) + "</span>"
+      );
+      return true;
+    }
+
+    const bId = biomeId || currentBiomeId;
+    if (bId && !canBuildOnBiome(b.id, bId)) {
+      const currentBiome = getBiome(bId);
+      const terrain = getTerrainGroup(b.terrain);
+      const bldImg = '<img class="game-toast-icon" src="' + b.iconSrc + '" alt="" draggable="false" />';
+      const bldStrong = '<strong class="game-toast-strong">' + b.name + "</strong>";
+      const terrainPill =
+        '<span class="game-toast-pill"><img class="game-toast-pill-icon" src="' +
+        terrain.iconSrc +
+        '" alt="" draggable="false" /> ' +
+        terrain.label +
+        "</span>";
+      const biomePill =
+        '<span class="game-toast-pill"><img class="game-toast-pill-icon" src="' +
+        currentBiome.iconSrc +
+        '" alt="" draggable="false" /> ' +
+        currentBiome.name +
+        "</span>";
+
+      const reasonText =
+        currentBiome.terrains.length === 0
+          ? t("toast.cannot_build_unbuildable", {
+              building: bldStrong,
+              biome: biomePill
+            })
+          : t("toast.cannot_build_terrain", {
+              building: bldStrong,
+              biome: biomePill,
+              terrain: terrainPill
+            });
+      showBuildErrorToast("<span>" + bldImg + reasonText + "</span>");
+      return true;
+    }
+
+    if (!canAffordBuilding(b.id)) {
+      const bldImg = '<img class="game-toast-icon" src="' + b.iconSrc + '" alt="" draggable="false" />';
+      const bldStrong = '<strong class="game-toast-strong">' + b.name + "</strong>";
+      const missing = [];
+      const costOrder = ["credits", "ore"];
+      for (let c = 0; c < costOrder.length; c++) {
+        const key = costOrder[c];
+        const req = b.cost && b.cost[key];
+        if (!req || req <= 0) continue;
+        const has = (window.GameCurrencies && window.GameCurrencies.get(key)) || 0;
+        if (has < req) {
+          const diff = req - has;
+          const cIcon = CURRENCY_ICONS[key];
+          const cLabel = key === "credits" ? t("currencies.credits") : t("currencies.ore");
+          missing.push(
+            '<span class="game-toast-pill"><img class="game-toast-pill-icon" src="' +
+              cIcon +
+              '" alt="" draggable="false" /> ' +
+              formatCostValue(diff) +
+              " " +
+              cLabel +
+              "</span>"
+          );
+        }
+      }
+      if (missing.length > 0) {
+        showBuildErrorToast(
+          "<span>" +
+            bldImg +
+            t("toast.cannot_afford", {
+              building: bldStrong,
+              missing: missing.join(t("toast.missing_joiner"))
+            }) +
+            "</span>"
+        );
+      }
+      return true;
+    }
+
+    return false;
+  }
+
   function renderBuildingCards() {
     if (!listEl) return;
     listEl.innerHTML = "";
@@ -927,94 +1069,7 @@
             card.classList.remove("is-shake");
           }, 280);
 
-          if (researchLocked) {
-            const bldImg = '<img class="game-toast-icon" src="' + b.iconSrc + '" alt="" draggable="false" />';
-            const bldStrong = '<strong class="game-toast-strong">' + b.name + '</strong>';
-            const resPill =
-              '<span class="game-toast-pill"><img class="game-toast-pill-icon" src="' +
-              STAT_ICONS.research +
-              '" alt="" draggable="false" /> ' +
-              t("research.nodes." + b.requiredResearch + ".name") +
-              '</span>';
-            showBuildErrorToast(
-              '<span>' +
-                bldImg +
-                t("toast.research_required", { building: bldStrong, research: resPill }) +
-                '</span>'
-            );
-          } else if (limitBlocked) {
-            const bldImg = '<img class="game-toast-icon" src="' + b.iconSrc + '" alt="" draggable="false" />';
-            const bldStrong = '<strong class="game-toast-strong">' + b.name + '</strong>';
-            showBuildErrorToast(
-              '<span>' +
-                bldImg +
-                t("toast.planet_limit_reached", { building: bldStrong, limit: b.maxPerPlanet }) +
-                '</span>'
-            );
-          } else if (!terrainOk) {
-            const currentBiome = getBiome(currentBiomeId);
-            const bldImg = '<img class="game-toast-icon" src="' + b.iconSrc + '" alt="" draggable="false" />';
-            const bldStrong = '<strong class="game-toast-strong">' + b.name + '</strong>';
-            const terrainPill =
-              '<span class="game-toast-pill"><img class="game-toast-pill-icon" src="' +
-              terrain.iconSrc +
-              '" alt="" draggable="false" /> ' +
-              terrain.label +
-              '</span>';
-            const biomePill =
-              '<span class="game-toast-pill"><img class="game-toast-pill-icon" src="' +
-              currentBiome.iconSrc +
-              '" alt="" draggable="false" /> ' +
-              currentBiome.name +
-              '</span>';
-
-            const reasonText =
-              currentBiome.terrains.length === 0
-                ? t("toast.cannot_build_unbuildable", {
-                    building: bldStrong,
-                    biome: biomePill
-                  })
-                : t("toast.cannot_build_terrain", {
-                    building: bldStrong,
-                    biome: biomePill,
-                    terrain: terrainPill
-                  });
-            showBuildErrorToast('<span>' + bldImg + reasonText + '</span>');
-          } else if (!affordable) {
-            const bldImg = '<img class="game-toast-icon" src="' + b.iconSrc + '" alt="" draggable="false" />';
-            const bldStrong = '<strong class="game-toast-strong">' + b.name + '</strong>';
-            const missing = [];
-            const costOrder = ["credits", "ore"];
-            for (let c = 0; c < costOrder.length; c++) {
-              const key = costOrder[c];
-              const req = b.cost && b.cost[key];
-              if (!req || req <= 0) continue;
-              const has = (window.GameCurrencies && window.GameCurrencies.get(key)) || 0;
-              if (has < req) {
-                const diff = req - has;
-                const cIcon = CURRENCY_ICONS[key];
-                const cLabel = key === "credits" ? t("currencies.credits") : t("currencies.ore");
-                missing.push(
-                  '<span class="game-toast-pill"><img class="game-toast-pill-icon" src="' +
-                    cIcon +
-                    '" alt="" draggable="false" /> ' +
-                    formatCostValue(diff) +
-                    ' ' +
-                    cLabel +
-                    '</span>'
-                );
-              }
-            }
-            const reasonHtml =
-              '<span>' +
-              bldImg +
-              t("toast.cannot_afford", {
-                building: bldStrong,
-                missing: missing.join(t("toast.missing_joiner"))
-              }) +
-              '</span>';
-            showBuildErrorToast(reasonHtml);
-          }
+          showPurchaseBlockedToast(b, currentPlanetId, currentPlacedId, currentBiomeId);
           return;
         }
         if (typeof callbacks.onPlace === "function") {
@@ -1328,6 +1383,21 @@
     window.requestAnimationFrame(syncShelfScroll);
   }
 
+  function requestUpgradeForTile(planetId, tileId, placedBuildingId, biomeId, targetBuildingId) {
+    const nextDef = targetBuildingId
+      ? getBuilding(targetBuildingId)
+      : getNextUpgradeBuilding(placedBuildingId, biomeId);
+    if (!nextDef) return false;
+    if (showPurchaseBlockedToast(nextDef, planetId, placedBuildingId, biomeId)) {
+      return false;
+    }
+    if (!menuOpen || currentPlanetId !== planetId || currentTileId !== tileId || currentPlacedId !== placedBuildingId) {
+      openForTile(planetId, tileId, placedBuildingId, biomeId);
+    }
+    openConfirmScene(nextDef.id);
+    return true;
+  }
+
   function updateCurrentBuilding(placedBuildingId) {
     currentPlacedId = placedBuildingId || null;
     syncRemoveButton();
@@ -1406,54 +1476,19 @@
     confirmBuildBtn.addEventListener("click", function () {
       const bId = pendingConfirmBuildingId;
       if (!bId) return;
-      if (!canAffordBuilding(bId)) {
-        const b = getBuilding(bId);
-        if (b) {
-          const bldImg = '<img class="game-toast-icon" src="' + b.iconSrc + '" alt="" draggable="false" />';
-          const bldStrong = '<strong class="game-toast-strong">' + b.name + "</strong>";
-          const missing = [];
-          const costOrder = ["credits", "ore"];
-          for (let c = 0; c < costOrder.length; c++) {
-            const key = costOrder[c];
-            const req = b.cost && b.cost[key];
-            if (!req || req <= 0) continue;
-            const has = (window.GameCurrencies && window.GameCurrencies.get(key)) || 0;
-            if (has < req) {
-              const diff = req - has;
-              const cIcon = CURRENCY_ICONS[key];
-              const cLabel = key === "credits" ? t("currencies.credits") : t("currencies.ore");
-              missing.push(
-                '<span class="game-toast-pill"><img class="game-toast-pill-icon" src="' +
-                  cIcon +
-                  '" alt="" draggable="false" /> ' +
-                  formatCostValue(diff) +
-                  " " +
-                  cLabel +
-                  "</span>"
-              );
-            }
-          }
-          if (missing.length > 0) {
-            showBuildErrorToast(
-              "<span>" +
-                bldImg +
-                t("toast.cannot_afford", {
-                  building: bldStrong,
-                  missing: missing.join(t("toast.missing_joiner"))
-                }) +
-                "</span>"
-            );
-          }
-        }
-        return;
-      }
+      const b = getBuilding(bId);
       if (
         isBuildingResearchLocked(bId) ||
         isBuildingPlanetLimitReached(bId, currentPlanetId, currentPlacedId) ||
         !canBuildOnBiome(bId, currentBiomeId)
       ) {
+        showPurchaseBlockedToast(b, currentPlanetId, currentPlacedId, currentBiomeId);
         closeConfirmScene();
         renderBuildingCards();
+        return;
+      }
+      if (!canAffordBuilding(bId)) {
+        showPurchaseBlockedToast(b, currentPlanetId, currentPlacedId, currentBiomeId);
         return;
       }
       closeConfirmScene();
@@ -3847,6 +3882,9 @@
     getCategory: getCategory,
     canBuildOnBiome: canBuildOnBiome,
     canAffordBuilding: canAffordBuilding,
+    isBuildingResearchLocked: isBuildingResearchLocked,
+    getNextUpgradeBuilding: getNextUpgradeBuilding,
+    requestUpgradeForTile: requestUpgradeForTile,
     formatProductionRate: formatProductionRate,
     showErrorToast: showBuildErrorToast,
     showToast: showBuildErrorToast,

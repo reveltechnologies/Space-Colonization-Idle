@@ -3013,6 +3013,17 @@ body.rocket-cargo-open .tile-action-group {
   opacity: 0.78;
 }
 
+@keyframes tile-action-shake {
+  0%, 100% { margin-left: 0; }
+  22% { margin-left: -5px; }
+  48% { margin-left: 5px; }
+  74% { margin-left: -3px; }
+}
+
+.tile-action-btn.is-shake {
+  animation: tile-action-shake 0.24s ease;
+}
+
 /* ---------- Follow Rocket Floating Pill ---------- */
 @keyframes follow-rocket-pulse {
   0%, 100% {

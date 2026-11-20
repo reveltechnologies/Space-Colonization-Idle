@@ -71,6 +71,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **3D Polygonal Rocket Flights & Surround Tile Controls**:
   - Replaced flat 2D canvas rocket sprites with true 3D polygonal rocket vessels (`renderRocketVessel3D`) featuring volumetric 3D thruster exhaust cones, 3D orbital pitch/roll during flight, and pad departure/reload staging for Trade Rockets.
   - Positioned floating building action buttons (`#btn-tile-research-tree`, `#tile-rocket-actions`, `#tile-trade-actions`) strictly around each selected building's 3D screen-space bounding box (`computeSelectedBuildingScreenBounds`) so the 3D model itself remains unobstructed.
+- **Universal In-Place Building Upgrade Option**:
+  - Extended the floating **Upgrade → {Next Building}** action button to every multi-tier building line (**Mine → Deep Mine → Mega Quarry**, **Trade Rocket I → II → III**, **Research Lab → Observatory → Quantum Array**, **Small House → Big House → Villa**, **Solar Panel → Solar Array → Solar Tower**, **Windmill → Wind Turbine → Wind Farm**, **Space Rocket I → Space Rocket II**), automatically skipping terrain-incompatible tiers when applicable (e.g., **Research Lab → Quantum Array** on non-mountainous tiles).
+  - Strictly enforces the next building's Space Credits & Space Ore cost, research unlocks, and terrain compatibility before opening the confirmation card (displaying missing-resource / research toasts and button shake feedback when blocked) and preserves loaded Space Rocket cargo across rocket upgrades.
   - Expanded the Science category with additional RP-generating structures (`icon-research.svg`, `bld-observatory.svg`, `bld-quantum-array.svg`):
     - **Research Center** (`research_center`): 150 SC, 20 Ore, max 1 per planet, **+15/min RP**.
     - **Research Lab** (`research_lab`): 200 SC, 35 Ore, **+30/min RP**.

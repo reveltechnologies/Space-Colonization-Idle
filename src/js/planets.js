@@ -1741,8 +1741,15 @@
             planet.id + 1 < PLANET_COUNT;
           const placedBDef = window.GameBuildings ? window.GameBuildings.getBuilding(entry.placed.id) : null;
           const isTradeBuilding = Boolean(placedBDef && placedBDef.tradeVariant);
+          const nextUpgradeDef =
+            !entry.placed.isLanded &&
+            window.GameBuildings &&
+            typeof window.GameBuildings.getNextUpgradeBuilding === "function"
+              ? window.GameBuildings.getNextUpgradeBuilding(entry.placed.id, tile.biome)
+              : null;
+          const hasTradeOrUpgrade = isTradeBuilding || Boolean(nextUpgradeDef);
 
-          if (isResearchCenter || isLaunchRocket || isTradeBuilding) {
+          if (isResearchCenter || isLaunchRocket || hasTradeOrUpgrade) {
             const bBounds = computeSelectedBuildingScreenBounds(entry, buildingFrame, cx, cy, focalLength);
             if (isResearchCenter) {
               const topY = bBounds.minY - 14;
@@ -1769,7 +1776,7 @@
               rocketActionAnchor.x = bBounds.cx;
               rocketActionAnchor.y = bBounds.minY - 14;
             }
-            if (isTradeBuilding) {
+            if (hasTradeOrUpgrade) {
               tradeActionAnchor.visible = true;
               tradeActionAnchor.planetId = planet.id;
               tradeActionAnchor.tileId = tile.id;
@@ -2375,11 +2382,19 @@
     if (isSingle) {
       groupEl.classList.add("is-single");
       groupEl.classList.remove("is-arched");
-      const topClear = Math.round(anchor.halfClearY + (defaultYOffset || 14));
+      const baseClear = Math.round(anchor.halfClearY + (defaultYOffset || 14));
+      const stackingWithArchedRocket =
+        groupEl === tileTradeActionsEl &&
+        rocketActionAnchor.visible &&
+        tileRocketActionsEl &&
+        tileRocketActionsEl.classList.contains("is-arched");
+      const rocketBelow = anchor.minY - 14 < 82;
+      const topClear = stackingWithArchedRocket && !rocketBelow ? baseClear + 46 : baseClear;
+      const botClear = stackingWithArchedRocket && rocketBelow ? baseClear + 46 : baseClear;
       const willFlipBelow = anchor.cy - topClear - 46 < 74;
       groupEl.classList.toggle("is-below", willFlipBelow);
       groupEl.style.setProperty("--top-clear", topClear + "px");
-      groupEl.style.setProperty("--bot-clear", topClear + "px");
+      groupEl.style.setProperty("--bot-clear", botClear + "px");
       groupEl.style.transform =
         "translate3d(" + clamp(anchor.cx, 96, Math.max(96, width - 96)).toFixed(1) + "px, " + anchor.cy.toFixed(1) + "px, 0)";
       return;
@@ -3342,34 +3357,46 @@
       buildingsByPlanet[tradeActionAnchor.planetId] &&
       buildingsByPlanet[tradeActionAnchor.planetId][tradeActionAnchor.tileId];
     const bDef = placed && window.GameBuildings ? window.GameBuildings.getBuilding(placed.id) : null;
-    if (!placed || !bDef || !bDef.tradeVariant) {
+    const planet = planets[tradeActionAnchor.planetId];
+    const tile = planet && planet.tileById ? planet.tileById[tradeActionAnchor.tileId] : null;
+    const biomeId = tile ? tile.biome : null;
+    const isTrade = Boolean(bDef && bDef.tradeVariant);
+    const nextDef =
+      placed && !placed.isLanded && bDef && window.GameBuildings && typeof window.GameBuildings.getNextUpgradeBuilding === "function"
+        ? window.GameBuildings.getNextUpgradeBuilding(bDef.id, biomeId)
+        : null;
+
+    if (!placed || !bDef || (!isTrade && !nextDef)) {
       tileTradeActionsEl.classList.add("is-hidden");
       return;
     }
 
-    const enabled = Boolean(placed.tradeEnabled);
     if (tileTradeToggleBtn) {
-      tileTradeToggleBtn.classList.toggle("is-active", enabled);
-      tileTradeToggleBtn.classList.toggle("is-stopped", !enabled);
-    }
-    if (tileTradeToggleLabelEl) {
-      tileTradeToggleLabelEl.textContent = t(enabled ? "trade.btn_stop" : "trade.btn_enable");
+      if (isTrade) {
+        const enabled = Boolean(placed.tradeEnabled);
+        tileTradeToggleBtn.classList.remove("is-hidden");
+        tileTradeToggleBtn.classList.toggle("is-active", enabled);
+        tileTradeToggleBtn.classList.toggle("is-stopped", !enabled);
+        if (tileTradeToggleLabelEl) {
+          tileTradeToggleLabelEl.textContent = t(enabled ? "trade.btn_stop" : "trade.btn_enable");
+        }
+      } else {
+        tileTradeToggleBtn.classList.add("is-hidden");
+      }
     }
 
-    let hasUpgradeBtn = false;
     if (tileTradeUpgradeBtn) {
-      const nextDef =
-        bDef.nextVariantId && window.GameBuildings
-          ? window.GameBuildings.getBuilding(bDef.nextVariantId)
-          : null;
       if (nextDef) {
-        hasUpgradeBtn = true;
         tileTradeUpgradeBtn.classList.remove("is-hidden");
         const canAfford =
           window.GameBuildings && typeof window.GameBuildings.canAffordBuilding === "function"
             ? window.GameBuildings.canAffordBuilding(nextDef.id)
             : true;
-        tileTradeUpgradeBtn.classList.toggle("is-disabled", !canAfford);
+        const researchLocked =
+          window.GameBuildings && typeof window.GameBuildings.isBuildingResearchLocked === "function"
+            ? window.GameBuildings.isBuildingResearchLocked(nextDef.id)
+            : false;
+        tileTradeUpgradeBtn.classList.toggle("is-disabled", !canAfford || researchLocked);
         if (tileTradeUpgradeIconEl) {
           tileTradeUpgradeIconEl.src = nextDef.iconSrc;
         }
@@ -3382,7 +3409,7 @@
     }
 
     tileTradeActionsEl.classList.remove("is-hidden");
-    positionActionGroupAroundBuilding(tileTradeActionsEl, tradeActionAnchor, !hasUpgradeBtn, 14);
+    positionActionGroupAroundBuilding(tileTradeActionsEl, tradeActionAnchor, !(isTrade && nextDef), 14);
   }
 
   // --- Main Render Loop ---
@@ -4078,10 +4105,32 @@
         const tId = tradeActionAnchor.tileId;
         const placed = pId >= 0 && tId ? buildingsByPlanet[pId] && buildingsByPlanet[pId][tId] : null;
         const bDef = placed && window.GameBuildings ? window.GameBuildings.getBuilding(placed.id) : null;
-        if (!placed || !bDef || !bDef.nextVariantId) return;
+        if (!placed || placed.isLanded || !bDef || !window.GameBuildings) return;
 
-        if (window.GameBuildings && typeof window.GameBuildings.openConfirmForBuilding === "function") {
-          window.GameBuildings.openConfirmForBuilding(bDef.nextVariantId);
+        const planet = planets[pId];
+        const tile = planet && planet.tileById ? planet.tileById[tId] : null;
+        const biomeId = tile ? tile.biome : null;
+        const nextDef =
+          typeof window.GameBuildings.getNextUpgradeBuilding === "function"
+            ? window.GameBuildings.getNextUpgradeBuilding(bDef.id, biomeId)
+            : null;
+        if (!nextDef) return;
+
+        let ok = false;
+        if (typeof window.GameBuildings.requestUpgradeForTile === "function") {
+          ok = window.GameBuildings.requestUpgradeForTile(pId, tId, placed.id, biomeId, nextDef.id);
+        } else if (typeof window.GameBuildings.openConfirmForBuilding === "function") {
+          window.GameBuildings.openConfirmForBuilding(nextDef.id);
+          ok = true;
+        }
+
+        if (!ok) {
+          tileTradeUpgradeBtn.classList.remove("is-shake");
+          void tileTradeUpgradeBtn.offsetWidth;
+          tileTradeUpgradeBtn.classList.add("is-shake");
+          window.setTimeout(function () {
+            tileTradeUpgradeBtn.classList.remove("is-shake");
+          }, 280);
         }
       });
     }
@@ -4270,17 +4319,26 @@
             return;
           }
 
+          const existingDef =
+            existing && existing.id && window.GameBuildings
+              ? window.GameBuildings.getBuilding(existing.id)
+              : null;
+          let preservedLoadedBricks = 0;
           if (existing && existing.loadedBricks > 0) {
-            bricksByPlanet[targetIndex] = (bricksByPlanet[targetIndex] || 0) + existing.loadedBricks;
+            if (existingDef && existingDef.rocketTier && bld.rocketTier && !existing.isLanded) {
+              preservedLoadedBricks = Math.min(existing.loadedBricks, bld.rocketMaxBricks || 0);
+              const refundBricks = existing.loadedBricks - preservedLoadedBricks;
+              if (refundBricks > 0) {
+                bricksByPlanet[targetIndex] = (bricksByPlanet[targetIndex] || 0) + refundBricks;
+              }
+            } else {
+              bricksByPlanet[targetIndex] = (bricksByPlanet[targetIndex] || 0) + existing.loadedBricks;
+            }
           }
 
           const prevCap = calculatePlanetCitizenCapacity(targetIndex);
           const now = performance.now();
           const hasBricks = Math.floor(bricksByPlanet[targetIndex] || 0) >= 1;
-          const existingDef =
-            existing && existing.id && window.GameBuildings
-              ? window.GameBuildings.getBuilding(existing.id)
-              : null;
           const wasTrade = Boolean(existingDef && existingDef.tradeVariant);
           const initialTradeEnabled =
             bld.tradeVariant
@@ -4292,7 +4350,7 @@
             id: buildingId,
             placedAt: now,
             isLanded: false,
-            loadedBricks: 0,
+            loadedBricks: preservedLoadedBricks,
             landedCitizens: 0,
             tradeEnabled: initialTradeEnabled,
             tradeTimer: 0
