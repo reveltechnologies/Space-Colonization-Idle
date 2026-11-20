@@ -21,12 +21,12 @@
 
   <!-- Currencies -->
   <header id="currency-hud" class="currency-hud" aria-label="Colony Currencies" data-i18n-aria-label="aria.colony_currencies">
-    <div id="currency-credits" class="currency-bar currency-bar--credits" title="Credits" data-i18n-title="currencies.credits">
+    <div id="currency-credits" class="currency-bar currency-bar--credits" data-resource-tooltip="credits" role="button" tabindex="0" aria-expanded="false" aria-label="Space Credits" data-i18n-aria-label="resource_tooltips.credits.title">
       <img class="currency-badge" src="./assets/ui/icon-credits.svg" alt="" draggable="false" />
       <span id="val-credits" class="currency-value">500</span>
       <span id="rate-credits" class="currency-rate"></span>
     </div>
-    <div id="currency-ore" class="currency-bar currency-bar--ore" title="Space Ore" data-i18n-title="currencies.space_ore">
+    <div id="currency-ore" class="currency-bar currency-bar--ore" data-resource-tooltip="ore" role="button" tabindex="0" aria-expanded="false" aria-label="Space Ore" data-i18n-aria-label="resource_tooltips.ore.title">
       <img class="currency-badge" src="./assets/ui/icon-ore.svg" alt="" draggable="false" />
       <span id="val-ore" class="currency-value">100</span>
       <span id="rate-ore" class="currency-rate"></span>
@@ -60,7 +60,7 @@
             id="planet-hud-name-input"
             class="planet-name-input"
             type="text"
-            maxlength="12"
+            maxlength="28"
             autocomplete="off"
             autocorrect="off"
             spellcheck="false"
@@ -72,7 +72,7 @@
         </div>
 
         <div class="planet-deck-tray">
-          <div id="planet-stat-citizens" class="planet-stat-cell planet-stat-cell--citizens is-empty" title="Citizens on this planet (Current / Max Capacity)" data-i18n-title="planet.citizens_tooltip">
+          <div id="planet-stat-citizens" class="planet-stat-cell planet-stat-cell--citizens is-empty" data-resource-tooltip="citizens" role="button" tabindex="0" aria-expanded="false" aria-label="Citizens" data-i18n-aria-label="resource_tooltips.citizens.title">
             <img class="planet-stat-icon" src="./assets/ui/icon-citizen.svg" alt="" draggable="false" />
             <div class="planet-stat-info">
               <span class="planet-stat-value">
@@ -86,7 +86,7 @@
 
           <span class="planet-tray-divider" aria-hidden="true"></span>
 
-          <div id="planet-stat-energy" class="planet-stat-cell planet-stat-cell--energy is-empty" title="Energy on this planet (Current / Max Capacity)" data-i18n-title="planet.energy_tooltip">
+          <div id="planet-stat-energy" class="planet-stat-cell planet-stat-cell--energy is-empty" data-resource-tooltip="energy" role="button" tabindex="0" aria-expanded="false" aria-label="Energy" data-i18n-aria-label="resource_tooltips.energy.title">
             <img class="planet-stat-icon" src="./assets/ui/icon-energy.svg" alt="" draggable="false" />
             <div class="planet-stat-info">
               <span class="planet-stat-value">
@@ -100,7 +100,7 @@
 
           <span class="planet-tray-divider" aria-hidden="true"></span>
 
-          <div id="planet-stat-bricks" class="planet-stat-cell planet-stat-cell--bricks is-empty" title="Construction Bricks on this planet (Obtained by Mines)" data-i18n-title="planet.bricks_tooltip">
+          <div id="planet-stat-bricks" class="planet-stat-cell planet-stat-cell--bricks is-empty" data-resource-tooltip="bricks" role="button" tabindex="0" aria-expanded="false" aria-label="Construction Bricks" data-i18n-aria-label="resource_tooltips.bricks.title">
             <img class="planet-stat-icon" src="./assets/ui/icon-bricks.svg" alt="" draggable="false" />
             <div class="planet-stat-info">
               <span class="planet-stat-value">
@@ -113,6 +113,23 @@
       </div>
     </div>
   </aside>
+
+  <!-- HUD Resource Info Tooltip (Opens Below Clicked Resource) -->
+  <div id="hud-resource-tooltip" class="hud-resource-tooltip is-hidden" role="dialog" aria-live="polite" aria-hidden="true">
+    <div class="hud-resource-tooltip-head">
+      <span id="hud-resource-tooltip-badge" class="hud-resource-tooltip-badge">
+        <img id="hud-resource-tooltip-icon" class="hud-resource-tooltip-icon" src="./assets/ui/icon-credits.svg" alt="" draggable="false" />
+      </span>
+      <div class="hud-resource-tooltip-meta">
+        <div class="hud-resource-tooltip-title-row">
+          <span id="hud-resource-tooltip-title" class="hud-resource-tooltip-title">Space Credits</span>
+          <span id="hud-resource-tooltip-tag" class="hud-resource-tooltip-tag">Global Currency</span>
+        </div>
+        <div id="hud-resource-tooltip-stat" class="hud-resource-tooltip-stat">500</div>
+      </div>
+    </div>
+    <p id="hud-resource-tooltip-desc" class="hud-resource-tooltip-desc"></p>
+  </div>
 
   <!-- Global Toast / Error Banner -->
   <div id="game-toast-container" class="game-toast-container" aria-live="assertive" aria-atomic="true"></div>
@@ -372,6 +389,7 @@
   </div>
 
   <script src="./lang/en_us.js"></script>
+  <script src="./economy/economy.js"></script>
   <script src="./js/main.js"></script>
   <script src="./js/currencies.js"></script>
   <script src="./js/research.js"></script>

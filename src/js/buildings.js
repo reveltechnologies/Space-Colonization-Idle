@@ -366,6 +366,23 @@
     }
   ];
 
+  if (window.GameEconomy && typeof window.GameEconomy.getBuilding === "function") {
+    for (let i = 0; i < BUILDINGS.length; i++) {
+      const b = BUILDINGS[i];
+      const econ = window.GameEconomy.getBuilding(b.id);
+      if (!econ) continue;
+      for (const prop in econ) {
+        if (Object.prototype.hasOwnProperty.call(econ, prop)) {
+          if (prop === "cost" && econ.cost && typeof econ.cost === "object") {
+            b.cost = Object.assign({}, econ.cost);
+          } else {
+            b[prop] = econ[prop];
+          }
+        }
+      }
+    }
+  }
+
   const BIOMES = {
     mountains: { id: "mountains", name: t("biomes.mountains.name"), terrains: ["solid", "mountainous"], accent: "#94a3b8", badgeBg: "#edf4ff", iconSrc: "./assets/ui/biome-mountains.svg" },
     glacier:   { id: "glacier",   name: t("biomes.glacier.name"),   terrains: ["solid"],                accent: "#5fd8f8", badgeBg: "#e6faff", iconSrc: "./assets/ui/biome-glacier.svg" },

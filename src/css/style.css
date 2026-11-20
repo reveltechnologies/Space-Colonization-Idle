@@ -138,6 +138,22 @@ img {
   border-radius: 999px;
   box-shadow: inset 0 5px 0 rgba(0, 0, 0, 0.3), 0 4px 0 var(--ink), 0 0 0 2px rgba(255, 255, 255, 0.28), 0 7px 10px rgba(0, 0, 0, 0.4);
   pointer-events: auto;
+  cursor: pointer;
+  transition: transform 0.08s ease, filter 0.12s ease, box-shadow 0.12s ease;
+}
+
+@media (hover: hover) {
+  .currency-bar:hover {
+    filter: brightness(1.1);
+  }
+}
+
+.currency-bar:active {
+  transform: translateY(1.5px);
+}
+
+.currency-bar.is-tooltip-open {
+  box-shadow: inset 0 5px 0 rgba(0, 0, 0, 0.3), 0 4px 0 var(--ink), 0 0 0 3px #ffd84d, 0 8px 14px rgba(0, 0, 0, 0.5);
 }
 
 .currency-badge {
@@ -281,6 +297,8 @@ img {
   gap: 7px;
   min-height: 28px;
   padding: 0 4px 4px 2px;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .planet-hud-name {
@@ -289,7 +307,9 @@ img {
   color: #ffffff;
   letter-spacing: 0.02em;
   line-height: 1;
-  max-width: 144px;
+  max-width: 100%;
+  min-width: 0;
+  flex: 0 1 auto;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -345,7 +365,10 @@ img {
 
 .planet-name-input {
   display: none;
-  width: 140px;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  flex: 1 1 auto;
   height: 28px;
   padding: 2px 7px;
   font-family: inherit;
@@ -412,6 +435,26 @@ img {
   align-items: center;
   gap: 6px;
   min-width: 78px;
+  cursor: pointer;
+  border-radius: 9px;
+  padding: 3px 5px;
+  margin: -3px -5px;
+  transition: background-color 0.12s ease, transform 0.08s ease, box-shadow 0.12s ease;
+}
+
+@media (hover: hover) {
+  .planet-stat-cell:hover {
+    background: rgba(255, 255, 255, 0.12);
+  }
+}
+
+.planet-stat-cell:active {
+  transform: translateY(1px);
+}
+
+.planet-stat-cell.is-tooltip-open {
+  background: rgba(255, 255, 255, 0.17);
+  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.38);
 }
 
 .planet-stat-icon {
@@ -533,6 +576,171 @@ img {
 
 .planet-stat-rate:empty {
   display: none;
+}
+
+/* ---------- HUD Resource Info Tooltip ---------- */
+@keyframes hud-tooltip-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.hud-resource-tooltip {
+  --tip-accent: #ffd84d;
+  --tip-badge-bg: #251666;
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 6;
+  width: min(304px, calc(100vw - 16px));
+  padding: 11px 13px 12px;
+  background: linear-gradient(180deg, #5640c4 0%, #372394 100%);
+  border: 3px solid var(--ink);
+  border-radius: 18px;
+  box-shadow:
+    inset 0 3px 0 rgba(255, 255, 255, 0.3),
+    inset 0 -4px 0 rgba(18, 8, 55, 0.45),
+    0 6px 0 var(--ink),
+    0 14px 28px rgba(0, 0, 0, 0.58);
+  pointer-events: auto;
+  animation: hud-tooltip-pop 0.16s cubic-bezier(0.22, 1.25, 0.36, 1);
+}
+
+.hud-resource-tooltip.is-hidden {
+  display: none;
+}
+
+.hud-resource-tooltip::before,
+.hud-resource-tooltip::after {
+  content: "";
+  position: absolute;
+  left: var(--arrow-x, 50%);
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.hud-resource-tooltip::before {
+  top: -12px;
+  border-left: 11px solid transparent;
+  border-right: 11px solid transparent;
+  border-bottom: 12px solid var(--ink);
+}
+
+.hud-resource-tooltip::after {
+  top: -8px;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-bottom: 9px solid #5640c4;
+}
+
+.hud-resource-tooltip[data-resource="credits"] {
+  --tip-accent: #ffe44d;
+}
+
+.hud-resource-tooltip[data-resource="ore"] {
+  --tip-accent: #5fd8f8;
+}
+
+.hud-resource-tooltip[data-resource="citizens"] {
+  --tip-accent: #6ee7b7;
+}
+
+.hud-resource-tooltip[data-resource="energy"] {
+  --tip-accent: #ffcf4d;
+}
+
+.hud-resource-tooltip[data-resource="bricks"] {
+  --tip-accent: #ffab8a;
+}
+
+.hud-resource-tooltip-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.hud-resource-tooltip-badge {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--tip-badge-bg);
+  border: 2.5px solid var(--ink);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.18), 0 3px 0 var(--ink);
+}
+
+.hud-resource-tooltip-icon {
+  width: 28px;
+  height: 28px;
+  display: block;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 0 rgba(27, 17, 71, 0.75));
+}
+
+.hud-resource-tooltip-meta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.hud-resource-tooltip-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.hud-resource-tooltip-title {
+  font-size: 15px;
+  font-weight: 900;
+  line-height: 1.1;
+  color: #ffffff;
+  text-shadow: 0 -1px 0 var(--ink), 0 1.5px 0 var(--ink), 1.5px 0 0 var(--ink), -1px 0 0 var(--ink), 0 2px 0 var(--ink);
+}
+
+.hud-resource-tooltip-tag {
+  flex-shrink: 0;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(15, 8, 42, 0.56);
+  border: 1.5px solid rgba(255, 255, 255, 0.24);
+  font-size: 10px;
+  line-height: 1.2;
+  color: #e4ddff;
+  letter-spacing: 0.02em;
+}
+
+.hud-resource-tooltip-stat {
+  font-size: 12.5px;
+  line-height: 1.2;
+  color: var(--tip-accent);
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1.5px 0 var(--ink);
+}
+
+.hud-resource-tooltip-desc {
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: var(--purple-deep);
+  border: 2px solid rgba(27, 17, 71, 0.85);
+  box-shadow: inset 0 3px 0 rgba(0, 0, 0, 0.35);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.4;
+  color: #efeaff;
 }
 
 /* ---------- Planet navigation ---------- */
@@ -2548,7 +2756,7 @@ body.build-menu-open .planet-dots {
 
   .planet-hud-name {
     font-size: 12px;
-    max-width: 114px;
+    max-width: 100%;
   }
 
   .planet-rename-btn {
@@ -2567,7 +2775,8 @@ body.build-menu-open .planet-dots {
   }
 
   .planet-name-input {
-    width: 112px;
+    width: 100%;
+    max-width: 100%;
     height: 24px;
     padding: 1px 5px;
     font-size: 11.5px;
@@ -2659,7 +2868,7 @@ body.build-menu-open .planet-dots {
 
   .planet-hud-name {
     font-size: 11.5px;
-    max-width: 88px;
+    max-width: 100%;
   }
 
   .planet-rename-btn {
@@ -2674,7 +2883,8 @@ body.build-menu-open .planet-dots {
   }
 
   .planet-name-input {
-    width: 88px;
+    width: 100%;
+    max-width: 100%;
     height: 23px;
     padding: 1px 5px;
     font-size: 11px;

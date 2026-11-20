@@ -42,7 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Custom Planet Renaming System**:
   - Added an in-place planet naming button next to the planet title:
     - Chunky purple pencil icon button (`#btn-rename-planet` with enlarged `icon-edit.svg`).
-    - In-place text input (`#planet-hud-name-input`) with a 12-character limit (`maxlength="12"`).
+    - In-place text input (`#planet-hud-name-input`) with an expanded character limit of 28 characters (`maxlength="28"`), dynamically sizing over the available space above planet resources.
     - Green checkmark confirmation button (`✔`) with auto-save on blur or enter key, and cancel on Escape.
     - Full keyboard input isolation so typing planet names does not trigger camera/hotkey shortcuts.
     - Persisted player custom names in `localStorage` under `sci_planet_names_v1` across page reloads.
@@ -74,6 +74,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Universal In-Place Building Upgrade Option**:
   - Extended the floating **Upgrade → {Next Building}** action button to every multi-tier building line (**Mine → Deep Mine → Mega Quarry**, **Trade Rocket I → II → III**, **Research Lab → Observatory → Quantum Array**, **Small House → Big House → Villa**, **Solar Panel → Solar Array → Solar Tower**, **Windmill → Wind Turbine → Wind Farm**, **Space Rocket I → Space Rocket II**), automatically skipping terrain-incompatible tiers when applicable (e.g., **Research Lab → Quantum Array** on non-mountainous tiles).
   - Strictly enforces the next building's Space Credits & Space Ore cost, research unlocks, and terrain compatibility before opening the confirmation card (displaying missing-resource / research toasts and button shake feedback when blocked) and preserves loaded Space Rocket cargo across rocket upgrades.
+- **Centralized Economy Configuration (`src/economy/economy.js`)**:
+  - Created `src/economy/economy.js` (`window.GameEconomy`) mirroring `src/lang/`, centralizing starting currency balances, planetary regen/initial counts, all building costs/generation rates/capacities/trade/rocket parameters, and research node costs and multiplier bonuses into a single editable file wired into `currencies.js`, `buildings.js`, `research.js`, and `planets.js`.
+- **Clickable HUD Resource Info Tooltips**:
+  - Made **Space Credits**, **Space Ore**, **Citizens**, **Energy**, and **Construction Bricks** interactive HUD buttons that open a cel-shaded info tooltip (`#hud-resource-tooltip`) anchored below the clicked resource with live balances/rates, scope tag (`Global Currency` / `Planet Resource`), and localized descriptions.
   - Expanded the Science category with additional RP-generating structures (`icon-research.svg`, `bld-observatory.svg`, `bld-quantum-array.svg`):
     - **Research Center** (`research_center`): 150 SC, 20 Ore, max 1 per planet, **+15/min RP**.
     - **Research Lab** (`research_lab`): 200 SC, 35 Ore, **+30/min RP**.

@@ -70,10 +70,17 @@
   const cargoMaxBtn = document.getElementById("btn-cargo-max");
   const cargoDoneBtn = document.getElementById("btn-cargo-done");
   const cargoLaunchBtn = document.getElementById("btn-cargo-launch");
+  const hudResourceTooltipEl = document.getElementById("hud-resource-tooltip");
+  const hudTooltipIconEl = document.getElementById("hud-resource-tooltip-icon");
+  const hudTooltipTitleEl = document.getElementById("hud-resource-tooltip-title");
+  const hudTooltipTagEl = document.getElementById("hud-resource-tooltip-tag");
+  const hudTooltipStatEl = document.getElementById("hud-resource-tooltip-stat");
+  const hudTooltipDescEl = document.getElementById("hud-resource-tooltip-desc");
+  const resourceTooltipTriggers = Array.from(document.querySelectorAll("[data-resource-tooltip]"));
 
   const PLANET_COUNT = 3;
   const PLANET_NAMES_STORAGE_KEY = "sci_planet_names_v1";
-  const MAX_PLANET_NAME_LEN = 12;
+  const MAX_PLANET_NAME_LEN = 28;
   const CAM_DIST = 4.2;
   const MIN_ZOOM = 1.0;
   const MAX_ZOOM = 2.2;
@@ -570,13 +577,29 @@
   let targetIndex = 0;
   let activeDotIndex = 0;
 
+  function readEconomyNumber(path, fallback) {
+    if (!window.GameEconomy || typeof window.GameEconomy.get !== "function") {
+      return fallback;
+    }
+    const val = window.GameEconomy.get(path, fallback);
+    const num = Number(val);
+    return Number.isFinite(num) ? num : fallback;
+  }
+
+  const startingBricksCfg = window.GameEconomy ? window.GameEconomy.get("planets.startingBricks") : null;
+  const startingCitizensCfg = window.GameEconomy ? window.GameEconomy.get("planets.startingCitizens") : null;
+
   // Interactive hex, buildings & QoL state
   const selectedHexByPlanet = [null, null, null];
   const buildingsByPlanet = [Object.create(null), Object.create(null), Object.create(null)];
   const tileEffectsByPlanet = [Object.create(null), Object.create(null), Object.create(null)];
-  const bricksByPlanet = [0, 0, 0];
-  const citizensByPlanet = [0, 0, 0];
-  const CITIZEN_REGEN_PER_SEC = 0.08;
+  const bricksByPlanet = Array.isArray(startingBricksCfg)
+    ? [Number(startingBricksCfg[0]) || 0, Number(startingBricksCfg[1]) || 0, Number(startingBricksCfg[2]) || 0]
+    : [0, 0, 0];
+  const citizensByPlanet = Array.isArray(startingCitizensCfg)
+    ? [Number(startingCitizensCfg[0]) || 0, Number(startingCitizensCfg[1]) || 0, Number(startingCitizensCfg[2]) || 0]
+    : [0, 0, 0];
+  const CITIZEN_REGEN_PER_SEC = readEconomyNumber("planets.citizenRegenPerSec", 0.08);
   const BUILD_VFX_MS = 760;
   const DEMOLISH_VFX_MS = 900;
   const UNLOCK_SHATTER_MS = 1550;
@@ -630,10 +653,18 @@
   };
   const activeFlights = [];
   const activeTradeFlights = [];
-  const TRADE_FLIGHT_BASE_MS = 1400;
+  const TRADE_FLIGHT_BASE_MS = readEconomyNumber("planets.tradeFlightBaseMs", 1400);
   let nextFlightId = 1;
   let followingFlightId = null;
   const cargoModalState = { open: false, planetId: -1, tileId: null };
+  const RESOURCE_TOOLTIP_META = {
+    credits: { iconSrc: "./assets/ui/icon-credits.svg", scope: "global" },
+    ore: { iconSrc: "./assets/ui/icon-ore.svg", scope: "global" },
+    citizens: { iconSrc: "./assets/ui/icon-citizen.svg", scope: "planet" },
+    energy: { iconSrc: "./assets/ui/icon-energy.svg", scope: "planet" },
+    bricks: { iconSrc: "./assets/ui/icon-bricks.svg", scope: "planet" }
+  };
+  const resourceTooltipState = { open: false, key: null, triggerEl: null };
   let lastHeaderPlanet = -1;
   let emblemPopTimer = 0;
   let isRenamingPlanet = false;
@@ -1023,6 +1054,118 @@
     updatePlanetCitizenHud(force);
     updatePlanetEnergyHud(force);
     updatePlanetBricksHud(force);
+    if (resourceTooltipState.open) {
+      updateResourceTooltipContent();
+    }
+  }
+
+  function updateResourceTooltipContent() {
+    if (!resourceTooltipState.open || !hudResourceTooltipEl) return;
+    const key = resourceTooltipState.key;
+    const meta = RESOURCE_TOOLTIP_META[key];
+    if (!meta) return;
+
+    hudResourceTooltipEl.setAttribute("data-resource", key);
+    if (hudTooltipIconEl) {
+      hudTooltipIconEl.src = meta.iconSrc;
+    }
+    if (hudTooltipTitleEl) {
+      hudTooltipTitleEl.textContent = t("resource_tooltips." + key + ".title");
+    }
+    if (hudTooltipTagEl) {
+      hudTooltipTagEl.textContent = t(
+        meta.scope === "global" ? "resource_tooltips.global_tag" : "resource_tooltips.planet_tag"
+      );
+    }
+    if (hudTooltipDescEl) {
+      hudTooltipDescEl.textContent = t("resource_tooltips." + key + ".description");
+    }
+
+    if (hudTooltipStatEl) {
+      let statText = "";
+      if (key === "credits" || key === "ore") {
+        const amt = window.GameCurrencies ? window.GameCurrencies.get(key) : 0;
+        const rate =
+          window.GameCurrencies && typeof window.GameCurrencies.getRate === "function"
+            ? window.GameCurrencies.getRate(key)
+            : 0;
+        statText = t("resource_tooltips.current_label", { val: formatPlanetStat(amt) });
+        if (rate > 0) {
+          const rateFmt = formatPlanetBrickRate(rate);
+          if (rateFmt) {
+            statText += t("resource_tooltips.rate_suffix", { rate: rateFmt });
+          }
+        }
+      } else if (key === "citizens") {
+        statText = t("resource_tooltips.capacity_label", {
+          curr: formatPlanetStat(getPlanetCitizenCount(activeDotIndex)),
+          max: formatPlanetStat(calculatePlanetCitizenCapacity(activeDotIndex))
+        });
+      } else if (key === "energy") {
+        statText = t("resource_tooltips.capacity_label", {
+          curr: formatPlanetStat(getPlanetEnergyCount(activeDotIndex)),
+          max: formatPlanetStat(calculatePlanetEnergyCapacity(activeDotIndex))
+        });
+      } else if (key === "bricks") {
+        const amt = Math.floor(bricksByPlanet[activeDotIndex] || 0);
+        const rateText = formatPlanetBrickRate(calculatePlanetBrickRate(activeDotIndex));
+        statText = t("resource_tooltips.current_label", { val: formatPlanetStat(amt) });
+        if (rateText) {
+          statText += t("resource_tooltips.rate_suffix", { rate: rateText });
+        }
+      }
+      hudTooltipStatEl.textContent = statText;
+    }
+  }
+
+  function positionResourceTooltip() {
+    if (!resourceTooltipState.open || !hudResourceTooltipEl || !resourceTooltipState.triggerEl) return;
+    const rect = resourceTooltipState.triggerEl.getBoundingClientRect();
+    const tipW = hudResourceTooltipEl.offsetWidth || Math.min(304, Math.max(180, width - 16));
+    const triggerCx = rect.left + rect.width * 0.5;
+    const left = Math.round(clamp(triggerCx - tipW * 0.5, 8, Math.max(8, width - tipW - 8)));
+    const top = Math.round(clamp(rect.bottom + 12, 12, Math.max(12, height - 140)));
+    const arrowX = Math.round(clamp(triggerCx - left, 22, Math.max(22, tipW - 22)));
+    hudResourceTooltipEl.style.left = left + "px";
+    hudResourceTooltipEl.style.top = top + "px";
+    hudResourceTooltipEl.style.setProperty("--arrow-x", arrowX + "px");
+  }
+
+  function syncResourceTooltipTriggers() {
+    for (let i = 0; i < resourceTooltipTriggers.length; i++) {
+      const el = resourceTooltipTriggers[i];
+      const isActive = resourceTooltipState.open && el === resourceTooltipState.triggerEl;
+      el.classList.toggle("is-tooltip-open", isActive);
+      el.setAttribute("aria-expanded", isActive ? "true" : "false");
+    }
+  }
+
+  function closeResourceTooltip() {
+    if (!resourceTooltipState.open) return;
+    resourceTooltipState.open = false;
+    resourceTooltipState.key = null;
+    resourceTooltipState.triggerEl = null;
+    syncResourceTooltipTriggers();
+    if (hudResourceTooltipEl) {
+      hudResourceTooltipEl.classList.add("is-hidden");
+      hudResourceTooltipEl.setAttribute("aria-hidden", "true");
+    }
+  }
+
+  function openResourceTooltip(resourceKey, triggerEl) {
+    if (!hudResourceTooltipEl || !triggerEl || !RESOURCE_TOOLTIP_META[resourceKey]) return;
+    if (resourceTooltipState.open && resourceTooltipState.key === resourceKey) {
+      closeResourceTooltip();
+      return;
+    }
+    resourceTooltipState.open = true;
+    resourceTooltipState.key = resourceKey;
+    resourceTooltipState.triggerEl = triggerEl;
+    syncResourceTooltipTriggers();
+    hudResourceTooltipEl.classList.remove("is-hidden");
+    hudResourceTooltipEl.setAttribute("aria-hidden", "false");
+    updateResourceTooltipContent();
+    positionResourceTooltip();
   }
 
   // Multi-touch & pointer tracking
@@ -1059,6 +1202,9 @@
 
     if (ctx) {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    if (resourceTooltipState.open) {
+      positionResourceTooltip();
     }
   }
 
@@ -3984,6 +4130,10 @@
     } else if (e.key === "-" || e.key === "_") {
       adjustZoom(-ZOOM_STEP);
     } else if (e.key === "Escape") {
+      if (resourceTooltipState.open) {
+        closeResourceTooltip();
+        return;
+      }
       if (window.GameBuildings && typeof window.GameBuildings.isConfirming === "function" && window.GameBuildings.isConfirming()) {
         window.GameBuildings.cancelConfirm();
         return;
@@ -4265,6 +4415,37 @@
         }
       });
     }
+
+    for (let i = 0; i < resourceTooltipTriggers.length; i++) {
+      const triggerEl = resourceTooltipTriggers[i];
+      triggerEl.addEventListener("pointerdown", function (e) {
+        e.stopPropagation();
+      });
+      triggerEl.addEventListener("click", function (e) {
+        e.stopPropagation();
+        const key = triggerEl.getAttribute("data-resource-tooltip");
+        openResourceTooltip(key, triggerEl);
+      });
+      triggerEl.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          e.stopPropagation();
+          const key = triggerEl.getAttribute("data-resource-tooltip");
+          openResourceTooltip(key, triggerEl);
+        }
+      });
+    }
+
+    document.addEventListener("pointerdown", function (e) {
+      if (!resourceTooltipState.open) return;
+      const target = e.target;
+      if (target && typeof target.closest === "function") {
+        if (target.closest("[data-resource-tooltip]") || target.closest("#hud-resource-tooltip")) {
+          return;
+        }
+      }
+      closeResourceTooltip();
+    });
   }
 
   function init() {
@@ -4414,6 +4595,14 @@
           selectedHexByPlanet[targetIndex] = null;
           selectionPulse = null;
           lastInteractionTime = performance.now();
+        }
+      });
+    }
+
+    if (window.GameCurrencies && typeof window.GameCurrencies.onChange === "function") {
+      window.GameCurrencies.onChange(function () {
+        if (resourceTooltipState.open && (resourceTooltipState.key === "credits" || resourceTooltipState.key === "ore")) {
+          updateResourceTooltipContent();
         }
       });
     }

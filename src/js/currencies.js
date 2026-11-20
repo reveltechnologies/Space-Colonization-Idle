@@ -17,9 +17,26 @@
     (window.GameLang && typeof window.GameLang.get === "function" && window.GameLang.get("currencies.suffixes")) ||
     [""];
 
+  const econCredits =
+    window.GameEconomy && typeof window.GameEconomy.get === "function"
+      ? window.GameEconomy.get("currencies.credits")
+      : null;
+  const econOre =
+    window.GameEconomy && typeof window.GameEconomy.get === "function"
+      ? window.GameEconomy.get("currencies.ore")
+      : null;
+
   const state = {
-    credits: { amount: 500, rate: 0, displayRate: 0 },
-    ore: { amount: 100, rate: 0, displayRate: 0 }
+    credits: {
+      amount: econCredits && econCredits.startingAmount !== undefined ? Number(econCredits.startingAmount) || 0 : 500,
+      rate: econCredits && econCredits.baseRatePerSec ? Number(econCredits.baseRatePerSec) || 0 : 0,
+      displayRate: 0
+    },
+    ore: {
+      amount: econOre && econOre.startingAmount !== undefined ? Number(econOre.startingAmount) || 0 : 100,
+      rate: econOre && econOre.baseRatePerSec ? Number(econOre.baseRatePerSec) || 0 : 0,
+      displayRate: 0
+    }
   };
 
   const listeners = [];
@@ -247,6 +264,11 @@
     renderCurrency(key);
   }
 
+  function getRate(key) {
+    const entry = state[key];
+    return entry ? (entry.rate || 0) + (entry.displayRate || 0) : 0;
+  }
+
   function init() {
     renderCurrency("credits");
     renderCurrency("ore");
@@ -257,6 +279,7 @@
     formatNumber: formatNumber,
     get: get,
     getAll: getAll,
+    getRate: getRate,
     set: set,
     add: add,
     spend: spend,

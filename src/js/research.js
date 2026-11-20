@@ -279,6 +279,19 @@
     }
   ];
 
+  if (window.GameEconomy && typeof window.GameEconomy.getResearchNode === "function") {
+    for (let i = 0; i < RESEARCH_NODES.length; i++) {
+      const node = RESEARCH_NODES[i];
+      const econ = window.GameEconomy.getResearchNode(node.id);
+      if (!econ) continue;
+      for (const prop in econ) {
+        if (Object.prototype.hasOwnProperty.call(econ, prop)) {
+          node[prop] = econ[prop];
+        }
+      }
+    }
+  }
+
   const PLANET_DEFAULTS = {
     rocky: {
       nameKey: "planets.planet_1.default_name",
@@ -297,7 +310,10 @@
     }
   };
 
-  let researchPoints = 0;
+  let researchPoints =
+    window.GameEconomy && typeof window.GameEconomy.get === "function"
+      ? Number(window.GameEconomy.get("planets.startingResearchPoints", 0)) || 0
+      : 0;
   let currentRpPerSec = 0;
   const researched = Object.create(null);
   let modalOpen = false;
@@ -364,49 +380,39 @@
     return isResearched(req.id);
   }
 
+  function sumResearchedBonus(bonusKey) {
+    let mult = 1;
+    for (let i = 0; i < RESEARCH_NODES.length; i++) {
+      const node = RESEARCH_NODES[i];
+      if (isResearched(node.id) && node[bonusKey]) {
+        mult += node[bonusKey];
+      }
+    }
+    return mult;
+  }
+
   function getBrickMultiplier(buildingId) {
     let mult = 1;
-    if (isResearched("reinforced_masonry")) mult += 0.25;
-    if (isResearched("cryo_drilling")) mult += 0.35;
-    if (isResearched("thermal_sintering") && (buildingId === "deep_mine" || buildingId === "mega_quarry")) {
-      mult += 0.50;
+    const isDeepOrMega = buildingId === "deep_mine" || buildingId === "mega_quarry";
+    for (let i = 0; i < RESEARCH_NODES.length; i++) {
+      const node = RESEARCH_NODES[i];
+      if (!isResearched(node.id)) continue;
+      if (node.bricksBonus) mult += node.bricksBonus;
+      if (isDeepOrMega && node.deepMegaBricksBonus) mult += node.deepMegaBricksBonus;
     }
-    if (isResearched("mantle_excavation")) mult += 0.50;
-    if (isResearched("surface_surveying")) mult += 0.15;
-    if (isResearched("volcanic_shielding")) mult += 0.30;
     return mult;
   }
 
   function getResearchMultiplier() {
-    let mult = 1;
-    if (isResearched("orbital_telemetry")) mult += 0.25;
-    if (isResearched("stellar_optics")) mult += 0.35;
-    if (isResearched("neural_archivists")) mult += 0.50;
-    if (isResearched("surface_surveying")) mult += 0.15;
-    if (isResearched("volcanic_shielding")) mult += 0.30;
-    if (isResearched("hull_metallurgy")) mult += 0.15;
-    return mult;
+    return sumResearchedBonus("researchBonus");
   }
 
   function getEnergyMultiplier() {
-    let mult = 1;
-    if (isResearched("solar_cells")) mult += 0.20;
-    if (isResearched("hydro_grid")) mult += 0.25;
-    if (isResearched("superconductors")) mult += 0.35;
-    if (isResearched("oceanic_adaptation")) mult += 0.20;
-    if (isResearched("volcanic_shielding")) mult += 0.30;
-    if (isResearched("cryo_propellant")) mult += 0.20;
-    return mult;
+    return sumResearchedBonus("energyBonus");
   }
 
   function getCitizenMultiplier() {
-    let mult = 1;
-    if (isResearched("habitat_insulation")) mult += 0.20;
-    if (isResearched("biodome_recycling")) mult += 0.25;
-    if (isResearched("arcology_habitats")) mult += 0.35;
-    if (isResearched("oceanic_adaptation")) mult += 0.20;
-    if (isResearched("volcanic_shielding")) mult += 0.30;
-    return mult;
+    return sumResearchedBonus("citizenBonus");
   }
 
   function formatNumber(val) {
