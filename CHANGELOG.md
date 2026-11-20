@@ -76,6 +76,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Removed the unbuildable warning banner from appearing inside the build drawer when selecting fluid tiles (such as Ocean and Lava), creating a cleaner building menu interface while maintaining contextual card state.
 
 ### Changed
+- **Uniform Grey Styling for Research-Locked Building Cards**:
+  - Updated `.build-card.is-research-locked` in `src/css/style.css` to share the exact greyed-out visual styling, stage/preview desaturation, action button tones, and press behavior of `.build-card.is-terrain-blocked`.
 - **Isolated Planet Orbit Drag**:
   - Prevented the background starfield from shifting or panning when a player rotates or inspects a planet in 3D (`gestureMode === "orbit"`).
   - Background parallax remains cleanly linked only to full planet carousel navigation swipe transitions (`dScroll`).
