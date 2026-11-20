@@ -10,23 +10,23 @@
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="description" content="Space Colonization: Idle — Mobile sci-fi incremental colony builder." />
-  <title>Space Colonization: Idle</title>
+  <meta name="description" content="Space Colonization: Idle — Mobile sci-fi incremental colony builder." data-i18n-content="app.description" />
+  <title data-i18n="app.title">Space Colonization: Idle</title>
   <link rel="manifest" href="./manifest.json" />
   <link rel="stylesheet" href="./css/style.css" />
 </head>
 <body>
   <canvas id="starfield" aria-hidden="true"></canvas>
-  <canvas id="planet-stage" aria-label="Planet Carousel"></canvas>
+  <canvas id="planet-stage" aria-label="Planet Carousel" data-i18n-aria-label="aria.planet_carousel"></canvas>
 
   <!-- Currencies -->
-  <header id="currency-hud" class="currency-hud" aria-label="Colony Currencies">
-    <div id="currency-credits" class="currency-bar currency-bar--credits" title="Credits">
+  <header id="currency-hud" class="currency-hud" aria-label="Colony Currencies" data-i18n-aria-label="aria.colony_currencies">
+    <div id="currency-credits" class="currency-bar currency-bar--credits" title="Credits" data-i18n-title="currencies.credits">
       <img class="currency-badge" src="./assets/ui/icon-credits.svg" alt="" draggable="false" />
       <span id="val-credits" class="currency-value">500</span>
       <span id="rate-credits" class="currency-rate"></span>
     </div>
-    <div id="currency-ore" class="currency-bar currency-bar--ore" title="Space Ore">
+    <div id="currency-ore" class="currency-bar currency-bar--ore" title="Space Ore" data-i18n-title="currencies.space_ore">
       <img class="currency-badge" src="./assets/ui/icon-ore.svg" alt="" draggable="false" />
       <span id="val-ore" class="currency-value">100</span>
       <span id="rate-ore" class="currency-rate"></span>
@@ -34,9 +34,9 @@
   </header>
 
   <!-- Planet Stats HUD (Top-Right Studio Deck) -->
-  <aside id="planet-stats-hud" class="planet-stats-hud" aria-label="Current Planet Statistics">
+  <aside id="planet-stats-hud" class="planet-stats-hud" aria-label="Current Planet Statistics" data-i18n-aria-label="aria.current_planet_stats">
     <div id="planet-stats-deck" class="planet-stats-deck" data-planet="0" data-planet-type="rocky">
-      <div id="planet-hud-emblem" class="planet-hud-emblem" title="Planet 1">
+      <div id="planet-hud-emblem" class="planet-hud-emblem" title="Planet 1" data-i18n-title="planets.planet_1.default_name">
         <img id="planet-hud-icon" class="planet-hud-icon" src="./assets/ui/planet-rocky.svg" alt="" draggable="false" />
       </div>
 
@@ -48,11 +48,13 @@
             type="button"
             aria-label="Rename Planet"
             title="Rename Planet"
+            data-i18n-aria-label="planet.rename"
+            data-i18n-title="planet.rename"
           >
             <img class="planet-rename-icon" src="./assets/ui/icon-edit.svg" alt="" draggable="false" />
             <span class="planet-rename-check" aria-hidden="true">✓</span>
           </button>
-          <span id="planet-hud-name" class="planet-hud-name">Planet 1</span>
+          <span id="planet-hud-name" class="planet-hud-name" data-i18n="planets.planet_1.default_name">Planet 1</span>
           <input
             id="planet-hud-name-input"
             class="planet-name-input"
@@ -63,11 +65,13 @@
             spellcheck="false"
             aria-label="Planet Name"
             placeholder="Planet name"
+            data-i18n-aria-label="planet.name_label"
+            data-i18n-placeholder="planet.name_placeholder"
           />
         </div>
 
         <div class="planet-deck-tray">
-          <div id="planet-stat-citizens" class="planet-stat-cell planet-stat-cell--citizens is-empty" title="Citizens on this planet (Current / Max Capacity)">
+          <div id="planet-stat-citizens" class="planet-stat-cell planet-stat-cell--citizens is-empty" title="Citizens on this planet (Current / Max Capacity)" data-i18n-title="planet.citizens_tooltip">
             <img class="planet-stat-icon" src="./assets/ui/icon-citizen.svg" alt="" draggable="false" />
             <div class="planet-stat-info">
               <span class="planet-stat-value">
@@ -81,7 +85,7 @@
 
           <span class="planet-tray-divider" aria-hidden="true"></span>
 
-          <div id="planet-stat-energy" class="planet-stat-cell planet-stat-cell--energy is-empty" title="Energy on this planet (Current / Max Capacity)">
+          <div id="planet-stat-energy" class="planet-stat-cell planet-stat-cell--energy is-empty" title="Energy on this planet (Current / Max Capacity)" data-i18n-title="planet.energy_tooltip">
             <img class="planet-stat-icon" src="./assets/ui/icon-energy.svg" alt="" draggable="false" />
             <div class="planet-stat-info">
               <span class="planet-stat-value">
@@ -101,48 +105,48 @@
   <div id="game-toast-container" class="game-toast-container" aria-live="assertive" aria-atomic="true"></div>
 
   <!-- Planet navigation -->
-  <button id="btn-prev-planet" class="planet-nav planet-nav-prev is-hidden" type="button" aria-label="Previous Planet">
+  <button id="btn-prev-planet" class="planet-nav planet-nav-prev is-hidden" type="button" aria-label="Previous Planet" data-i18n-aria-label="aria.prev_planet">
     <img class="nav-arrow-icon nav-arrow-icon--flip" src="./assets/ui/icon-arrow.svg" alt="" draggable="false" />
   </button>
-  <button id="btn-next-planet" class="planet-nav planet-nav-next" type="button" aria-label="Next Planet">
+  <button id="btn-next-planet" class="planet-nav planet-nav-next" type="button" aria-label="Next Planet" data-i18n-aria-label="aria.next_planet">
     <img class="nav-arrow-icon" src="./assets/ui/icon-arrow.svg" alt="" draggable="false" />
   </button>
 
-  <nav id="planet-dots" class="planet-dots" aria-label="Planet Selection">
-    <button type="button" class="planet-dot active" data-index="0" aria-label="Planet 1" aria-current="true"></button>
-    <button type="button" class="planet-dot" data-index="1" aria-label="Planet 2"></button>
-    <button type="button" class="planet-dot" data-index="2" aria-label="Planet 3"></button>
+  <nav id="planet-dots" class="planet-dots" aria-label="Planet Selection" data-i18n-aria-label="aria.planet_selection">
+    <button type="button" class="planet-dot active" data-index="0" aria-label="Planet 1" data-i18n-aria-label="planets.planet_1.default_name" aria-current="true"></button>
+    <button type="button" class="planet-dot" data-index="1" aria-label="Planet 2" data-i18n-aria-label="planets.planet_2.default_name"></button>
+    <button type="button" class="planet-dot" data-index="2" aria-label="Planet 3" data-i18n-aria-label="planets.planet_3.default_name"></button>
   </nav>
 
   <!-- Zoom -->
-  <div id="view-controls" class="view-controls" aria-label="View Controls">
-    <button id="btn-zoom-out" class="zoom-btn" type="button" aria-label="Zoom Out" disabled>
+  <div id="view-controls" class="view-controls" aria-label="View Controls" data-i18n-aria-label="aria.view_controls">
+    <button id="btn-zoom-out" class="zoom-btn" type="button" aria-label="Zoom Out" data-i18n-aria-label="aria.zoom_out" disabled>
       <img class="zoom-icon" src="./assets/ui/icon-minus.svg" alt="" draggable="false" />
     </button>
     <span id="zoom-level-label" class="zoom-value">1.0×</span>
-    <button id="btn-zoom-in" class="zoom-btn" type="button" aria-label="Zoom In">
+    <button id="btn-zoom-in" class="zoom-btn" type="button" aria-label="Zoom In" data-i18n-aria-label="aria.zoom_in">
       <img class="zoom-icon" src="./assets/ui/icon-plus.svg" alt="" draggable="false" />
     </button>
   </div>
 
   <!-- Build menu -->
-  <aside id="build-drawer" class="build-drawer" aria-label="Building Menu" aria-hidden="true">
+  <aside id="build-drawer" class="build-drawer" aria-label="Building Menu" data-i18n-aria-label="aria.building_menu" aria-hidden="true">
     <div class="build-drawer-header">
       <div class="build-title-stack">
         <span id="build-biome-badge" class="build-biome-badge">
           <img id="build-biome-icon" class="build-biome-icon" src="./assets/ui/biome-mountains.svg" alt="" draggable="false" />
         </span>
-        <h2 id="build-tile-title" class="build-title">Mountains</h2>
+        <h2 id="build-tile-title" class="build-title" data-i18n="biomes.mountains.name">Mountains</h2>
       </div>
 
-      <div id="build-categories" class="build-categories" role="tablist" aria-label="Building Categories"></div>
+      <div id="build-categories" class="build-categories" role="tablist" aria-label="Building Categories" data-i18n-aria-label="aria.building_categories"></div>
 
       <div class="build-header-actions">
-        <button id="btn-remove-building" class="build-remove-btn is-hidden" type="button" aria-label="Demolish Building">
+        <button id="btn-remove-building" class="build-remove-btn is-hidden" type="button" aria-label="Demolish Building" data-i18n-aria-label="aria.demolish_building">
           <img class="btn-icon-sm" src="./assets/ui/icon-trash.svg" alt="" draggable="false" />
-          <span class="build-remove-label">Demolish</span>
+          <span class="build-remove-label" data-i18n="build.demolish">Demolish</span>
         </button>
-        <button id="btn-close-build" class="build-close-btn" type="button" aria-label="Close Building Menu">
+        <button id="btn-close-build" class="build-close-btn" type="button" aria-label="Close Building Menu" data-i18n-aria-label="aria.close_building_menu">
           <img class="btn-icon-md" src="./assets/ui/icon-close.svg" alt="" draggable="false" />
         </button>
       </div>
@@ -151,16 +155,16 @@
     <div id="build-unbuildable-banner" class="build-unbuildable-banner is-hidden" role="status"></div>
 
     <div class="build-shelf-wrap">
-      <button id="btn-shelf-prev" class="build-shelf-nav build-shelf-nav--prev is-hidden" type="button" aria-label="Scroll Buildings Left">
+      <button id="btn-shelf-prev" class="build-shelf-nav build-shelf-nav--prev is-hidden" type="button" aria-label="Scroll Buildings Left" data-i18n-aria-label="aria.scroll_buildings_left">
         <img class="shelf-nav-icon shelf-nav-icon--flip" src="./assets/ui/icon-arrow.svg" alt="" draggable="false" />
       </button>
-      <div id="build-list" class="build-list" role="region" aria-label="Available Buildings"></div>
-      <button id="btn-shelf-next" class="build-shelf-nav build-shelf-nav--next is-hidden" type="button" aria-label="Scroll Buildings Right">
+      <div id="build-list" class="build-list" role="region" aria-label="Available Buildings" data-i18n-aria-label="aria.available_buildings"></div>
+      <button id="btn-shelf-next" class="build-shelf-nav build-shelf-nav--next is-hidden" type="button" aria-label="Scroll Buildings Right" data-i18n-aria-label="aria.scroll_buildings_right">
         <img class="shelf-nav-icon" src="./assets/ui/icon-arrow.svg" alt="" draggable="false" />
       </button>
     </div>
 
-    <div id="build-confirm-scene" class="build-confirm-scene is-hidden" role="region" aria-label="Confirm Building Construction" aria-hidden="true">
+    <div id="build-confirm-scene" class="build-confirm-scene is-hidden" role="region" aria-label="Confirm Building Construction" data-i18n-aria-label="aria.confirm_building_construction" aria-hidden="true">
       <div class="build-confirm-card">
         <div class="build-confirm-main">
           <div id="build-confirm-stage" class="build-confirm-stage">
@@ -174,7 +178,7 @@
 
           <div class="build-confirm-details">
             <div class="build-confirm-head">
-              <h3 id="build-confirm-name" class="build-confirm-name">Mine</h3>
+              <h3 id="build-confirm-name" class="build-confirm-name" data-i18n="buildings.mine.name">Mine</h3>
               <div id="build-confirm-badges" class="build-confirm-badges"></div>
             </div>
             <p id="build-confirm-desc" class="build-confirm-desc"></p>
@@ -183,12 +187,12 @@
         </div>
 
         <div class="build-confirm-actions">
-          <button id="btn-confirm-cancel" class="build-confirm-btn build-confirm-btn--cancel" type="button" aria-label="Cancel Construction">
+          <button id="btn-confirm-cancel" class="build-confirm-btn build-confirm-btn--cancel" type="button" aria-label="Cancel Construction" data-i18n-aria-label="aria.cancel_construction">
             <img class="btn-icon-sm" src="./assets/ui/icon-close.svg" alt="" draggable="false" />
-            <span class="build-confirm-btn-label">Cancel</span>
+            <span class="build-confirm-btn-label" data-i18n="build.cancel">Cancel</span>
           </button>
-          <button id="btn-confirm-build" class="build-confirm-btn build-confirm-btn--confirm" type="button" aria-label="Confirm Construction">
-            <span class="build-confirm-btn-label">Confirm Build</span>
+          <button id="btn-confirm-build" class="build-confirm-btn build-confirm-btn--confirm" type="button" aria-label="Confirm Construction" data-i18n-aria-label="aria.confirm_construction">
+            <span class="build-confirm-btn-label" data-i18n="build.confirm_build">Confirm Build</span>
             <span id="build-confirm-costs" class="build-confirm-costs"></span>
           </button>
         </div>
@@ -196,6 +200,7 @@
     </div>
   </aside>
 
+  <script src="./lang/en_us.js"></script>
   <script src="./js/main.js"></script>
   <script src="./js/currencies.js"></script>
   <script src="./js/buildings.js"></script>

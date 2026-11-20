@@ -49,6 +49,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Building Description & Construction Confirmation Scene**:
   - Replaced instant placement upon clicking a buildable card with a dedicated building inspection and confirmation scene (`#build-confirm-scene`) inside the build drawer.
   - Displays enlarged cel-shaded building artwork, category & terrain compatibility chips, stat/specialty badges (`+Citizens`, `+Energy`, `Ore Extraction`, `Tech Research`), a specialized description for every structure, replacement notices when overwriting an existing building, and explicit **Confirm Build** (with inline resource cost) and **Cancel** (`Escape` supported) controls.
+- **English (`en_us`) Language Pack & Localization System**:
+  - Created centralized `en_us` localization resource in `src/lang/en_us.js` (`window.GameLang`) covering all UI text, ARIA labels, planet names, biomes, terrain groups, categories, building names, specialized descriptions, tooltips, and toast templates.
+  - Refactored `src/index.html` (via `data-i18n*` attributes) and `src/js/currencies.js`, `src/js/buildings.js`, and `src/js/planets.js` to resolve strings dynamically from `en_us` instead of hardcoding them.
 
 ### Removed
 - **Cannot Build on Fluid Error Message in Build Menu**:

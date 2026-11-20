@@ -6,28 +6,44 @@
 (function () {
   "use strict";
 
+  function t(key, params) {
+    if (window.GameLang && typeof window.GameLang.t === "function") {
+      return window.GameLang.t(key, params);
+    }
+    return String(key || "");
+  }
+
+  function formatCitizenGain(count) {
+    const formatted = formatCostValue(count);
+    return t(count === 1 ? "build.citizen_gain_one" : "build.citizen_gain_many", { count: formatted });
+  }
+
+  function formatEnergyGain(count) {
+    return t("build.energy_gain", { count: formatCostValue(count) });
+  }
+
   const CATEGORIES = [
-    { id: "all",     label: "All",     iconSrc: "./assets/ui/cat-all.svg",     accent: "#ffc83a", badgeBg: "#fff6cc" },
-    { id: "power",   label: "Power",   iconSrc: "./assets/ui/cat-power.svg",   accent: "#ffc83a", badgeBg: "#fff6cc" },
-    { id: "mining",  label: "Mining",  iconSrc: "./assets/ui/cat-mining.svg",  accent: "#ffb13b", badgeBg: "#ffefd6" },
-    { id: "colony",  label: "Colony",  iconSrc: "./assets/ui/cat-colony.svg",  accent: "#ff6b5a", badgeBg: "#ffe6e3" },
-    { id: "science", label: "Science", iconSrc: "./assets/ui/cat-science.svg", accent: "#37a8ff", badgeBg: "#e0f4ff" }
+    { id: "all",     label: t("categories.all"),     iconSrc: "./assets/ui/cat-all.svg",     accent: "#ffc83a", badgeBg: "#fff6cc" },
+    { id: "power",   label: t("categories.power"),   iconSrc: "./assets/ui/cat-power.svg",   accent: "#ffc83a", badgeBg: "#fff6cc" },
+    { id: "mining",  label: t("categories.mining"),  iconSrc: "./assets/ui/cat-mining.svg",  accent: "#ffb13b", badgeBg: "#ffefd6" },
+    { id: "colony",  label: t("categories.colony"),  iconSrc: "./assets/ui/cat-colony.svg",  accent: "#ff6b5a", badgeBg: "#ffe6e3" },
+    { id: "science", label: t("categories.science"), iconSrc: "./assets/ui/cat-science.svg", accent: "#37a8ff", badgeBg: "#e0f4ff" }
   ];
 
   const TERRAIN_GROUPS = {
     solid: {
       id: "solid",
-      label: "Any Solid",
+      label: t("terrains.solid"),
       iconSrc: "./assets/ui/terrain-solid.svg"
     },
     surface: {
       id: "surface",
-      label: "Surface",
+      label: t("terrains.surface"),
       iconSrc: "./assets/ui/terrain-surface.svg"
     },
     mountainous: {
       id: "mountainous",
-      label: "Mountainous",
+      label: t("terrains.mountainous"),
       iconSrc: "./assets/ui/terrain-mountainous.svg"
     }
   };
@@ -45,134 +61,134 @@
   const BUILDINGS = [
     {
       id: "mine",
-      name: "Mine",
+      name: t("buildings.mine.name"),
       category: "mining",
-      tag: "Mining",
+      tag: t("categories.mining"),
       terrain: "mountainous",
-      specialtyLabel: "Ore Extraction",
+      specialtyLabel: t("buildings.mine.specialty"),
       specialtyIconSrc: "./assets/ui/icon-ore.svg",
-      description: "Deep-core automated drill rig anchored into rocky ridges to excavate raw Space Ore veins from the planetary crust.",
+      description: t("buildings.mine.description"),
       cost: { credits: 100 },
       accent: "#ffb13b",
       iconSrc: "./assets/ui/bld-mine.svg"
     },
     {
       id: "research_lab",
-      name: "Research Lab",
+      name: t("buildings.research_lab.name"),
       category: "science",
-      tag: "Science",
+      tag: t("categories.science"),
       terrain: "solid",
-      specialtyLabel: "Tech Research",
+      specialtyLabel: t("buildings.research_lab.specialty"),
       specialtyIconSrc: "./assets/ui/cat-science.svg",
-      description: "Pressurized orbital science facility equipped with quantum telemetry arrays to study planetary anomalies and advance colony technology.",
+      description: t("buildings.research_lab.description"),
       cost: { credits: 250, ore: 50 },
       accent: "#37a8ff",
       iconSrc: "./assets/ui/bld-research-lab.svg"
     },
     {
       id: "small_house",
-      name: "Small House",
+      name: t("buildings.small_house.name"),
       category: "colony",
-      tag: "Colony",
+      tag: t("categories.colony"),
       terrain: "surface",
       citizenSlots: 2,
-      description: "Compact pressurized habitat dome with essential life-support quarters, providing safe frontier housing for early colony pioneers.",
+      description: t("buildings.small_house.description"),
       cost: { credits: 75, ore: 10 },
       accent: "#ff6b5a",
       iconSrc: "./assets/ui/bld-house.svg"
     },
     {
       id: "big_house",
-      name: "Big House",
+      name: t("buildings.big_house.name"),
       category: "colony",
-      tag: "Colony",
+      tag: t("categories.colony"),
       terrain: "surface",
       citizenSlots: 6,
-      description: "Two-story reinforced residential lodge featuring expanded living decks, atmospheric recycling, and observation dormers for a growing workforce.",
+      description: t("buildings.big_house.description"),
       cost: { credits: 200, ore: 35 },
       accent: "#ff8a3d",
       iconSrc: "./assets/ui/bld-big-house.svg"
     },
     {
       id: "villa",
-      name: "Villa",
+      name: t("buildings.villa.name"),
       category: "colony",
-      tag: "Colony",
+      tag: t("categories.colony"),
       terrain: "surface",
       citizenSlots: 15,
-      description: "Luxurious grand colony estate with amethyst pavilion wings, climate-controlled biodome terraces, and high-capacity executive suites.",
+      description: t("buildings.villa.description"),
       cost: { credits: 450, ore: 90 },
       accent: "#a855f7",
       iconSrc: "./assets/ui/bld-villa.svg"
     },
     {
       id: "solar_panel",
-      name: "Solar Panel",
+      name: t("buildings.solar_panel.name"),
       category: "power",
-      tag: "Power",
+      tag: t("categories.power"),
       terrain: "solid",
       energySlots: 3,
-      description: "High-efficiency photovoltaic collector cells that track local starlight to supply clean baseline power to nearby colony systems.",
+      description: t("buildings.solar_panel.description"),
       cost: { credits: 50 },
       accent: "#ffc83a",
       iconSrc: "./assets/ui/bld-solar-panel.svg"
     },
     {
       id: "solar_array",
-      name: "Solar Array",
+      name: t("buildings.solar_array.name"),
       category: "power",
-      tag: "Power",
+      tag: t("categories.power"),
       terrain: "solid",
       energySlots: 8,
-      description: "Dual-mast synchronized solar collector matrix with angled reflector banks for sustained mid-tier power generation.",
+      description: t("buildings.solar_array.description"),
       cost: { credits: 160, ore: 25 },
       accent: "#ffad26",
       iconSrc: "./assets/ui/bld-solar-array.svg"
     },
     {
       id: "solar_tower",
-      name: "Solar Tower",
+      name: t("buildings.solar_tower.name"),
       category: "power",
-      tag: "Power",
+      tag: t("categories.power"),
       terrain: "solid",
       energySlots: 20,
-      description: "Towering thermal heliostat spire that concentrates orbital radiation into a superheated receiver core for massive grid output.",
+      description: t("buildings.solar_tower.description"),
       cost: { credits: 400, ore: 75 },
       accent: "#ff7b1c",
       iconSrc: "./assets/ui/bld-solar-tower.svg"
     },
     {
       id: "windmill",
-      name: "Windmill",
+      name: t("buildings.windmill.name"),
       category: "power",
-      tag: "Power",
+      tag: t("categories.power"),
       terrain: "surface",
       energySlots: 6,
-      description: "Rugged aero-rotor generator engineered to harvest surface atmospheric currents and steady planetary trade winds.",
+      description: t("buildings.windmill.description"),
       cost: { credits: 120, ore: 25 },
       accent: "#3fd6c4",
       iconSrc: "./assets/ui/bld-windmill.svg"
     },
     {
       id: "wind_turbine",
-      name: "Wind Turbine",
+      name: t("buildings.wind_turbine.name"),
       category: "power",
-      tag: "Power",
+      tag: t("categories.power"),
       terrain: "surface",
       energySlots: 16,
-      description: "High-altitude composite tri-blade turbine built with low-friction magnetic bearings to capture fast planetary wind streams.",
+      description: t("buildings.wind_turbine.description"),
       cost: { credits: 280, ore: 55 },
       accent: "#20b9f0",
       iconSrc: "./assets/ui/bld-wind-turbine.svg"
     },
     {
       id: "wind_farm",
-      name: "Wind Farm",
+      name: t("buildings.wind_farm.name"),
       category: "power",
-      tag: "Power",
+      tag: t("categories.power"),
       terrain: "surface",
       energySlots: 35,
-      description: "Interlinked multi-turbine wind array synchronized across open plains to deliver industrial-scale kinetic power to the colony grid.",
+      description: t("buildings.wind_farm.description"),
       cost: { credits: 480, ore: 95 },
       accent: "#3888ff",
       iconSrc: "./assets/ui/bld-wind-farm.svg"
@@ -180,17 +196,17 @@
   ];
 
   const BIOMES = {
-    mountains: { id: "mountains", name: "Mountains", terrains: ["solid", "mountainous"], accent: "#94a3b8", badgeBg: "#edf4ff", iconSrc: "./assets/ui/biome-mountains.svg" },
-    glacier:   { id: "glacier",   name: "Glacier",   terrains: ["solid"],                accent: "#5fd8f8", badgeBg: "#e6faff", iconSrc: "./assets/ui/biome-glacier.svg" },
-    highlands: { id: "highlands", name: "Highlands", terrains: ["solid", "surface"],     accent: "#a78bfa", badgeBg: "#f2eeff", iconSrc: "./assets/ui/biome-highlands.svg" },
-    crater:    { id: "crater",    name: "Crater",    terrains: ["solid", "mountainous"], accent: "#7c8ba8", badgeBg: "#eceff8", iconSrc: "./assets/ui/biome-crater.svg" },
-    forest:    { id: "forest",    name: "Forest",    terrains: ["solid", "surface"],     accent: "#22c55e", badgeBg: "#e8fce9", iconSrc: "./assets/ui/biome-forest.svg" },
-    plains:    { id: "plains",    name: "Plains",    terrains: ["solid", "surface"],     accent: "#84e148", badgeBg: "#f2ffe4", iconSrc: "./assets/ui/biome-plains.svg" },
-    ocean:     { id: "ocean",     name: "Ocean",     terrains: [],                       accent: "#37a8ff", badgeBg: "#e3f5ff", iconSrc: "./assets/ui/biome-ocean.svg", unbuildableHint: "Cannot build on deep water — select a solid land tile" },
-    lava:      { id: "lava",      name: "Lava",      terrains: [],                       accent: "#ff8c2a", badgeBg: "#fff0dc", iconSrc: "./assets/ui/biome-lava.svg", unbuildableHint: "Cannot build on molten lava — select a solid land tile" },
-    volcano:   { id: "volcano",   name: "Volcano",   terrains: ["solid", "mountainous"], accent: "#ff5a4d", badgeBg: "#ffe8e6", iconSrc: "./assets/ui/biome-volcano.svg" },
-    canyon:    { id: "canyon",    name: "Canyon",    terrains: ["solid", "mountainous"], accent: "#e87d3e", badgeBg: "#ffefe3", iconSrc: "./assets/ui/biome-canyon.svg" },
-    ashlands:  { id: "ashlands",  name: "Ashlands",  terrains: ["solid", "surface"],     accent: "#8d7ab8", badgeBg: "#f0ecf9", iconSrc: "./assets/ui/biome-ashlands.svg" }
+    mountains: { id: "mountains", name: t("biomes.mountains.name"), terrains: ["solid", "mountainous"], accent: "#94a3b8", badgeBg: "#edf4ff", iconSrc: "./assets/ui/biome-mountains.svg" },
+    glacier:   { id: "glacier",   name: t("biomes.glacier.name"),   terrains: ["solid"],                accent: "#5fd8f8", badgeBg: "#e6faff", iconSrc: "./assets/ui/biome-glacier.svg" },
+    highlands: { id: "highlands", name: t("biomes.highlands.name"), terrains: ["solid", "surface"],     accent: "#a78bfa", badgeBg: "#f2eeff", iconSrc: "./assets/ui/biome-highlands.svg" },
+    crater:    { id: "crater",    name: t("biomes.crater.name"),    terrains: ["solid", "mountainous"], accent: "#7c8ba8", badgeBg: "#eceff8", iconSrc: "./assets/ui/biome-crater.svg" },
+    forest:    { id: "forest",    name: t("biomes.forest.name"),    terrains: ["solid", "surface"],     accent: "#22c55e", badgeBg: "#e8fce9", iconSrc: "./assets/ui/biome-forest.svg" },
+    plains:    { id: "plains",    name: t("biomes.plains.name"),    terrains: ["solid", "surface"],     accent: "#84e148", badgeBg: "#f2ffe4", iconSrc: "./assets/ui/biome-plains.svg" },
+    ocean:     { id: "ocean",     name: t("biomes.ocean.name"),     terrains: [],                       accent: "#37a8ff", badgeBg: "#e3f5ff", iconSrc: "./assets/ui/biome-ocean.svg", unbuildableHint: t("biomes.ocean.unbuildable_hint") },
+    lava:      { id: "lava",      name: t("biomes.lava.name"),      terrains: [],                       accent: "#ff8c2a", badgeBg: "#fff0dc", iconSrc: "./assets/ui/biome-lava.svg", unbuildableHint: t("biomes.lava.unbuildable_hint") },
+    volcano:   { id: "volcano",   name: t("biomes.volcano.name"),   terrains: ["solid", "mountainous"], accent: "#ff5a4d", badgeBg: "#ffe8e6", iconSrc: "./assets/ui/biome-volcano.svg" },
+    canyon:    { id: "canyon",    name: t("biomes.canyon.name"),    terrains: ["solid", "mountainous"], accent: "#e87d3e", badgeBg: "#ffefe3", iconSrc: "./assets/ui/biome-canyon.svg" },
+    ashlands:  { id: "ashlands",  name: t("biomes.ashlands.name"),  terrains: ["solid", "surface"],     accent: "#8d7ab8", badgeBg: "#f0ecf9", iconSrc: "./assets/ui/biome-ashlands.svg" }
   };
 
   function getBiome(biomeId) {
@@ -518,7 +534,7 @@
       if (isBuilt) {
         const badge = document.createElement("span");
         badge.className = "build-card-badge is-built";
-        badge.textContent = "BUILT";
+        badge.textContent = t("build.built_badge");
         stage.appendChild(badge);
       }
 
@@ -563,7 +579,7 @@
             "build-citizen-icon",
             STAT_ICONS.citizens,
             "build-citizen-label",
-            "+" + formatCostValue(b.citizenSlots) + (b.citizenSlots === 1 ? " Citizen" : " Citizens"),
+            formatCitizenGain(b.citizenSlots),
             "data-citizen-slots",
             b.citizenSlots
           )
@@ -575,7 +591,7 @@
             "build-energy-icon",
             STAT_ICONS.energy,
             "build-energy-label",
-            "+" + formatCostValue(b.energySlots) + " Energy",
+            formatEnergyGain(b.energySlots),
             "data-energy-slots",
             b.energySlots
           )
@@ -598,7 +614,7 @@
       if (isBuilt) {
         const builtLbl = document.createElement("span");
         builtLbl.className = "build-built-label";
-        builtLbl.textContent = "BUILT";
+        builtLbl.textContent = t("build.built_badge");
         actionBtn.appendChild(builtLbl);
       } else {
         const costOrder = ["credits", "ore"];
@@ -640,6 +656,7 @@
           if (!terrainOk) {
             const currentBiome = getBiome(currentBiomeId);
             const bldImg = '<img class="game-toast-icon" src="' + b.iconSrc + '" alt="" draggable="false" />';
+            const bldStrong = '<strong class="game-toast-strong">' + b.name + '</strong>';
             const terrainPill =
               '<span class="game-toast-pill"><img class="game-toast-pill-icon" src="' +
               terrain.iconSrc +
@@ -653,29 +670,21 @@
               currentBiome.name +
               '</span>';
 
-            let reasonHtml = "";
-            if (currentBiome.terrains.length === 0) {
-              reasonHtml =
-                bldImg +
-                '<span>Cannot build <strong class="game-toast-strong">' +
-                b.name +
-                '</strong> on ' +
-                biomePill +
-                ' terrain.</span>';
-            } else {
-              reasonHtml =
-                bldImg +
-                '<span>Cannot build <strong class="game-toast-strong">' +
-                b.name +
-                '</strong> on ' +
-                biomePill +
-                ' — requires ' +
-                terrainPill +
-                ' terrain.</span>';
-            }
-            showBuildErrorToast(reasonHtml);
+            const reasonText =
+              currentBiome.terrains.length === 0
+                ? t("toast.cannot_build_unbuildable", {
+                    building: bldStrong,
+                    biome: biomePill
+                  })
+                : t("toast.cannot_build_terrain", {
+                    building: bldStrong,
+                    biome: biomePill,
+                    terrain: terrainPill
+                  });
+            showBuildErrorToast(bldImg + '<span>' + reasonText + '</span>');
           } else if (!affordable) {
             const bldImg = '<img class="game-toast-icon" src="' + b.iconSrc + '" alt="" draggable="false" />';
+            const bldStrong = '<strong class="game-toast-strong">' + b.name + '</strong>';
             const missing = [];
             const costOrder = ["credits", "ore"];
             for (let c = 0; c < costOrder.length; c++) {
@@ -686,7 +695,7 @@
               if (has < req) {
                 const diff = req - has;
                 const cIcon = CURRENCY_ICONS[key];
-                const cLabel = key === "credits" ? "Credits" : "Ore";
+                const cLabel = key === "credits" ? t("currencies.credits") : t("currencies.ore");
                 missing.push(
                   '<span class="game-toast-pill"><img class="game-toast-pill-icon" src="' +
                     cIcon +
@@ -700,11 +709,12 @@
             }
             const reasonHtml =
               bldImg +
-              '<span>Cannot afford <strong class="game-toast-strong">' +
-              b.name +
-              '</strong> — need ' +
-              missing.join(" and ") +
-              ' more.</span>';
+              '<span>' +
+              t("toast.cannot_afford", {
+                building: bldStrong,
+                missing: missing.join(t("toast.missing_joiner"))
+              }) +
+              '</span>';
             showBuildErrorToast(reasonHtml);
           }
           return;
@@ -784,7 +794,7 @@
             "build-citizen-icon",
             STAT_ICONS.citizens,
             "build-citizen-label",
-            "+" + formatCostValue(b.citizenSlots) + (b.citizenSlots === 1 ? " Citizen" : " Citizens"),
+            formatCitizenGain(b.citizenSlots),
             "data-citizen-slots",
             b.citizenSlots
           )
@@ -796,7 +806,7 @@
             "build-energy-icon",
             STAT_ICONS.energy,
             "build-energy-label",
-            "+" + formatCostValue(b.energySlots) + " Energy",
+            formatEnergyGain(b.energySlots),
             "data-energy-slots",
             b.energySlots
           )
@@ -821,8 +831,9 @@
     if (confirmReplaceEl) {
       if (currentPlacedId && currentPlacedId !== b.id) {
         const existing = getBuilding(currentPlacedId);
-        confirmReplaceEl.textContent =
-          "Replaces existing " + (existing ? existing.name : "building") + " on this tile.";
+        confirmReplaceEl.textContent = t("build.replace_notice", {
+          building: existing ? existing.name : t("build.replace_fallback_building")
+        });
         confirmReplaceEl.classList.remove("is-hidden");
       } else {
         confirmReplaceEl.textContent = "";

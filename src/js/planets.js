@@ -412,14 +412,21 @@
     return map;
   }
 
+  function t(key, params) {
+    if (window.GameLang && typeof window.GameLang.t === "function") {
+      return window.GameLang.t(key, params);
+    }
+    return String(key || "");
+  }
+
   // Three distinct 3D geodesic planets (Small -> Medium -> Large)
   const planets = [
     {
       id: 0,
-      defaultName: "Planet 1",
-      name: "Planet 1",
+      defaultName: t("planets.planet_1.default_name"),
+      name: t("planets.planet_1.default_name"),
       typeId: "rocky",
-      typeLabel: "Rocky",
+      typeLabel: t("planets.planet_1.type_label"),
       accent: "#cbd5e1",
       accentBg: "#25344d",
       iconSrc: "./assets/ui/planet-rocky.svg",
@@ -445,10 +452,10 @@
     },
     {
       id: 1,
-      defaultName: "Planet 2",
-      name: "Planet 2",
+      defaultName: t("planets.planet_2.default_name"),
+      name: t("planets.planet_2.default_name"),
       typeId: "oceanic",
-      typeLabel: "Oceanic",
+      typeLabel: t("planets.planet_2.type_label"),
       accent: "#38bdf8",
       accentBg: "#0f3a5c",
       iconSrc: "./assets/ui/planet-oceanic.svg",
@@ -474,10 +481,10 @@
     },
     {
       id: 2,
-      defaultName: "Planet 3",
-      name: "Planet 3",
+      defaultName: t("planets.planet_3.default_name"),
+      name: t("planets.planet_3.default_name"),
       typeId: "volcanic",
-      typeLabel: "Volcanic",
+      typeLabel: t("planets.planet_3.type_label"),
       accent: "#fb923c",
       accentBg: "#571e12",
       iconSrc: "./assets/ui/planet-volcanic.svg",
@@ -586,8 +593,9 @@
     planetDeckHeaderEl.classList.add("is-editing");
 
     if (renamePlanetBtn) {
-      renamePlanetBtn.title = "Save Planet Name";
-      renamePlanetBtn.setAttribute("aria-label", "Save Planet Name");
+      const saveLabel = t("planet.save_name");
+      renamePlanetBtn.title = saveLabel;
+      renamePlanetBtn.setAttribute("aria-label", saveLabel);
     }
 
     planetHudNameInputEl.focus();
@@ -604,8 +612,9 @@
       planetDeckHeaderEl.classList.remove("is-editing");
     }
     if (renamePlanetBtn) {
-      renamePlanetBtn.title = "Rename Planet";
-      renamePlanetBtn.setAttribute("aria-label", "Rename Planet");
+      const renameLabel = t("planet.rename");
+      renamePlanetBtn.title = renameLabel;
+      renamePlanetBtn.setAttribute("aria-label", renameLabel);
     }
 
     if (commit && planets[idx] && planetHudNameInputEl) {
@@ -849,7 +858,7 @@
       zoomOutBtn.disabled = activePlanet.targetZoom <= MIN_ZOOM + 0.02;
     }
 
-    const zoomText = activePlanet.zoom.toFixed(1) + "×";
+    const zoomText = t("planet.zoom_format", { zoom: activePlanet.zoom.toFixed(1) });
     if (zoomLevelLabel && zoomText !== lastZoomLabel) {
       lastZoomLabel = zoomText;
       zoomLevelLabel.textContent = zoomText;

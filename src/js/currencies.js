@@ -6,7 +6,16 @@
 (function () {
   "use strict";
 
-  const SUFFIXES = ["", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No", "Dc"];
+  function t(key, params) {
+    if (window.GameLang && typeof window.GameLang.t === "function") {
+      return window.GameLang.t(key, params);
+    }
+    return String(key || "");
+  }
+
+  const SUFFIXES =
+    (window.GameLang && typeof window.GameLang.get === "function" && window.GameLang.get("currencies.suffixes")) ||
+    [""];
 
   const state = {
     credits: { amount: 500, rate: 0 },
@@ -80,13 +89,14 @@
     if (r <= 0) {
       return "";
     }
+    const perSec = t("currencies.per_second");
     if (r < 10) {
-      return "+" + r.toFixed(1).replace(/\.0$/, "") + "/s";
+      return "+" + r.toFixed(1).replace(/\.0$/, "") + perSec;
     }
     if (r < 1000) {
-      return "+" + Math.floor(r) + "/s";
+      return "+" + Math.floor(r) + perSec;
     }
-    return "+" + formatNumber(r) + "/s";
+    return "+" + formatNumber(r) + perSec;
   }
 
   function renderCurrency(key) {
