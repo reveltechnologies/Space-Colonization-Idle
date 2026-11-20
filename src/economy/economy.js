@@ -30,15 +30,18 @@
       // Mining
       mine: {
         cost: { credits: 100 },
-        bricksPerSec: 0.2
+        bricksPerSec: 0.2,
+        energyRequired: 1
       },
       deep_mine: {
         cost: { credits: 230 },
-        bricksPerSec: 0.8
+        bricksPerSec: 0.8,
+        energyRequired: 3
       },
       mega_quarry: {
         cost: { credits: 460 },
-        bricksPerSec: 2.5
+        bricksPerSec: 2.5,
+        energyRequired: 8
       },
 
       // Automated Trade Rockets
@@ -47,40 +50,47 @@
         bricksPerLaunch: 5,
         creditsPerBrick: 4,
         tradeIntervalSec: 6.0,
-        tradeSpeedMult: 1.0
+        tradeSpeedMult: 1.0,
+        energyRequired: 2
       },
       trade_rocket_2: {
         cost: { credits: 290 },
         bricksPerLaunch: 12,
         creditsPerBrick: 5,
         tradeIntervalSec: 4.0,
-        tradeSpeedMult: 1.35
+        tradeSpeedMult: 1.35,
+        energyRequired: 5
       },
       trade_rocket_3: {
         cost: { credits: 480 },
         bricksPerLaunch: 25,
         creditsPerBrick: 6,
         tradeIntervalSec: 2.5,
-        tradeSpeedMult: 1.75
+        tradeSpeedMult: 1.75,
+        energyRequired: 10
       },
 
       // Science
       research_center: {
         cost: { credits: 150 },
         researchPerSec: 0.25,
-        maxPerPlanet: 1
+        maxPerPlanet: 1,
+        energyRequired: 1
       },
       research_lab: {
         cost: { credits: 200 },
-        researchPerSec: 0.5
+        researchPerSec: 0.5,
+        energyRequired: 2
       },
       observatory: {
         cost: { credits: 340 },
-        researchPerSec: 1.2
+        researchPerSec: 1.2,
+        energyRequired: 5
       },
       quantum_array: {
         cost: { credits: 450 },
-        researchPerSec: 3.5
+        researchPerSec: 3.5,
+        energyRequired: 12
       },
 
       // Colony Housing

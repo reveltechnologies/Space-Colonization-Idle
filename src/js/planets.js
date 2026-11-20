@@ -665,6 +665,18 @@
     bricks: { iconSrc: "./assets/ui/icon-bricks.svg", scope: "planet" }
   };
   const resourceTooltipState = { open: false, key: null, triggerEl: null };
+  const blockedOverlayIcons = {
+    energy: (function () {
+      const img = new Image();
+      img.src = "./assets/ui/icon-energy.svg";
+      return img;
+    })(),
+    bricks: (function () {
+      const img = new Image();
+      img.src = "./assets/ui/icon-bricks.svg";
+      return img;
+    })()
+  };
   let lastHeaderPlanet = -1;
   let emblemPopTimer = 0;
   let isRenamingPlanet = false;
@@ -945,20 +957,74 @@
     return Math.round(base * mult);
   }
 
+  function getPlanetPowerStatus(planetIdx) {
+    const maxEnergy = calculatePlanetEnergyCapacity(planetIdx);
+    const buildings = buildingsByPlanet[planetIdx];
+    const consumers = [];
+    if (buildings && window.GameBuildings) {
+      const keys = Object.keys(buildings);
+      for (let i = 0; i < keys.length; i++) {
+        const tileId = keys[i];
+        const bInfo = buildings[tileId];
+        if (!bInfo || !bInfo.id) continue;
+        const bDef = window.GameBuildings.getBuilding(bInfo.id);
+        if (bDef && bDef.energyRequired > 0) {
+          consumers.push({
+            tileId: tileId,
+            placedAt: bInfo.placedAt || 0,
+            req: bDef.energyRequired
+          });
+        }
+      }
+    }
+
+    consumers.sort(function (a, b) {
+      if (a.placedAt !== b.placedAt) return a.placedAt - b.placedAt;
+      return Number(a.tileId) - Number(b.tileId);
+    });
+
+    let remaining = maxEnergy;
+    let usedEnergy = 0;
+    let requiredEnergy = 0;
+    const poweredTiles = Object.create(null);
+    const energyBlockedTiles = Object.create(null);
+
+    for (let i = 0; i < consumers.length; i++) {
+      const c = consumers[i];
+      requiredEnergy += c.req;
+      if (remaining >= c.req) {
+        remaining -= c.req;
+        usedEnergy += c.req;
+        poweredTiles[c.tileId] = true;
+      } else {
+        energyBlockedTiles[c.tileId] = true;
+      }
+    }
+
+    return {
+      maxEnergy: maxEnergy,
+      availableEnergy: remaining,
+      usedEnergy: usedEnergy,
+      requiredEnergy: requiredEnergy,
+      poweredTiles: poweredTiles,
+      energyBlockedTiles: energyBlockedTiles
+    };
+  }
+
   function getPlanetEnergyCount(planetIdx) {
-    // Current energy supply fills available capacity
-    return calculatePlanetEnergyCapacity(planetIdx);
+    return getPlanetPowerStatus(planetIdx).availableEnergy;
   }
 
   function updatePlanetEnergyHud(force) {
+    const power = getPlanetPowerStatus(activeDotIndex);
     syncStatBarHud(
       energyCurrEl,
       energyMaxEl,
       energyStatBar,
       energyMeterFillEl,
       energyHudState,
-      getPlanetEnergyCount(activeDotIndex),
-      calculatePlanetEnergyCapacity(activeDotIndex),
+      power.availableEnergy,
+      power.maxEnergy,
       force
     );
   }
@@ -966,13 +1032,16 @@
   function calculatePlanetBrickRate(planetIdx) {
     const buildings = buildingsByPlanet[planetIdx];
     if (!buildings || !window.GameBuildings) return 0;
+    const power = getPlanetPowerStatus(planetIdx);
     let rate = 0;
     const keys = Object.keys(buildings);
     for (let i = 0; i < keys.length; i++) {
-      const bInfo = buildings[keys[i]];
+      const tileId = keys[i];
+      const bInfo = buildings[tileId];
       if (!bInfo || !bInfo.id) continue;
       const bDef = window.GameBuildings.getBuilding(bInfo.id);
       if (bDef && bDef.bricksPerSec) {
+        if (bDef.energyRequired > 0 && power.energyBlockedTiles[tileId]) continue;
         const mult =
           window.GameResearch && typeof window.GameResearch.getBrickMultiplier === "function"
             ? window.GameResearch.getBrickMultiplier(bDef.id)
@@ -984,7 +1053,21 @@
   }
 
   function calculatePlanetResearchRate(planetIdx) {
-    const base = calculatePlanetStatCapacity(planetIdx, "researchPerSec");
+    const buildings = buildingsByPlanet[planetIdx];
+    if (!buildings || !window.GameBuildings) return 0;
+    const power = getPlanetPowerStatus(planetIdx);
+    let base = 0;
+    const keys = Object.keys(buildings);
+    for (let i = 0; i < keys.length; i++) {
+      const tileId = keys[i];
+      const bInfo = buildings[tileId];
+      if (!bInfo || !bInfo.id) continue;
+      const bDef = window.GameBuildings.getBuilding(bInfo.id);
+      if (bDef && bDef.researchPerSec) {
+        if (bDef.energyRequired > 0 && power.energyBlockedTiles[tileId]) continue;
+        base += bDef.researchPerSec;
+      }
+    }
     const mult =
       window.GameResearch && typeof window.GameResearch.getResearchMultiplier === "function"
         ? window.GameResearch.getResearchMultiplier()
@@ -1102,9 +1185,11 @@
           max: formatPlanetStat(calculatePlanetCitizenCapacity(activeDotIndex))
         });
       } else if (key === "energy") {
-        statText = t("resource_tooltips.capacity_label", {
-          curr: formatPlanetStat(getPlanetEnergyCount(activeDotIndex)),
-          max: formatPlanetStat(calculatePlanetEnergyCapacity(activeDotIndex))
+        const power = getPlanetPowerStatus(activeDotIndex);
+        statText = t("resource_tooltips.energy_avail_label", {
+          avail: formatPlanetStat(power.availableEnergy),
+          max: formatPlanetStat(power.maxEnergy),
+          used: formatPlanetStat(power.usedEnergy)
         });
       } else if (key === "bricks") {
         const amt = Math.floor(bricksByPlanet[activeDotIndex] || 0);
@@ -1607,6 +1692,7 @@
       return a.depthZ - b.depthZ;
     });
 
+    const planetPower = getPlanetPowerStatus(planet.id);
     const lineUnit = Math.max(0.75, r / (planet.freq * 68));
 
     // 4. Draw Sorted 3D Tiles (Side Extrusion Walls + Top Face + Glowing White Hex Frame)
@@ -1832,6 +1918,15 @@
             window.GameBuildings && typeof window.GameBuildings.getBuilding === "function"
               ? window.GameBuildings.getBuilding(entry.placed.id)
               : null;
+          const isEnergyBlocked = Boolean(
+            placedDef && placedDef.energyRequired > 0 && planetPower.energyBlockedTiles[tile.id]
+          );
+          const isBricksBlocked = Boolean(
+            placedDef &&
+            placedDef.tradeVariant &&
+            entry.placed.tradeEnabled &&
+            Math.floor(bricksByPlanet[planet.id] || 0) <= 0
+          );
           const activeFp =
             placedDef && placedDef.tradeVariant
               ? getActiveTradeFlightProgressForTile(planet.id, tile.id, time)
@@ -1839,10 +1934,11 @@
           const bOpts =
             placedDef && placedDef.tradeVariant
               ? {
-                  tradeEnabled: Boolean(entry.placed.tradeEnabled),
-                  tradeProgress: entry.placed.tradeEnabled
-                    ? clamp01((entry.placed.tradeTimer || 0) / placedDef.tradeIntervalSec)
-                    : 0,
+                  tradeEnabled: Boolean(entry.placed.tradeEnabled) && !isEnergyBlocked && !isBricksBlocked,
+                  tradeProgress:
+                    entry.placed.tradeEnabled && !isEnergyBlocked && !isBricksBlocked
+                      ? clamp01((entry.placed.tradeTimer || 0) / placedDef.tradeIntervalSec)
+                      : 0,
                   flightProgress: activeFp !== null ? activeFp : undefined
                 }
               : undefined;
@@ -1867,6 +1963,23 @@
                 ? easeOutBack(buildElapsed / 280)
                 : 1;
             window.GameBuildings.renderBuilding3D(ctx, entry.placed.id, buildingFrame, time, buildScale, bOpts);
+          }
+
+          if ((isEnergyBlocked || isBricksBlocked) && (!eff || eff.type !== "demolish")) {
+            const badgeWorld = add(entry.elevPlaneCenter, scale(rotNormal, tile.hexScale * elev * 0.92));
+            const badgePt = project(badgeWorld, cx, cy, focalLength);
+            drawBuildingBlockedOverlay(
+              ctx,
+              badgePt.x,
+              badgePt.y,
+              tile.hexScale * elev,
+              r,
+              isEnergyBlocked,
+              isBricksBlocked,
+              time,
+              tile.phase,
+              (1 - shadow * 0.85) * transform.alpha
+            );
           }
         }
 
@@ -2158,6 +2271,69 @@
     ctx.fill();
 
     ctx.restore();
+  }
+
+  function drawBuildingBlockedBadge(ctx, bx, by, radiusPx, iconImg, alpha) {
+    if (radiusPx < 4 || alpha <= 0.02) return;
+    ctx.save();
+    ctx.globalAlpha = clamp01(alpha);
+
+    // Dark ink outer disc + indigo backing
+    ctx.beginPath();
+    ctx.arc(bx, by + 1.5, radiusPx + 1.5, 0, Math.PI * 2);
+    ctx.fillStyle = "#1b1147";
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(bx, by, radiusPx, 0, Math.PI * 2);
+    ctx.fillStyle = "#261447";
+    ctx.fill();
+
+    // Draw resource SVG icon centered inside
+    if (iconImg && iconImg.complete && iconImg.naturalWidth > 0) {
+      const iconSize = radiusPx * 1.32;
+      ctx.drawImage(iconImg, bx - iconSize * 0.5, by - iconSize * 0.5, iconSize, iconSize);
+    }
+
+    // Cel-shaded red prohibition ring + diagonal slash (⊘)
+    const ringR = radiusPx * 0.94;
+    const slashOff = ringR * 0.68;
+
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.arc(bx, by, ringR, 0, Math.PI * 2);
+    ctx.moveTo(bx - slashOff, by + slashOff);
+    ctx.lineTo(bx + slashOff, by - slashOff);
+    ctx.lineWidth = Math.max(3.2, radiusPx * 0.34);
+    ctx.strokeStyle = "#1b1147";
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(bx, by, ringR, 0, Math.PI * 2);
+    ctx.moveTo(bx - slashOff, by + slashOff);
+    ctx.lineTo(bx + slashOff, by - slashOff);
+    ctx.lineWidth = Math.max(1.8, radiusPx * 0.19);
+    ctx.strokeStyle = "#ff3b4e";
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  function drawBuildingBlockedOverlay(ctx, x, y, tileScale, planetR, isEnergyBlocked, isBricksBlocked, time, phase, alpha) {
+    if ((!isEnergyBlocked && !isBricksBlocked) || alpha <= 0.04) return;
+    const bobY = Math.sin(time * 0.0046 + (phase || 0)) * Math.max(1.5, planetR * 0.012);
+    const badgeR = clamp(planetR * Math.max(0.055, tileScale * 0.24), 9.5, 16);
+    const py = y - badgeR * 0.95 + bobY;
+
+    if (isEnergyBlocked && isBricksBlocked) {
+      const sep = badgeR * 1.12;
+      drawBuildingBlockedBadge(ctx, x - sep, py, badgeR, blockedOverlayIcons.energy, alpha);
+      drawBuildingBlockedBadge(ctx, x + sep, py, badgeR, blockedOverlayIcons.bricks, alpha);
+    } else if (isEnergyBlocked) {
+      drawBuildingBlockedBadge(ctx, x, py, badgeR, blockedOverlayIcons.energy, alpha);
+    } else {
+      drawBuildingBlockedBadge(ctx, x, py, badgeR, blockedOverlayIcons.bricks, alpha);
+    }
   }
 
   function drawPlanetLockOverlay(ctx, cx, cy, r, requiredTier, alpha, time) {
@@ -3335,6 +3511,7 @@
     for (let pIdx = 0; pIdx < PLANET_COUNT; pIdx++) {
       const buildings = buildingsByPlanet[pIdx];
       if (!buildings || !window.GameBuildings) continue;
+      const power = getPlanetPowerStatus(pIdx);
       const keys = Object.keys(buildings);
       for (let i = 0; i < keys.length; i++) {
         const tileId = keys[i];
@@ -3345,11 +3522,13 @@
 
         if (!bInfo.tradeEnabled) continue;
 
+        if (bDef.energyRequired > 0 && power.energyBlockedTiles[tileId]) {
+          continue;
+        }
+
         const avail = Math.floor(bricksByPlanet[pIdx] || 0);
         if (avail <= 0) {
-          bInfo.tradeEnabled = false;
           bInfo.tradeTimer = 0;
-          showTradeNoticeToast(bDef, pIdx, "toast.trade_auto_stopped");
           continue;
         }
 
@@ -3363,17 +3542,9 @@
             window.GameCurrencies.add("credits", earned);
           }
           spawnTradeRocketFlight(pIdx, tileId, bDef, sold, earned, time);
-
-          if (Math.floor(bricksByPlanet[pIdx] || 0) <= 0) {
-            bInfo.tradeEnabled = false;
-            bInfo.tradeTimer = 0;
-            showTradeNoticeToast(bDef, pIdx, "toast.trade_auto_stopped");
-          }
         }
 
-        if (bInfo.tradeEnabled) {
-          totalActiveCreditsPerSec += (bDef.bricksPerLaunch * bDef.creditsPerBrick) / bDef.tradeIntervalSec;
-        }
+        totalActiveCreditsPerSec += (bDef.bricksPerLaunch * bDef.creditsPerBrick) / bDef.tradeIntervalSec;
       }
     }
 
@@ -4236,10 +4407,6 @@
           placed.tradeTimer = 0;
           showTradeNoticeToast(bDef, pId, "toast.trade_stopped");
         } else {
-          if (Math.floor(bricksByPlanet[pId] || 0) <= 0) {
-            showTradeNoticeToast(bDef, pId, "toast.trade_no_bricks_to_start");
-            return;
-          }
           placed.tradeEnabled = true;
           placed.tradeTimer = 0;
           showTradeNoticeToast(bDef, pId, "toast.trade_started", "success");
@@ -4519,13 +4686,12 @@
 
           const prevCap = calculatePlanetCitizenCapacity(targetIndex);
           const now = performance.now();
-          const hasBricks = Math.floor(bricksByPlanet[targetIndex] || 0) >= 1;
           const wasTrade = Boolean(existingDef && existingDef.tradeVariant);
           const initialTradeEnabled =
             bld.tradeVariant
               ? wasTrade
-                ? Boolean(existing.tradeEnabled) && hasBricks
-                : hasBricks
+                ? Boolean(existing.tradeEnabled)
+                : true
               : false;
           buildingsByPlanet[targetIndex][tileId] = {
             id: buildingId,
@@ -4536,9 +4702,6 @@
             tradeEnabled: initialTradeEnabled,
             tradeTimer: 0
           };
-          if (bld.tradeVariant && !hasBricks) {
-            showTradeNoticeToast(bld, targetIndex, "toast.trade_auto_stopped");
-          }
           const newCap = calculatePlanetCitizenCapacity(targetIndex);
           const capDiff = newCap - prevCap;
           if (capDiff > 0) {

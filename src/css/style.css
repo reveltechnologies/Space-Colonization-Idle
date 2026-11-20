@@ -1355,6 +1355,35 @@ img {
   box-shadow: 0 2px 0 var(--ink);
 }
 
+.build-card-energy-req {
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1.5px 6px 1.5px 4px;
+  border-radius: 999px;
+  background: rgba(24, 15, 62, 0.9);
+  border: 2px solid var(--ink);
+  box-shadow: 0 2px 0 var(--ink);
+}
+
+.build-card-energy-req-icon {
+  width: 12px;
+  height: 12px;
+  display: block;
+  object-fit: contain;
+}
+
+.build-card-energy-req-label {
+  font-size: 10px;
+  line-height: 1;
+  color: #ffe44d;
+  font-variant-numeric: tabular-nums;
+}
+
 .build-card-info {
   display: flex;
   flex-direction: column;
@@ -1446,6 +1475,12 @@ img {
   border-radius: 999px;
   background: #fff1b8;
   color: #6b3800;
+}
+
+.build-energy-chip.is-req {
+  border-color: #9333ea;
+  background: #f3e8ff;
+  color: #4c1d95;
 }
 
 .build-energy-icon {

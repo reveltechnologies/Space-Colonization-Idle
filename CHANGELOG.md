@@ -78,6 +78,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Created `src/economy/economy.js` (`window.GameEconomy`) mirroring `src/lang/`, centralizing starting currency balances, planetary regen/initial counts, all building costs/generation rates/capacities/trade/rocket parameters, and research node costs and multiplier bonuses into a single editable file wired into `currencies.js`, `buildings.js`, `research.js`, and `planets.js`.
 - **Clickable HUD Resource Info Tooltips**:
   - Made **Space Credits**, **Space Ore**, **Citizens**, **Energy**, and **Construction Bricks** interactive HUD buttons that open a cel-shaded info tooltip (`#hud-resource-tooltip`) anchored below the clicked resource with live balances/rates, scope tag (`Global Currency` / `Planet Resource`), and localized descriptions.
+- **Building Energy Requirements, On-Building Blocked Status & Persistent Trade Rockets**:
+  - Added per-building `energyRequired` values in `src/economy/economy.js` and `src/js/buildings.js` for Mines, Trade Rockets, and Science structures, displaying `-N Energy` badges on build cards and the confirm scene and showing remaining `available / max` capacity on the Energy HUD.
+  - Structures lacking sufficient planet energy pause production (Bricks, Research Points, and Trade Rocket launches) and display a floating cel-shaded blocked Energy icon (`⊘`) directly above their 3D model on the planet canvas.
+  - Enabled Trade Rockets now stay in their active trading state when a planet runs out of Construction Bricks—displaying a floating blocked Bricks icon (`⊘`) above the pad and automatically resuming launches once Bricks and Energy become available again.
   - Expanded the Science category with additional RP-generating structures (`icon-research.svg`, `bld-observatory.svg`, `bld-quantum-array.svg`):
     - **Research Center** (`research_center`): 150 SC, 20 Ore, max 1 per planet, **+15/min RP**.
     - **Research Lab** (`research_lab`): 200 SC, 35 Ore, **+30/min RP**.

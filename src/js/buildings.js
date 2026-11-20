@@ -22,6 +22,10 @@
     return t("build.energy_gain", { count: formatCostValue(count) });
   }
 
+  function formatEnergyReq(count) {
+    return t("build.energy_req", { count: formatCostValue(count) });
+  }
+
   const CATEGORIES = [
     { id: "all",     label: t("categories.all"),     iconSrc: "./assets/ui/cat-all.svg",     accent: "#ffc83a", badgeBg: "#fff6cc" },
     { id: "power",   label: t("categories.power"),   iconSrc: "./assets/ui/cat-power.svg",   accent: "#ffc83a", badgeBg: "#fff6cc" },
@@ -69,6 +73,7 @@
       terrain: "mountainous",
       nextVariantId: "deep_mine",
       bricksPerSec: 0.2,
+      energyRequired: 1,
       description: t("buildings.mine.description"),
       cost: { credits: 100 },
       accent: "#ffb13b",
@@ -82,6 +87,7 @@
       terrain: "mountainous",
       nextVariantId: "mega_quarry",
       bricksPerSec: 0.8,
+      energyRequired: 3,
       description: t("buildings.deep_mine.description"),
       cost: { credits: 230, ore: 40 },
       accent: "#f97316",
@@ -95,6 +101,7 @@
       terrain: "mountainous",
       nextVariantId: null,
       bricksPerSec: 2.5,
+      energyRequired: 8,
       description: t("buildings.mega_quarry.description"),
       cost: { credits: 460, ore: 90 },
       accent: "#ef4444",
@@ -112,6 +119,7 @@
       creditsPerBrick: 4,
       tradeIntervalSec: 6.0,
       tradeSpeedMult: 1.0,
+      energyRequired: 2,
       specialtyLabel: t("buildings.trade_rocket_1.specialty"),
       specialtyIconSrc: "./assets/ui/bld-trade-rocket-1.svg",
       description: t("buildings.trade_rocket_1.description"),
@@ -131,6 +139,7 @@
       creditsPerBrick: 5,
       tradeIntervalSec: 4.0,
       tradeSpeedMult: 1.35,
+      energyRequired: 5,
       specialtyLabel: t("buildings.trade_rocket_2.specialty"),
       specialtyIconSrc: "./assets/ui/bld-trade-rocket-2.svg",
       description: t("buildings.trade_rocket_2.description"),
@@ -150,6 +159,7 @@
       creditsPerBrick: 6,
       tradeIntervalSec: 2.5,
       tradeSpeedMult: 1.75,
+      energyRequired: 10,
       specialtyLabel: t("buildings.trade_rocket_3.specialty"),
       specialtyIconSrc: "./assets/ui/bld-trade-rocket-3.svg",
       description: t("buildings.trade_rocket_3.description"),
@@ -166,6 +176,7 @@
       maxPerPlanet: 1,
       nextVariantId: null,
       researchPerSec: 0.25,
+      energyRequired: 1,
       description: t("buildings.research_center.description"),
       cost: { credits: 150, ore: 20 },
       accent: "#a855f7",
@@ -179,6 +190,7 @@
       terrain: "solid",
       nextVariantId: "observatory",
       researchPerSec: 0.5,
+      energyRequired: 2,
       description: t("buildings.research_lab.description"),
       cost: { credits: 200, ore: 35 },
       accent: "#37a8ff",
@@ -192,6 +204,7 @@
       terrain: "mountainous",
       nextVariantId: "quantum_array",
       researchPerSec: 1.2,
+      energyRequired: 5,
       description: t("buildings.observatory.description"),
       cost: { credits: 340, ore: 60 },
       accent: "#6366f1",
@@ -205,6 +218,7 @@
       terrain: "solid",
       nextVariantId: null,
       researchPerSec: 3.5,
+      energyRequired: 12,
       requiredResearch: "quantum_computing",
       description: t("buildings.quantum_array.description"),
       cost: { credits: 450, ore: 85 },
@@ -929,6 +943,18 @@
       preview.appendChild(icon);
       stage.appendChild(preview);
 
+      if (b.energyRequired && b.energyRequired > 0) {
+        const reqBadge = createCardInfoChip(
+          "build-card-energy-req",
+          "build-card-energy-req-icon",
+          STAT_ICONS.energy,
+          "build-card-energy-req-label",
+          t("build.energy_req_short", { count: formatCostValue(b.energyRequired) })
+        );
+        reqBadge.title = formatEnergyReq(b.energyRequired);
+        stage.appendChild(reqBadge);
+      }
+
       const info = document.createElement("span");
       info.className = "build-card-info";
 
@@ -1272,6 +1298,19 @@
             STAT_ICONS.research,
             "build-research-label",
             t("build.max_per_planet", { limit: b.maxPerPlanet })
+          )
+        );
+      }
+      if (b.energyRequired && b.energyRequired > 0) {
+        confirmBadgesEl.appendChild(
+          createCardInfoChip(
+            "build-energy-chip is-req",
+            "build-energy-icon",
+            STAT_ICONS.energy,
+            "build-energy-label",
+            formatEnergyReq(b.energyRequired),
+            "data-energy-req",
+            b.energyRequired
           )
         );
       }

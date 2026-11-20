@@ -238,6 +238,8 @@
       citizen_gain_one: "+{count} Citizen",
       citizen_gain_many: "+{count} Citizens",
       energy_gain: "+{count} Energy",
+      energy_req: "-{count} Energy",
+      energy_req_short: "-{count}",
       replace_notice: "Replaces existing {building} on this tile.",
       replace_fallback_building: "building"
     },
@@ -399,6 +401,7 @@
       planet_tag: "Planet Resource",
       current_label: "Current: {val}",
       capacity_label: "Capacity: {curr} / {max}",
+      energy_avail_label: "Available: {avail} / {max} (Used: {used})",
       rate_suffix: " ({rate})",
       credits: {
         title: "Space Credits",
