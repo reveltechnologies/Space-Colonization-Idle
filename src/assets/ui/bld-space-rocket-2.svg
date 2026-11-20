@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" stroke-linejoin="round" stroke-linecap="round">
+  <ellipse cx="50" cy="91" rx="45" ry="5.5" fill="#1b1147" opacity="0.28"/>
+  <!-- Reinforced heavy launchpad -->
+  <rect x="8" y="80" width="84" height="10" rx="4" fill="#475569" stroke="#1b1147" stroke-width="4.5"/>
+  <!-- Dual launch gantry arms -->
+  <path d="M16 80 V30 H24 V80 Z" fill="#94a3b8" stroke="#1b1147" stroke-width="3.8"/>
+  <path d="M76 80 V30 H84 V80 Z" fill="#94a3b8" stroke="#1b1147" stroke-width="3.8"/>
+  <path d="M24 38 H34 M76 38 H66" stroke="#ff9838" stroke-width="4"/>
+
+  <!-- Triple thruster bells -->
+  <polygon points="27,75 35,75 37,81 25,81" fill="#ffc83a" stroke="#1b1147" stroke-width="3"/>
+  <polygon points="44,75 56,75 59,81 41,81" fill="#ffc83a" stroke="#1b1147" stroke-width="3.5"/>
+  <polygon points="65,75 73,75 75,81 63,81" fill="#ffc83a" stroke="#1b1147" stroke-width="3"/>
+
+  <!-- Twin strap-on liquid-fuel side boosters -->
+  <path d="M25 75 V42 Q25 32 31 28 Q37 32 37 42 V75 Z" fill="#e2e8f0" stroke="#1b1147" stroke-width="4"/>
+  <path d="M26 38 Q28.5 31 31 28 Q33.5 31 36 38 Z" fill="#f59e0b" stroke="#1b1147" stroke-width="3"/>
+  <path d="M63 75 V42 Q63 32 69 28 Q75 32 75 42 V75 Z" fill="#e2e8f0" stroke="#1b1147" stroke-width="4"/>
+  <path d="M64 38 Q66.5 31 69 28 Q71.5 31 74 38 Z" fill="#f59e0b" stroke="#1b1147" stroke-width="3"/>
+
+  <!-- Central heavy gold-and-navy starship core -->
+  <path d="M38 75 V32 Q38 14 50 7 Q62 14 62 32 V75 Z" fill="#1e293b" stroke="#1b1147" stroke-width="4.5"/>
+  <path d="M40.5 26 Q45 12 50 7 Q55 12 59.5 26 Z" fill="#f59e0b" stroke="#1b1147" stroke-width="4"/>
+  <rect x="38" y="54" width="24" height="10" fill="#f59e0b" stroke="#1b1147" stroke-width="3.5"/>
+  <!-- Starship cockpit & payload viewport -->
+  <circle cx="50" cy="39" r="6.5" fill="#38bdf8" stroke="#1b1147" stroke-width="3.5"/>
+  <circle cx="48" cy="37" r="2.2" fill="#e0f7ff"/>
+</svg>

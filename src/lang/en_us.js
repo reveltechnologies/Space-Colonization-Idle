@@ -161,6 +161,16 @@
       wind_farm: {
         name: "Wind Farm",
         description: "Interlinked multi-turbine wind array synchronized across open plains to deliver industrial-scale kinetic power to the colony grid."
+      },
+      space_rocket_1: {
+        name: "Space Rocket I",
+        specialty: "Tier I Orbital Rocket",
+        description: "Single-stage orbital launch vehicle assembled on a reinforced surface launchpad, preparing the colony for future spaceflight missions."
+      },
+      space_rocket_2: {
+        name: "Space Rocket II",
+        specialty: "Tier II Heavy Starship",
+        description: "Heavy multi-stage deep-space starship fitted with twin strap-on boosters, engineered for future interplanetary expeditions."
       }
     },
     build: {
@@ -169,7 +179,7 @@
       confirm_build: "Confirm Build",
       built_badge: "BUILT",
       max_per_planet: "Max {limit} / Planet",
-      requires_research_chip: "Locked: {research}",
+      requires_research_chip: "To Be Researched",
       citizen_gain_one: "+{count} Citizen",
       citizen_gain_many: "+{count} Citizens",
       energy_gain: "+{count} Energy",
@@ -195,9 +205,12 @@
       total_generation: "Generation",
       close_details: "Close Details",
       categories: {
-        construction: "Construction",
+        mining: "Mining",
+        power: "Power",
         colony: "Colony",
-        science: "Science"
+        science: "Science",
+        planetary: "Planetary",
+        aerospace: "Aerospace"
       },
       any_planet: "Any Planet",
       requires_planet: "Requires {planet} ({type})",
@@ -222,19 +235,39 @@
           effect: "+50% Deep & Mega Bricks",
           description: "Harnesses volcanic heat profiles to super-bake Construction Bricks in Deep Mines and Mega Quarries."
         },
-        habitat_insulation: {
-          name: "Habitat Insulation",
-          effect: "+20% Citizen Capacity",
-          description: "Multi-layer thermal shielding for residential domes, increasing Citizen capacity across all planets."
+        mantle_excavation: {
+          name: "Mantle Excavation",
+          effect: "+50% Mine Bricks",
+          description: "Automated mantle-piercing rigs extracting ultra-dense subterranean aggregate for rapid Brick production."
+        },
+        solar_cells: {
+          name: "Photovoltaic Cells",
+          effect: "+20% Energy Capacity",
+          description: "Refines solar crystal coatings to squeeze higher grid output from all power generation structures."
         },
         hydro_grid: {
           name: "Oceanic Power Grid",
           effect: "+25% Energy Capacity",
           description: "Applies fluid-cooled superconducting conduits discovered on the Oceanic world to boost all Power buildings."
         },
+        superconductors: {
+          name: "Volcanic Superconductors",
+          effect: "+35% Energy Capacity",
+          description: "Forges zero-loss thermal alloys from Volcanic core ores to supercharge planetary energy grids."
+        },
+        habitat_insulation: {
+          name: "Habitat Insulation",
+          effect: "+20% Citizen Capacity",
+          description: "Multi-layer thermal shielding for residential domes, increasing Citizen capacity across all planets."
+        },
+        biodome_recycling: {
+          name: "Biodome Recycling",
+          effect: "+25% Citizen Capacity",
+          description: "Closed-loop oceanic hydro-filtration systems supporting denser, self-sustaining residential quarters."
+        },
         arcology_habitats: {
           name: "Arcology Habitats",
-          effect: "+25% Citizen Capacity",
+          effect: "+35% Citizen Capacity",
           description: "Engineered pressurized vertical housing blueprints increasing Citizen capacity for all residential structures."
         },
         orbital_telemetry: {
@@ -251,6 +284,46 @@
           name: "Quantum Computing",
           effect: "Unlocks Quantum Array",
           description: "Decodes wave-function resonance on the Oceanic world, unlocking the high-output Quantum Array in the Build Menu."
+        },
+        neural_archivists: {
+          name: "Neural Archivists",
+          effect: "+50% Research Points",
+          description: "Synchronizes colony AI synthesis clusters on the Rocky world to accelerate scientific discovery."
+        },
+        surface_surveying: {
+          name: "Surface Surveying",
+          effect: "+15% Bricks & Research",
+          description: "Standardized orbital terrain mapping improves both mining yields and field research speed."
+        },
+        oceanic_adaptation: {
+          name: "Oceanic Adaptation",
+          effect: "+20% Energy & Citizens",
+          description: "Atmospheric moisture harvesting techniques tested on Oceanic tiles improve life support and power cooling."
+        },
+        volcanic_shielding: {
+          name: "Volcanic Shielding",
+          effect: "+30% All Colony Yields",
+          description: "Extreme basalt-ceramic plating tested on Volcanic ground fortifies every planetary production system."
+        },
+        hull_metallurgy: {
+          name: "Aerospace Metallurgy",
+          effect: "+15% Research Points",
+          description: "Develops ultra-lightweight vacuum-forged rocket alloys from Rocky mineral deposits."
+        },
+        cryo_propellant: {
+          name: "Cryo Propellant",
+          effect: "+20% Energy Capacity",
+          description: "Synthesizes high-impulse liquid hydrogen rocket fuel from Oceanic water reserves."
+        },
+        orbital_rocketry: {
+          name: "Orbital Rocketry",
+          effect: "Unlocks Space Rocket I",
+          description: "Completes single-stage launch gantry telemetry on Volcanic test pads, unlocking Space Rocket I in the Build Menu."
+        },
+        heavy_starship: {
+          name: "Heavy Starship Design",
+          effect: "Unlocks Space Rocket II",
+          description: "Masters twin strap-on booster staging from high-gravity Rocky pads, unlocking Space Rocket II in the Build Menu."
         }
       }
     }

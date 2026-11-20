@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" stroke-linejoin="round" stroke-linecap="round">
+  <ellipse cx="50" cy="91" rx="42" ry="5.5" fill="#1b1147" opacity="0.28"/>
+  <!-- Launchpad deck -->
+  <rect x="14" y="80" width="72" height="10" rx="4" fill="#64748b" stroke="#1b1147" stroke-width="4.5"/>
+  <!-- Steel umbilical service tower -->
+  <path d="M22 80 V28 H32 V80 Z" fill="#94a3b8" stroke="#1b1147" stroke-width="4"/>
+  <path d="M22 44 H42 M22 60 H42 M22 36 L32 44 M32 52 L22 60 M22 68 L32 76" stroke="#1b1147" stroke-width="3" fill="none"/>
+
+  <!-- Golden thruster bell & warm exhaust glow -->
+  <polygon points="44,74 56,74 60,81 40,81" fill="#ffc83a" stroke="#1b1147" stroke-width="3.5"/>
+
+  <!-- Crimson delta fins -->
+  <polygon points="40,56 27,76 41,73" fill="#ff5a4d" stroke="#1b1147" stroke-width="4"/>
+  <polygon points="60,56 73,76 59,73" fill="#e03e31" stroke="#1b1147" stroke-width="4"/>
+
+  <!-- Single-core white-and-crimson rocket fuselage -->
+  <path d="M40 73 V36 Q40 16 50 9 Q60 16 60 36 V73 Z" fill="#f8fafc" stroke="#1b1147" stroke-width="4.5"/>
+  <!-- Crimson nose cone & band -->
+  <path d="M41.5 28 Q45 14 50 9 Q55 14 58.5 28 Z" fill="#ff5a4d" stroke="#1b1147" stroke-width="4"/>
+  <rect x="40" y="61" width="20" height="7" fill="#ff5a4d" stroke="#1b1147" stroke-width="3.5"/>
+  <!-- Highlight streak -->
+  <path d="M44 33 V57" stroke="#ffffff" stroke-width="3.5"/>
+  <!-- Porthole window -->
+  <circle cx="50" cy="43" r="6" fill="#38bdf8" stroke="#1b1147" stroke-width="3.5"/>
+  <circle cx="48.5" cy="41.5" r="2" fill="#e0f7ff"/>
+</svg>

@@ -1,6 +1,6 @@
 /**
  * Space Colonization: Idle
- * Research Points Accumulation, Multipliers, Categorized Icon Chains & Modal Controller
+ * Research Points Accumulation, Multipliers, Category-Tabbed Progression Track & Modal Controller
  */
 
 (function () {
@@ -15,62 +15,119 @@
 
   const RESEARCH_CATEGORIES = [
     {
-      id: "construction",
-      labelKey: "research.categories.construction",
-      iconSrc: "./assets/ui/icon-bricks.svg",
-      accent: "#e85d3f"
+      id: "mining",
+      labelKey: "research.categories.mining",
+      iconSrc: "./assets/ui/cat-mining.svg",
+      accent: "#ffb13b"
+    },
+    {
+      id: "power",
+      labelKey: "research.categories.power",
+      iconSrc: "./assets/ui/cat-power.svg",
+      accent: "#ffc83a"
     },
     {
       id: "colony",
       labelKey: "research.categories.colony",
-      iconSrc: "./assets/ui/icon-citizen.svg",
-      accent: "#14b8a6"
+      iconSrc: "./assets/ui/cat-colony.svg",
+      accent: "#ff6b5a"
     },
     {
       id: "science",
       labelKey: "research.categories.science",
-      iconSrc: "./assets/ui/icon-research.svg",
+      iconSrc: "./assets/ui/cat-science.svg",
+      accent: "#37a8ff"
+    },
+    {
+      id: "planetary",
+      labelKey: "research.categories.planetary",
+      iconSrc: "./assets/ui/planet-oceanic.svg",
       accent: "#38bdf8"
+    },
+    {
+      id: "aerospace",
+      labelKey: "research.categories.aerospace",
+      iconSrc: "./assets/ui/bld-space-rocket-1.svg",
+      accent: "#f43f5e"
     }
   ];
 
   const RESEARCH_NODES = [
-    // Construction Chain
+    // Mining
     {
       id: "reinforced_masonry",
-      category: "construction",
+      category: "mining",
       order: 1,
       cost: 15,
       requiredPlanetType: null,
       prereq: null,
       iconSrc: "./assets/ui/icon-bricks.svg",
-      accent: "#e85d3f",
-      effect: { type: "brick_mult", value: 0.25 }
+      accent: "#e85d3f"
     },
     {
       id: "cryo_drilling",
-      category: "construction",
+      category: "mining",
       order: 2,
       cost: 35,
       requiredPlanetType: "rocky",
       prereq: "reinforced_masonry",
       iconSrc: "./assets/ui/bld-deep-mine.svg",
-      accent: "#cbd5e1",
-      effect: { type: "brick_mult", value: 0.35 }
+      accent: "#cbd5e1"
     },
     {
       id: "thermal_sintering",
-      category: "construction",
+      category: "mining",
       order: 3,
-      cost: 50,
+      cost: 60,
       requiredPlanetType: "volcanic",
       prereq: "cryo_drilling",
       iconSrc: "./assets/ui/bld-mega-quarry.svg",
-      accent: "#fb923c",
-      effect: { type: "advanced_mine_mult", value: 0.50 }
+      accent: "#fb923c"
+    },
+    {
+      id: "mantle_excavation",
+      category: "mining",
+      order: 4,
+      cost: 95,
+      requiredPlanetType: "rocky",
+      prereq: "thermal_sintering",
+      iconSrc: "./assets/ui/bld-mine.svg",
+      accent: "#f59e0b"
     },
 
-    // Colony Chain
+    // Power
+    {
+      id: "solar_cells",
+      category: "power",
+      order: 1,
+      cost: 15,
+      requiredPlanetType: null,
+      prereq: null,
+      iconSrc: "./assets/ui/bld-solar-panel.svg",
+      accent: "#ffc83a"
+    },
+    {
+      id: "hydro_grid",
+      category: "power",
+      order: 2,
+      cost: 40,
+      requiredPlanetType: "oceanic",
+      prereq: "solar_cells",
+      iconSrc: "./assets/ui/icon-energy.svg",
+      accent: "#38bdf8"
+    },
+    {
+      id: "superconductors",
+      category: "power",
+      order: 3,
+      cost: 75,
+      requiredPlanetType: "volcanic",
+      prereq: "hydro_grid",
+      iconSrc: "./assets/ui/bld-solar-tower.svg",
+      accent: "#ff7b1c"
+    },
+
+    // Colony
     {
       id: "habitat_insulation",
       category: "colony",
@@ -79,19 +136,17 @@
       requiredPlanetType: null,
       prereq: null,
       iconSrc: "./assets/ui/bld-house.svg",
-      accent: "#ff6b5a",
-      effect: { type: "citizen_mult", value: 0.20 }
+      accent: "#ff6b5a"
     },
     {
-      id: "hydro_grid",
+      id: "biodome_recycling",
       category: "colony",
       order: 2,
       cost: 40,
       requiredPlanetType: "oceanic",
       prereq: "habitat_insulation",
-      iconSrc: "./assets/ui/icon-energy.svg",
-      accent: "#38bdf8",
-      effect: { type: "energy_mult", value: 0.25 }
+      iconSrc: "./assets/ui/bld-big-house.svg",
+      accent: "#22c55e"
     },
     {
       id: "arcology_habitats",
@@ -99,13 +154,12 @@
       order: 3,
       cost: 75,
       requiredPlanetType: "rocky",
-      prereq: "hydro_grid",
+      prereq: "biodome_recycling",
       iconSrc: "./assets/ui/bld-villa.svg",
-      accent: "#14b8a6",
-      effect: { type: "citizen_mult", value: 0.25 }
+      accent: "#14b8a6"
     },
 
-    // Science Chain
+    // Science
     {
       id: "orbital_telemetry",
       category: "science",
@@ -114,8 +168,7 @@
       requiredPlanetType: null,
       prereq: null,
       iconSrc: "./assets/ui/icon-research.svg",
-      accent: "#38bdf8",
-      effect: { type: "research_mult", value: 0.25 }
+      accent: "#38bdf8"
     },
     {
       id: "stellar_optics",
@@ -125,19 +178,104 @@
       requiredPlanetType: "volcanic",
       prereq: "orbital_telemetry",
       iconSrc: "./assets/ui/bld-observatory.svg",
-      accent: "#6366f1",
-      effect: { type: "research_mult", value: 0.35 }
+      accent: "#6366f1"
     },
     {
       id: "quantum_computing",
       category: "science",
       order: 3,
-      cost: 65,
+      cost: 70,
       requiredPlanetType: "oceanic",
       prereq: "stellar_optics",
       iconSrc: "./assets/ui/bld-quantum-array.svg",
       accent: "#ec4899",
       unlocksBuilding: "quantum_array"
+    },
+    {
+      id: "neural_archivists",
+      category: "science",
+      order: 4,
+      cost: 110,
+      requiredPlanetType: "rocky",
+      prereq: "quantum_computing",
+      iconSrc: "./assets/ui/bld-research-center.svg",
+      accent: "#a855f7"
+    },
+
+    // Planetary
+    {
+      id: "surface_surveying",
+      category: "planetary",
+      order: 1,
+      cost: 25,
+      requiredPlanetType: null,
+      prereq: null,
+      iconSrc: "./assets/ui/terrain-surface.svg",
+      accent: "#84e148"
+    },
+    {
+      id: "oceanic_adaptation",
+      category: "planetary",
+      order: 2,
+      cost: 55,
+      requiredPlanetType: "oceanic",
+      prereq: "surface_surveying",
+      iconSrc: "./assets/ui/planet-oceanic.svg",
+      accent: "#38bdf8"
+    },
+    {
+      id: "volcanic_shielding",
+      category: "planetary",
+      order: 3,
+      cost: 90,
+      requiredPlanetType: "volcanic",
+      prereq: "oceanic_adaptation",
+      iconSrc: "./assets/ui/planet-volcanic.svg",
+      accent: "#fb923c"
+    },
+
+    // Aerospace (High-tier unlocks for Space Rocket I & II)
+    {
+      id: "hull_metallurgy",
+      category: "aerospace",
+      order: 1,
+      cost: 40,
+      requiredPlanetType: "rocky",
+      prereq: null,
+      iconSrc: "./assets/ui/icon-ore.svg",
+      accent: "#cbd5e1"
+    },
+    {
+      id: "cryo_propellant",
+      category: "aerospace",
+      order: 2,
+      cost: 80,
+      requiredPlanetType: "oceanic",
+      prereq: "hull_metallurgy",
+      iconSrc: "./assets/ui/biome-glacier.svg",
+      accent: "#5fd8f8"
+    },
+    {
+      id: "orbital_rocketry",
+      category: "aerospace",
+      order: 3,
+      cost: 140,
+      requiredPlanetType: "volcanic",
+      prereq: "cryo_propellant",
+      iconSrc: "./assets/ui/bld-space-rocket-1.svg",
+      accent: "#ff5a4d",
+      unlocksBuilding: "space_rocket_1"
+    },
+    {
+      id: "heavy_starship",
+      category: "aerospace",
+      order: 4,
+      cost: 240,
+      requiredPlanetType: "rocky",
+      prereq: "orbital_rocketry",
+      iconSrc: "./assets/ui/bld-space-rocket-2.svg",
+      accent: "#f59e0b",
+      unlocksBuilding: "space_rocket_2"
     }
   ];
 
@@ -167,6 +305,7 @@
   const researched = Object.create(null);
   let modalOpen = false;
   let openedFromPlanet = null;
+  let activeCategoryId = "mining";
   let selectedNodeId = null;
   let planetProvider = null;
   const listeners = [];
@@ -180,6 +319,7 @@
   const rpValEl = document.getElementById("val-research-points");
   const rpRateEl = document.getElementById("rate-research-points");
   const closeBtn = document.getElementById("btn-close-research");
+  const categoriesEl = document.getElementById("research-categories");
   const treeBodyEl = document.getElementById("research-tree-body");
   const detailPanelEl = document.getElementById("research-detail-panel");
 
@@ -234,6 +374,9 @@
     if (isResearched("thermal_sintering") && (buildingId === "deep_mine" || buildingId === "mega_quarry")) {
       mult += 0.50;
     }
+    if (isResearched("mantle_excavation")) mult += 0.50;
+    if (isResearched("surface_surveying")) mult += 0.15;
+    if (isResearched("volcanic_shielding")) mult += 0.30;
     return mult;
   }
 
@@ -241,17 +384,31 @@
     let mult = 1;
     if (isResearched("orbital_telemetry")) mult += 0.25;
     if (isResearched("stellar_optics")) mult += 0.35;
+    if (isResearched("neural_archivists")) mult += 0.50;
+    if (isResearched("surface_surveying")) mult += 0.15;
+    if (isResearched("volcanic_shielding")) mult += 0.30;
+    if (isResearched("hull_metallurgy")) mult += 0.15;
     return mult;
   }
 
   function getEnergyMultiplier() {
-    return isResearched("hydro_grid") ? 1.25 : 1;
+    let mult = 1;
+    if (isResearched("solar_cells")) mult += 0.20;
+    if (isResearched("hydro_grid")) mult += 0.25;
+    if (isResearched("superconductors")) mult += 0.35;
+    if (isResearched("oceanic_adaptation")) mult += 0.20;
+    if (isResearched("volcanic_shielding")) mult += 0.30;
+    if (isResearched("cryo_propellant")) mult += 0.20;
+    return mult;
   }
 
   function getCitizenMultiplier() {
     let mult = 1;
     if (isResearched("habitat_insulation")) mult += 0.20;
-    if (isResearched("arcology_habitats")) mult += 0.25;
+    if (isResearched("biodome_recycling")) mult += 0.25;
+    if (isResearched("arcology_habitats")) mult += 0.35;
+    if (isResearched("oceanic_adaptation")) mult += 0.20;
+    if (isResearched("volcanic_shielding")) mult += 0.30;
     return mult;
   }
 
@@ -432,9 +589,65 @@
     researchPoints = Math.max(0, researchPoints - node.cost);
     researched[node.id] = true;
     syncRpHeader(true);
+    renderCategories();
     renderTree();
     renderDetailPanel();
     notifyChange();
+  }
+
+  function renderCategories() {
+    if (!categoriesEl) return;
+    categoriesEl.innerHTML = "";
+
+    for (let i = 0; i < RESEARCH_CATEGORIES.length; i++) {
+      const cat = RESEARCH_CATEGORIES[i];
+      let total = 0;
+      let doneCount = 0;
+      for (let k = 0; k < RESEARCH_NODES.length; k++) {
+        if (RESEARCH_NODES[k].category === cat.id) {
+          total++;
+          if (isResearched(RESEARCH_NODES[k].id)) {
+            doneCount++;
+          }
+        }
+      }
+
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "research-cat-btn" + (cat.id === activeCategoryId ? " active" : "");
+      btn.setAttribute("role", "tab");
+      btn.setAttribute("aria-selected", cat.id === activeCategoryId ? "true" : "false");
+      btn.setAttribute("data-research-category", cat.id);
+
+      const icon = document.createElement("img");
+      icon.className = "research-cat-icon";
+      icon.src = cat.iconSrc;
+      icon.alt = "";
+      icon.draggable = false;
+
+      const label = document.createElement("span");
+      label.className = "research-cat-label";
+      label.textContent = t(cat.labelKey);
+
+      const count = document.createElement("span");
+      count.className = "research-cat-count";
+      count.textContent = doneCount + "/" + total;
+
+      btn.appendChild(icon);
+      btn.appendChild(label);
+      btn.appendChild(count);
+
+      btn.addEventListener("click", function () {
+        if (activeCategoryId === cat.id) return;
+        activeCategoryId = cat.id;
+        selectedNodeId = null;
+        renderCategories();
+        renderTree();
+        renderDetailPanel();
+      });
+
+      categoriesEl.appendChild(btn);
+    }
   }
 
   function renderDetailPanel() {
@@ -605,125 +818,102 @@
     if (!treeBodyEl) return;
     treeBodyEl.innerHTML = "";
 
-    for (let ci = 0; ci < RESEARCH_CATEGORIES.length; ci++) {
-      const cat = RESEARCH_CATEGORIES[ci];
-      const catNodes = [];
-      for (let i = 0; i < RESEARCH_NODES.length; i++) {
-        if (RESEARCH_NODES[i].category === cat.id) {
-          catNodes.push(RESEARCH_NODES[i]);
-        }
+    const catNodes = [];
+    for (let i = 0; i < RESEARCH_NODES.length; i++) {
+      if (RESEARCH_NODES[i].category === activeCategoryId) {
+        catNodes.push(RESEARCH_NODES[i]);
       }
-      catNodes.sort(function (a, b) {
-        return (a.order || 0) - (b.order || 0);
-      });
-      if (catNodes.length === 0) continue;
-
-      const row = document.createElement("div");
-      row.className = "research-category-row";
-      row.style.setProperty("--cat-accent", cat.accent);
-
-      const catTag = document.createElement("div");
-      catTag.className = "research-category-tag";
-      const catIcon = document.createElement("img");
-      catIcon.className = "research-category-icon";
-      catIcon.src = cat.iconSrc;
-      catIcon.alt = "";
-      catIcon.draggable = false;
-      const catLbl = document.createElement("span");
-      catLbl.className = "research-category-label";
-      catLbl.textContent = t(cat.labelKey);
-      catTag.appendChild(catIcon);
-      catTag.appendChild(catLbl);
-      row.appendChild(catTag);
-
-      const chain = document.createElement("div");
-      chain.className = "research-chain";
-
-      for (let j = 0; j < catNodes.length; j++) {
-        const node = catNodes[j];
-        const done = isResearched(node.id);
-        const prereqMet = !node.prereq || isResearched(node.prereq);
-        const planetMet =
-          !node.requiredPlanetType ||
-          (openedFromPlanet && openedFromPlanet.typeId === node.requiredPlanetType);
-        const affordable = researchPoints >= node.cost;
-        const isSelected = selectedNodeId === node.id;
-
-        if (j > 0) {
-          const prevDone = isResearched(catNodes[j - 1].id);
-          const conn = document.createElement("span");
-          conn.className = "research-connector" + (prevDone ? " is-unlocked" : "");
-          conn.setAttribute("aria-hidden", "true");
-          chain.appendChild(conn);
-        }
-
-        const nodeBtn = document.createElement("button");
-        nodeBtn.type = "button";
-        nodeBtn.className =
-          "research-icon-node" +
-          (done ? " is-researched" : "") +
-          (!done && !prereqMet ? " is-prereq-locked" : "") +
-          (!done && prereqMet && !planetMet ? " is-wrong-planet" : "") +
-          (!done && prereqMet && planetMet && affordable ? " is-ready" : "") +
-          (!done && prereqMet && planetMet && !affordable ? " is-unaffordable" : "") +
-          (isSelected ? " is-selected" : "");
-        nodeBtn.setAttribute("data-research", node.id);
-        nodeBtn.setAttribute("aria-label", getNodeName(node.id));
-        nodeBtn.style.setProperty("--node-accent", node.accent || "#38bdf8");
-
-        const iconBox = document.createElement("span");
-        iconBox.className = "research-icon-box";
-
-        const icon = document.createElement("img");
-        icon.className = "research-icon-img";
-        icon.src = node.iconSrc;
-        icon.alt = "";
-        icon.draggable = false;
-        iconBox.appendChild(icon);
-
-        if (node.requiredPlanetType) {
-          const pMeta = resolvePlanetMeta(node.requiredPlanetType);
-          const pBadge = document.createElement("span");
-          pBadge.className = "research-mini-planet " + (planetMet || done ? "is-met" : "is-required");
-          const pImg = document.createElement("img");
-          pImg.src = pMeta.iconSrc;
-          pImg.alt = "";
-          pImg.draggable = false;
-          pBadge.appendChild(pImg);
-          iconBox.appendChild(pBadge);
-        }
-
-        if (done) {
-          const check = document.createElement("span");
-          check.className = "research-mini-status is-done";
-          check.textContent = "✓";
-          iconBox.appendChild(check);
-        } else if (!prereqMet) {
-          const lock = document.createElement("span");
-          lock.className = "research-mini-status is-locked";
-          lock.textContent = "🔒";
-          iconBox.appendChild(lock);
-        }
-
-        const costChip = document.createElement("span");
-        costChip.className = "research-icon-cost" + (!done && !affordable ? " is-short" : "");
-        costChip.textContent = done ? "✓" : formatNumber(node.cost) + " " + t("research.rp_unit");
-
-        nodeBtn.appendChild(iconBox);
-        nodeBtn.appendChild(costChip);
-
-        nodeBtn.addEventListener("click", function () {
-          selectedNodeId = selectedNodeId === node.id ? null : node.id;
-          renderTree();
-          renderDetailPanel();
-        });
-
-        chain.appendChild(nodeBtn);
-      }
-
-      row.appendChild(chain);
-      treeBodyEl.appendChild(row);
     }
+    catNodes.sort(function (a, b) {
+      return (a.order || 0) - (b.order || 0);
+    });
+
+    const track = document.createElement("div");
+    track.className = "research-chain-track";
+
+    for (let j = 0; j < catNodes.length; j++) {
+      const node = catNodes[j];
+      const done = isResearched(node.id);
+      const prereqMet = !node.prereq || isResearched(node.prereq);
+      const planetMet =
+        !node.requiredPlanetType ||
+        (openedFromPlanet && openedFromPlanet.typeId === node.requiredPlanetType);
+      const affordable = researchPoints >= node.cost;
+      const isSelected = selectedNodeId === node.id;
+
+      if (j > 0) {
+        const prevDone = isResearched(catNodes[j - 1].id);
+        const conn = document.createElement("span");
+        conn.className = "research-connector" + (prevDone ? " is-unlocked" : "");
+        conn.setAttribute("aria-hidden", "true");
+        track.appendChild(conn);
+      }
+
+      const nodeBtn = document.createElement("button");
+      nodeBtn.type = "button";
+      nodeBtn.className =
+        "research-icon-node" +
+        (done ? " is-researched" : "") +
+        (!done && !prereqMet ? " is-prereq-locked" : "") +
+        (!done && prereqMet && !planetMet ? " is-wrong-planet" : "") +
+        (!done && prereqMet && planetMet && affordable ? " is-ready" : "") +
+        (!done && prereqMet && planetMet && !affordable ? " is-unaffordable" : "") +
+        (isSelected ? " is-selected" : "");
+      nodeBtn.setAttribute("data-research", node.id);
+      nodeBtn.setAttribute("aria-label", getNodeName(node.id));
+      nodeBtn.style.setProperty("--node-accent", node.accent || "#38bdf8");
+
+      const iconBox = document.createElement("span");
+      iconBox.className = "research-icon-box";
+
+      const stepBadge = document.createElement("span");
+      stepBadge.className = "research-step-badge" + (done ? " is-done" : "");
+      stepBadge.textContent = done ? "✓" : String(node.order || j + 1);
+      iconBox.appendChild(stepBadge);
+
+      const icon = document.createElement("img");
+      icon.className = "research-icon-img";
+      icon.src = node.iconSrc;
+      icon.alt = "";
+      icon.draggable = false;
+      iconBox.appendChild(icon);
+
+      if (node.requiredPlanetType) {
+        const pMeta = resolvePlanetMeta(node.requiredPlanetType);
+        const pBadge = document.createElement("span");
+        pBadge.className = "research-mini-planet " + (planetMet || done ? "is-met" : "is-required");
+        const pImg = document.createElement("img");
+        pImg.src = pMeta.iconSrc;
+        pImg.alt = "";
+        pImg.draggable = false;
+        pBadge.appendChild(pImg);
+        iconBox.appendChild(pBadge);
+      }
+
+      if (!done && !prereqMet) {
+        const lock = document.createElement("span");
+        lock.className = "research-mini-status is-locked";
+        lock.textContent = "🔒";
+        iconBox.appendChild(lock);
+      }
+
+      const costChip = document.createElement("span");
+      costChip.className = "research-icon-cost" + (!done && !affordable ? " is-short" : "");
+      costChip.textContent = done ? "✓" : formatNumber(node.cost) + " " + t("research.rp_unit");
+
+      nodeBtn.appendChild(iconBox);
+      nodeBtn.appendChild(costChip);
+
+      nodeBtn.addEventListener("click", function () {
+        selectedNodeId = selectedNodeId === node.id ? null : node.id;
+        renderTree();
+        renderDetailPanel();
+      });
+
+      track.appendChild(nodeBtn);
+    }
+
+    treeBodyEl.appendChild(track);
   }
 
   function open(planet) {
@@ -749,6 +939,7 @@
     modalOpen = true;
     renderTerminalPill();
     syncRpHeader(true);
+    renderCategories();
     renderTree();
     renderDetailPanel();
 

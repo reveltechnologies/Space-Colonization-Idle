@@ -254,6 +254,34 @@
       cost: { credits: 480, ore: 95 },
       accent: "#3888ff",
       iconSrc: "./assets/ui/bld-wind-farm.svg"
+    },
+    {
+      id: "space_rocket_1",
+      name: t("buildings.space_rocket_1.name"),
+      category: "colony",
+      tag: t("categories.colony"),
+      terrain: "surface",
+      requiredResearch: "orbital_rocketry",
+      specialtyLabel: t("buildings.space_rocket_1.specialty"),
+      specialtyIconSrc: "./assets/ui/bld-space-rocket-1.svg",
+      description: t("buildings.space_rocket_1.description"),
+      cost: { credits: 450, ore: 85 },
+      accent: "#ff5a4d",
+      iconSrc: "./assets/ui/bld-space-rocket-1.svg"
+    },
+    {
+      id: "space_rocket_2",
+      name: t("buildings.space_rocket_2.name"),
+      category: "colony",
+      tag: t("categories.colony"),
+      terrain: "surface",
+      requiredResearch: "heavy_starship",
+      specialtyLabel: t("buildings.space_rocket_2.specialty"),
+      specialtyIconSrc: "./assets/ui/bld-space-rocket-2.svg",
+      description: t("buildings.space_rocket_2.description"),
+      cost: { credits: 500, ore: 100 },
+      accent: "#f59e0b",
+      iconSrc: "./assets/ui/bld-space-rocket-2.svg"
     }
   ];
 
@@ -689,14 +717,13 @@
 
       const showInvalidTerrain = !isBuilt && !terrainOk;
       if (!isBuilt && researchLocked) {
-        const reqNodeName = t("research.nodes." + b.requiredResearch + ".name");
         info.appendChild(
           createCardInfoChip(
             "build-lock-chip",
             "build-research-icon",
             STAT_ICONS.research,
             "build-research-label",
-            t("build.requires_research_chip", { research: reqNodeName })
+            t("build.requires_research_chip")
           )
         );
       } else if (!isBuilt && limitBlocked) {
@@ -2153,6 +2180,64 @@
     }
   }
 
+  function buildSpaceRocket1Model(m, time, phase, pxScale) {
+    // Launchpad deck
+    m.addPrism(0, 0, 0.0, 0.09, 0.60, 0.54, 8, Math.PI / 8, [71, 85, 105], { spec: 0.25 });
+    m.addPrism(0, 0, 0.09, 0.12, 0.26, 0.22, 8, 0, [245, 158, 11], { emissive: 0.40 });
+
+    // Umbilical service tower
+    const lw = Math.max(1.3, pxScale * 0.055);
+    m.addBox(-0.28, 0.08, 0.42, 0.06, 0.06, 0.34, [148, 163, 184], { spec: 0.35 });
+    m.addLine([-0.22, 0.08, 0.62], [-0.08, 0.0, 0.62], "#cbd5e1", lw);
+    m.addLine([-0.22, 0.08, 0.40], [-0.08, 0.0, 0.40], "#cbd5e1", lw);
+
+    // Thruster bell + crimson delta fins
+    m.addPrism(0, 0, 0.12, 0.20, 0.12, 0.08, 8, 0, [255, 200, 58], { spec: 0.45 });
+    m.addBox(0, 0, 0.26, 0.24, 0.04, 0.08, [255, 90, 77], { spec: 0.30 });
+    m.addBox(0, 0, 0.26, 0.04, 0.24, 0.08, [224, 62, 49], { spec: 0.30 });
+
+    // White orbital fuselage + crimson nose cone + glowing cyan porthole
+    m.addPrism(0, 0, 0.20, 0.72, 0.13, 0.12, 10, 0, [248, 250, 252], { spec: 0.48 });
+    m.addPrism(0, 0, 0.72, 0.94, 0.12, 0.015, 10, 0, [255, 90, 77], { spec: 0.40 });
+    m.addBox(0, -0.12, 0.54, 0.045, 0.02, 0.045, [56, 189, 248], { emissive: 0.72 });
+
+    // Pulsing tower beacon
+    const beacon = 0.55 + 0.38 * Math.sin(time * 0.005 + phase);
+    m.addPrism(-0.28, 0.08, 0.76, 0.82, 0.035, 0.015, 6, 0, [251, 191, 36], { emissive: beacon });
+  }
+
+  function buildSpaceRocket2Model(m, time, phase, pxScale) {
+    // Heavy reinforced launchpad
+    m.addPrism(0, 0, 0.0, 0.10, 0.66, 0.60, 8, Math.PI / 8, [51, 65, 85], { spec: 0.28 });
+    m.addPrism(0, 0, 0.10, 0.13, 0.34, 0.30, 8, 0, [245, 158, 11], { emissive: 0.45 });
+
+    // Dual launch gantry arms
+    const lw = Math.max(1.4, pxScale * 0.055);
+    m.addBox(-0.38, 0.0, 0.46, 0.055, 0.055, 0.36, [148, 163, 184], { spec: 0.35 });
+    m.addBox(0.38, 0.0, 0.46, 0.055, 0.055, 0.36, [148, 163, 184], { spec: 0.35 });
+    m.addLine([-0.32, 0.0, 0.68], [-0.14, 0.0, 0.68], "#ff9838", lw);
+    m.addLine([0.32, 0.0, 0.68], [0.14, 0.0, 0.68], "#ff9838", lw);
+
+    // Twin strap-on liquid-fuel side boosters
+    m.addPrism(-0.22, 0, 0.13, 0.19, 0.07, 0.05, 8, 0, [255, 200, 58], { spec: 0.45 });
+    m.addPrism(-0.22, 0, 0.19, 0.60, 0.08, 0.075, 8, 0, [226, 232, 240], { spec: 0.45 });
+    m.addPrism(-0.22, 0, 0.60, 0.72, 0.075, 0.015, 8, 0, [245, 158, 11], { spec: 0.42 });
+
+    m.addPrism(0.22, 0, 0.13, 0.19, 0.07, 0.05, 8, 0, [255, 200, 58], { spec: 0.45 });
+    m.addPrism(0.22, 0, 0.19, 0.60, 0.08, 0.075, 8, 0, [226, 232, 240], { spec: 0.45 });
+    m.addPrism(0.22, 0, 0.60, 0.72, 0.075, 0.015, 8, 0, [245, 158, 11], { spec: 0.42 });
+
+    // Central navy-and-gold heavy starship core
+    m.addPrism(0, 0, 0.13, 0.21, 0.12, 0.09, 8, 0, [255, 200, 58], { spec: 0.45 });
+    m.addPrism(0, 0, 0.21, 0.80, 0.14, 0.13, 10, 0, [30, 41, 59], { spec: 0.50 });
+    m.addPrism(0, 0, 0.80, 1.04, 0.13, 0.018, 10, 0, [245, 158, 11], { spec: 0.48 });
+    m.addBox(0, -0.13, 0.62, 0.055, 0.02, 0.055, [56, 189, 248], { emissive: 0.80 });
+
+    const beacon = 0.55 + 0.38 * Math.sin(time * 0.006 + phase);
+    m.addPrism(-0.38, 0, 0.82, 0.88, 0.035, 0.015, 6, 0, [56, 189, 248], { emissive: beacon });
+    m.addPrism(0.38, 0, 0.82, 0.88, 0.035, 0.015, 6, 0, [56, 189, 248], { emissive: beacon });
+  }
+
   function buildSmallHouseModel(m, time, phase, pxScale) {
     // Slate habitat foundation
     m.addPrism(0, 0, 0.0, 0.08, 0.56, 0.52, 8, Math.PI / 8, [100, 116, 139], { spec: 0.2 });
@@ -2652,6 +2737,10 @@
       buildSolarArrayModel(collector, time, phase, pxScale);
     } else if (buildingId === "solar_tower") {
       buildSolarTowerModel(collector, time, phase, pxScale);
+    } else if (buildingId === "space_rocket_1") {
+      buildSpaceRocket1Model(collector, time, phase, pxScale);
+    } else if (buildingId === "space_rocket_2") {
+      buildSpaceRocket2Model(collector, time, phase, pxScale);
     }
 
     collector.drawAll(ctx);
@@ -3038,7 +3127,9 @@
       wind_farm: 0.88,
       solar_panel: 0.32,
       solar_array: 0.50,
-      solar_tower: 0.76
+      solar_tower: 0.76,
+      space_rocket_1: 0.88,
+      space_rocket_2: 0.96
     };
     const targetZ = buildingImpactHeights[effect.buildingId] || 0.40;
 
