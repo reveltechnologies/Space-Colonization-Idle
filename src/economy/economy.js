@@ -33,31 +33,31 @@
         bricksPerSec: 0.2
       },
       deep_mine: {
-        cost: { credits: 230, ore: 40 },
+        cost: { credits: 230 },
         bricksPerSec: 0.8
       },
       mega_quarry: {
-        cost: { credits: 460, ore: 90 },
+        cost: { credits: 460 },
         bricksPerSec: 2.5
       },
 
       // Automated Trade Rockets
       trade_rocket_1: {
-        cost: { credits: 140, ore: 20 },
+        cost: { credits: 140 },
         bricksPerLaunch: 5,
         creditsPerBrick: 4,
         tradeIntervalSec: 6.0,
         tradeSpeedMult: 1.0
       },
       trade_rocket_2: {
-        cost: { credits: 290, ore: 50 },
+        cost: { credits: 290 },
         bricksPerLaunch: 12,
         creditsPerBrick: 5,
         tradeIntervalSec: 4.0,
         tradeSpeedMult: 1.35
       },
       trade_rocket_3: {
-        cost: { credits: 480, ore: 95 },
+        cost: { credits: 480 },
         bricksPerLaunch: 25,
         creditsPerBrick: 6,
         tradeIntervalSec: 2.5,
@@ -66,34 +66,34 @@
 
       // Science
       research_center: {
-        cost: { credits: 150, ore: 20 },
+        cost: { credits: 150 },
         researchPerSec: 0.25,
         maxPerPlanet: 1
       },
       research_lab: {
-        cost: { credits: 200, ore: 35 },
+        cost: { credits: 200 },
         researchPerSec: 0.5
       },
       observatory: {
-        cost: { credits: 340, ore: 60 },
+        cost: { credits: 340 },
         researchPerSec: 1.2
       },
       quantum_array: {
-        cost: { credits: 450, ore: 85 },
+        cost: { credits: 450 },
         researchPerSec: 3.5
       },
 
       // Colony Housing
       small_house: {
-        cost: { credits: 75, ore: 10 },
+        cost: { credits: 75 },
         citizenSlots: 2
       },
       big_house: {
-        cost: { credits: 200, ore: 35 },
+        cost: { credits: 200 },
         citizenSlots: 6
       },
       villa: {
-        cost: { credits: 450, ore: 90 },
+        cost: { credits: 450 },
         citizenSlots: 15
       },
 
@@ -103,37 +103,37 @@
         energySlots: 3
       },
       solar_array: {
-        cost: { credits: 160, ore: 25 },
+        cost: { credits: 160 },
         energySlots: 8
       },
       solar_tower: {
-        cost: { credits: 400, ore: 75 },
+        cost: { credits: 400 },
         energySlots: 20
       },
 
       // Wind Power
       windmill: {
-        cost: { credits: 120, ore: 25 },
+        cost: { credits: 120 },
         energySlots: 6
       },
       wind_turbine: {
-        cost: { credits: 280, ore: 55 },
+        cost: { credits: 280 },
         energySlots: 16
       },
       wind_farm: {
-        cost: { credits: 480, ore: 95 },
+        cost: { credits: 480 },
         energySlots: 35
       },
 
       // Interplanetary Space Rockets
       space_rocket_1: {
-        cost: { credits: 450, ore: 85 },
+        cost: { credits: 450 },
         rocketTier: 1,
         rocketCitizens: 4,
         rocketMaxBricks: 200
       },
       space_rocket_2: {
-        cost: { credits: 500, ore: 100 },
+        cost: { credits: 500 },
         rocketTier: 2,
         rocketCitizens: 10,
         rocketMaxBricks: 600
