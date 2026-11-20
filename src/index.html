@@ -38,6 +38,7 @@
     <div id="planet-stats-deck" class="planet-stats-deck" data-planet="0" data-planet-type="rocky">
       <div id="planet-hud-emblem" class="planet-hud-emblem" title="Planet 1" data-i18n-title="planets.planet_1.default_name">
         <img id="planet-hud-icon" class="planet-hud-icon" src="./assets/ui/planet-rocky.svg" alt="" draggable="false" />
+        <img id="planet-hud-lock" class="planet-hud-lock is-hidden" src="./assets/ui/icon-lock.svg" alt="" draggable="false" />
       </div>
 
       <div class="planet-deck-body">
@@ -120,6 +121,24 @@
   <button id="btn-tile-research-tree" class="tile-action-btn tile-action-btn--research is-hidden" type="button" aria-label="Open Research Tree" data-i18n-aria-label="aria.open_research_tree">
     <img class="tile-action-icon" src="./assets/ui/icon-research.svg" alt="" draggable="false" />
     <span class="tile-action-label" data-i18n="research.open_tree">Research Tree</span>
+  </button>
+
+  <!-- Floating World-Anchored Tile Action Buttons (Rocket Cargo & Launch) -->
+  <div id="tile-rocket-actions" class="tile-action-group is-hidden">
+    <button id="btn-tile-rocket-cargo" class="tile-action-btn tile-action-btn--cargo" type="button" aria-label="Load Rocket Cargo" data-i18n-aria-label="aria.rocket_cargo">
+      <img class="tile-action-icon" src="./assets/ui/icon-bricks.svg" alt="" draggable="false" />
+      <span id="tile-rocket-cargo-label" class="tile-action-label" data-i18n="rocket.cargo_btn">Cargo</span>
+    </button>
+    <button id="btn-tile-rocket-launch" class="tile-action-btn tile-action-btn--launch" type="button" aria-label="Launch Rocket" data-i18n-aria-label="aria.rocket_launch">
+      <img id="tile-rocket-launch-icon" class="tile-action-icon" src="./assets/ui/bld-space-rocket-1.svg" alt="" draggable="false" />
+      <span class="tile-action-label" data-i18n="rocket.launch_btn">LAUNCH!</span>
+    </button>
+  </div>
+
+  <!-- Floating Follow Rocket Button (During Active Interplanetary Flight) -->
+  <button id="btn-follow-rocket" class="follow-rocket-btn is-hidden" type="button" aria-label="Follow Rocket" data-i18n-aria-label="aria.follow_rocket">
+    <img id="follow-rocket-icon" class="follow-rocket-icon" src="./assets/ui/bld-space-rocket-1.svg" alt="" draggable="false" />
+    <span id="follow-rocket-label" class="follow-rocket-label" data-i18n="rocket.follow_btn">Follow Rocket</span>
   </button>
 
   <!-- Planet navigation -->
@@ -253,6 +272,90 @@
       <div id="research-categories" class="research-categories" role="tablist"></div>
       <div id="research-tree-body" class="research-tree-body"></div>
       <div id="research-detail-panel" class="research-detail-panel is-hidden" aria-live="polite"></div>
+    </div>
+  </div>
+
+  <!-- Rocket Cargo Modal -->
+  <div id="rocket-cargo-modal" class="rocket-cargo-modal is-hidden" role="dialog" aria-modal="true" aria-label="Rocket Cargo" data-i18n-aria-label="aria.rocket_cargo_modal" aria-hidden="true">
+    <div class="rocket-cargo-backdrop"></div>
+    <div class="rocket-cargo-panel">
+      <div class="rocket-cargo-header">
+        <div class="rocket-cargo-title-stack">
+          <span class="rocket-cargo-emblem">
+            <img id="rocket-cargo-icon" class="rocket-cargo-icon" src="./assets/ui/bld-space-rocket-1.svg" alt="" draggable="false" />
+          </span>
+          <div class="rocket-cargo-title-meta">
+            <h2 id="rocket-cargo-title" class="rocket-cargo-title" data-i18n="rocket.cargo_modal_title">Rocket Payload</h2>
+            <div id="rocket-cargo-dest-pill" class="rocket-cargo-dest-pill"></div>
+          </div>
+        </div>
+        <button id="btn-close-rocket-cargo" class="build-close-btn" type="button" aria-label="Close Rocket Cargo" data-i18n-aria-label="aria.close_rocket_cargo">
+          <img class="btn-icon-md" src="./assets/ui/icon-close.svg" alt="" draggable="false" />
+        </button>
+      </div>
+
+      <div class="rocket-cargo-body">
+        <div class="rocket-cargo-section rocket-cargo-section--crew">
+          <div class="rocket-cargo-sec-head">
+            <div class="rocket-cargo-sec-title-wrap">
+              <img class="rocket-cargo-sec-icon" src="./assets/ui/icon-citizen.svg" alt="" draggable="false" />
+              <div>
+                <div class="rocket-cargo-sec-title" data-i18n="rocket.crew_label">Citizens (Fixed)</div>
+                <div class="rocket-cargo-sec-hint" data-i18n="rocket.crew_hint">Deducted from current citizens on launch</div>
+              </div>
+            </div>
+            <div class="rocket-cargo-sec-stats">
+              <span id="rocket-cargo-crew-val" class="rocket-cargo-crew-val">4 Citizens</span>
+              <span id="rocket-cargo-crew-avail" class="rocket-cargo-crew-avail">Available: 0/0</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="rocket-cargo-section rocket-cargo-section--bricks">
+          <div class="rocket-cargo-sec-head">
+            <div class="rocket-cargo-sec-title-wrap">
+              <img class="rocket-cargo-sec-icon" src="./assets/ui/icon-bricks.svg" alt="" draggable="false" />
+              <div>
+                <div class="rocket-cargo-sec-title" data-i18n="rocket.bricks_label">Construction Bricks</div>
+                <div class="rocket-cargo-sec-hint" data-i18n="rocket.bricks_hint">Deducted immediately as you fill the rocket</div>
+              </div>
+            </div>
+            <div class="rocket-cargo-sec-stats">
+              <span id="rocket-cargo-bricks-val" class="rocket-cargo-bricks-val">0 / 200</span>
+              <span id="rocket-cargo-bricks-stock" class="rocket-cargo-bricks-stock">Planet Stock: 0</span>
+            </div>
+          </div>
+
+          <div class="rocket-cargo-slider-row">
+            <input
+              id="rocket-cargo-bricks-slider"
+              class="rocket-cargo-slider"
+              type="range"
+              min="0"
+              max="200"
+              step="1"
+              value="0"
+              aria-label="Construction Bricks to Load"
+              data-i18n-aria-label="aria.rocket_bricks_slider"
+            />
+          </div>
+
+          <div class="rocket-cargo-quick-btns">
+            <button id="btn-cargo-empty" class="rocket-cargo-step-btn" type="button" data-i18n="rocket.btn_empty">Empty</button>
+            <button id="btn-cargo-minus" class="rocket-cargo-step-btn" type="button" data-i18n="rocket.btn_minus_10">-10</button>
+            <button id="btn-cargo-plus" class="rocket-cargo-step-btn" type="button" data-i18n="rocket.btn_plus_10">+10</button>
+            <button id="btn-cargo-max" class="rocket-cargo-step-btn rocket-cargo-step-btn--accent" type="button" data-i18n="rocket.btn_fill_max">Max</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="rocket-cargo-footer">
+        <button id="btn-cargo-done" class="rocket-cargo-footer-btn rocket-cargo-footer-btn--done" type="button" data-i18n="rocket.btn_done">Done</button>
+        <button id="btn-cargo-launch" class="rocket-cargo-footer-btn rocket-cargo-footer-btn--launch" type="button" aria-label="Launch Rocket" data-i18n-aria-label="aria.rocket_launch">
+          <img class="tile-action-icon" src="./assets/ui/bld-space-rocket-1.svg" alt="" draggable="false" />
+          <span data-i18n="rocket.launch_btn">LAUNCH!</span>
+        </button>
+      </div>
     </div>
   </div>
 

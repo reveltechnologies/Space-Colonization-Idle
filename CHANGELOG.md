@@ -70,12 +70,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - **Research Lab** (`research_lab`): 200 SC, 35 Ore, **+30/min RP**.
     - **Observatory** (`observatory`, Mountainous): 340 SC, 60 Ore, **+1.2/s RP**.
     - **Quantum Array** (`quantum_array`, unlocked via *Quantum Computing*): 450 SC, 85 Ore, **+3.5/s RP**.
+- **Locked Planets & Interplanetary Space Rocket Missions**:
+  - **Oceanic Planet** (`planet_2`, **Requires Tier 1 Rocket**) and **Volcanic Planet** (`planet_3`, **Requires Tier 2 Rocket**) start blackened in shadow with a 3D lock overlay (`icon-lock.svg`) preventing renaming or building until unlocked.
+  - Added floating **Cargo** and **LAUNCH!** buttons anchored above selected built Space Rockets on planets with a world ahead, plus a **Rocket Payload** modal (`#rocket-cargo-modal`) to edit **Construction Bricks** (deducted/refunded immediately against planetary stock) alongside each rocket tier's fixed **Citizens** crew (**4** on Tier 1 up to **200 Bricks**; **10** on Tier 2 up to **600 Bricks**).
+  - Launching deducts current Citizens, sends an animated cel-shaded rocket along a 3-stage trajectory (`liftoff` → `cruise` → `landing`) with an optional bottom-center **Follow Rocket** camera button (`#btn-follow-rocket`), shatters the target planet's darkness and padlock on first unlock, delivers loaded Bricks, and stations the landed rocket as Citizen housing until demolished.
+  - Updated *Cryo Propellant* & *Orbital Rocketry* (Rocky) and *Heavy Starship Design* (Oceanic) in `src/js/research.js` for softlock-free interplanetary rocket progression.
 
 ### Removed
 - **Cannot Build on Fluid Error Message in Build Menu**:
   - Removed the unbuildable warning banner from appearing inside the build drawer when selecting fluid tiles (such as Ocean and Lava), creating a cleaner building menu interface while maintaining contextual card state.
 
 ### Changed
+- **Use Player-Set Planet Names Across UI & Research**:
+  - Removed all `"Rocky"`, `"Oceanic"`, and `"Volcanic"` planet labels and type tags across `src/lang/en_us.js`, `src/js/research.js`, and `src/js/planets.js`, displaying each planet's player-chosen name (falling back to default `"Planet 1"`, `"Planet 2"`, `"Planet 3"`).
 - **Uniform Grey Styling for Research-Locked Building Cards**:
   - Updated `.build-card.is-research-locked` in `src/css/style.css` to share the exact greyed-out visual styling, stage/preview desaturation, action button tones, and press behavior of `.build-card.is-terrain-blocked`.
 - **Isolated Planet Orbit Drag**:

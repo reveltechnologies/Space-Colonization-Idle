@@ -262,6 +262,9 @@
       tag: t("categories.colony"),
       terrain: "surface",
       requiredResearch: "orbital_rocketry",
+      rocketTier: 1,
+      rocketCitizens: 4,
+      rocketMaxBricks: 200,
       specialtyLabel: t("buildings.space_rocket_1.specialty"),
       specialtyIconSrc: "./assets/ui/bld-space-rocket-1.svg",
       description: t("buildings.space_rocket_1.description"),
@@ -276,6 +279,9 @@
       tag: t("categories.colony"),
       terrain: "surface",
       requiredResearch: "heavy_starship",
+      rocketTier: 2,
+      rocketCitizens: 10,
+      rocketMaxBricks: 600,
       specialtyLabel: t("buildings.space_rocket_2.specialty"),
       specialtyIconSrc: "./assets/ui/bld-space-rocket-2.svg",
       description: t("buildings.space_rocket_2.description"),
@@ -460,7 +466,7 @@
     }
   }
 
-  function showBuildErrorToast(messageHtml) {
+  function showBuildErrorToast(messageHtml, variant) {
     const container = toastContainerEl || document.body;
 
     // Maintain max 5 simultaneous visible toasts by popping oldest
@@ -469,7 +475,7 @@
     }
 
     const toast = document.createElement("div");
-    toast.className = "game-toast";
+    toast.className = "game-toast" + (variant === "success" ? " game-toast--success" : "");
     toast.setAttribute("role", "alert");
     toast.innerHTML = messageHtml;
 
@@ -784,6 +790,16 @@
             b.researchPerSec
           )
         );
+      } else if (!showInvalidTerrain && b.rocketTier) {
+        info.appendChild(
+          createCardInfoChip(
+            "build-specialty-chip",
+            "build-terrain-icon",
+            b.specialtyIconSrc || b.iconSrc,
+            "build-terrain-label",
+            t("rocket.tier_chip", { tier: b.rocketTier })
+          )
+        );
       } else {
         info.appendChild(
           createCardInfoChip(
@@ -1057,6 +1073,26 @@
             b.specialtyLabel
           )
         );
+        if (b.rocketTier) {
+          confirmBadgesEl.appendChild(
+            createCardInfoChip(
+              "build-citizen-chip",
+              "build-citizen-icon",
+              STAT_ICONS.citizens,
+              "build-citizen-label",
+              t("rocket.crew_chip", { count: b.rocketCitizens })
+            )
+          );
+          confirmBadgesEl.appendChild(
+            createCardInfoChip(
+              "build-bricks-chip",
+              "build-bricks-icon",
+              STAT_ICONS.bricks,
+              "build-bricks-label",
+              t("rocket.bricks_cap_chip", { max: formatCostValue(b.rocketMaxBricks) })
+            )
+          );
+        }
       }
       if (b.maxPerPlanet) {
         confirmBadgesEl.appendChild(
@@ -3347,6 +3383,7 @@
     canAffordBuilding: canAffordBuilding,
     formatProductionRate: formatProductionRate,
     showErrorToast: showBuildErrorToast,
+    showToast: showBuildErrorToast,
     setHandlers: setHandlers,
     openForTile: openForTile,
     updateCurrentBuilding: updateCurrentBuilding,

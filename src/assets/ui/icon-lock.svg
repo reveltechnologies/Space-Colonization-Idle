@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" stroke-linejoin="round" stroke-linecap="round">
+  <!-- Metallic shackle -->
+  <path
+    d="M21 29 V20 A11 11 0 0 1 43 20 V29"
+    fill="none"
+    stroke="#1b1147"
+    stroke-width="11"
+  />
+  <path
+    d="M21 29 V20 A11 11 0 0 1 43 20 V29"
+    fill="none"
+    stroke="#cbd5e1"
+    stroke-width="5.5"
+  />
+  <path
+    d="M20.5 26 V20 A11 11 0 0 1 32 9"
+    fill="none"
+    stroke="#f8fafc"
+    stroke-width="2.2"
+  />
+
+  <!-- Golden padlock body -->
+  <rect x="14" y="27" width="36" height="29" rx="8" fill="#ffb129" stroke="#1b1147" stroke-width="4" />
+  <rect x="17" y="30" width="30" height="21" rx="5.5" fill="#ffd84d" />
+  <path d="M17 44 Q32 48 47 44 L47 50 Q47 53 43 53 L21 53 Q17 53 17 50 Z" fill="#e88712" opacity="0.65" />
+
+  <!-- Top specular gleam -->
+  <path d="M21 33 H34" stroke="#fff9d6" stroke-width="2.8" />
+
+  <!-- Keyhole -->
+  <circle cx="32" cy="39.5" r="4.2" fill="#1b1147" />
+  <polygon points="29.6,41.5 34.4,41.5 35.8,49.5 28.2,49.5" fill="#1b1147" />
+</svg>

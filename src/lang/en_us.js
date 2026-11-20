@@ -33,7 +33,13 @@
       confirm_construction: "Confirm Construction",
       open_research_tree: "Open Research Tree",
       research_tree_modal: "Research Tree",
-      close_research_tree: "Close Research Tree"
+      close_research_tree: "Close Research Tree",
+      rocket_launch: "Launch Rocket",
+      rocket_cargo: "Load Rocket Cargo",
+      rocket_cargo_modal: "Rocket Cargo",
+      close_rocket_cargo: "Close Rocket Cargo",
+      follow_rocket: "Follow Rocket",
+      rocket_bricks_slider: "Construction Bricks to Load"
     },
     currencies: {
       credits: "Credits",
@@ -50,7 +56,9 @@
       citizens_tooltip: "Citizens on this planet (Current / Max Capacity)",
       energy_tooltip: "Energy on this planet (Current / Max Capacity)",
       bricks_tooltip: "Construction Bricks on this planet (Obtained by Mines)",
-      zoom_format: "{zoom}×"
+      zoom_format: "{zoom}×",
+      locked_title: "Locked Planet",
+      requires_rocket_tier: "Requires Tier {tier} Rocket"
     },
     rates: {
       per_second: "+{rate}/s",
@@ -60,16 +68,13 @@
     },
     planets: {
       planet_1: {
-        default_name: "Planet 1",
-        type_label: "Rocky"
+        default_name: "Planet 1"
       },
       planet_2: {
-        default_name: "Planet 2",
-        type_label: "Oceanic"
+        default_name: "Planet 2"
       },
       planet_3: {
-        default_name: "Planet 3",
-        type_label: "Volcanic"
+        default_name: "Planet 3"
       }
     },
     categories: {
@@ -165,13 +170,38 @@
       space_rocket_1: {
         name: "Space Rocket I",
         specialty: "Tier I Orbital Rocket",
-        description: "Single-stage orbital launch vehicle assembled on a reinforced surface launchpad, preparing the colony for future spaceflight missions."
+        description: "Single-stage orbital launch vehicle carrying a fixed crew of Citizens and editable Construction Bricks to colonize the next world."
       },
       space_rocket_2: {
         name: "Space Rocket II",
         specialty: "Tier II Heavy Starship",
-        description: "Heavy multi-stage deep-space starship fitted with twin strap-on boosters, engineered for future interplanetary expeditions."
+        description: "Heavy multi-stage deep-space starship fitted with twin strap-on boosters, carrying a larger Citizen crew and heavy Construction Brick payload."
       }
+    },
+    rocket: {
+      launch_btn: "LAUNCH!",
+      cargo_btn: "Cargo",
+      cargo_btn_loaded: "Cargo {loaded}/{max}",
+      cargo_modal_title: "Rocket Payload",
+      target_planet: "Destination: {planet}",
+      crew_label: "Citizens (Fixed)",
+      crew_hint: "Deducted from current citizens on launch",
+      crew_unit: "{count} Citizens",
+      crew_available: "Available: {curr}/{max}",
+      bricks_label: "Construction Bricks",
+      bricks_hint: "Deducted immediately as you fill the rocket",
+      bricks_stock: "Planet Stock: {stock}",
+      bricks_loaded_fmt: "{loaded} / {max}",
+      btn_empty: "Empty",
+      btn_minus_10: "-10",
+      btn_plus_10: "+10",
+      btn_fill_max: "Max",
+      btn_done: "Done",
+      follow_btn: "Follow Rocket",
+      following_btn: "Following Rocket",
+      tier_chip: "Tier {tier} Rocket",
+      crew_chip: "{count} Citizens",
+      bricks_cap_chip: "Up to {max} Bricks"
     },
     build: {
       demolish: "Demolish",
@@ -195,13 +225,21 @@
       research_required: "Unlock {building} by researching {research} in the Research Tree.",
       research_need_rp: "Need {missing} more Research Points to research {research}.",
       research_wrong_planet: "{research} must be researched from a Research Center on {planet}.",
-      research_need_prereq: "Research {prereq} first to unlock {research}."
+      research_need_prereq: "Research {prereq} first to unlock {research}.",
+      planet_locked_requires_rocket: "{planet} is locked — launch a {tier} from {prevPlanet} to unlock it.",
+      rocket_tier_too_low: "{planet} requires a Tier {tier} Rocket or higher to launch.",
+      rocket_need_citizens: "Need {needed} current Citizens on {planet} to launch {rocket} (currently {curr}).",
+      rocket_no_free_tile: "No free surface tile remaining on {planet} for rocket landing.",
+      rocket_no_destination: "No further planet ahead to launch toward.",
+      rocket_launched: "{rocket} launched toward {planet} with {citizens} Citizens and {bricks} Bricks!",
+      rocket_landed_unlocked: "{planet} unlocked! Landed with {citizens} Citizens and {bricks} Bricks.",
+      rocket_landed_delivered: "{rocket} landed on {planet} with {citizens} Citizens and {bricks} Bricks!"
     },
     research: {
       title: "Research Tree",
       open_tree: "Research Tree",
       rp_unit: "RP",
-      terminal_from: "Terminal: {planet} ({type})",
+      terminal_from: "Terminal: {planet}",
       total_generation: "Generation",
       close_details: "Close Details",
       categories: {
@@ -213,7 +251,7 @@
         aerospace: "Aerospace"
       },
       any_planet: "Any Planet",
-      requires_planet: "Requires {planet} ({type})",
+      requires_planet: "Requires {planet}",
       requires_prereq: "Requires: {prereq}",
       btn_research: "Research",
       btn_researched: "Researched",
@@ -228,7 +266,7 @@
         cryo_drilling: {
           name: "Cryo-Core Drilling",
           effect: "+35% Mine Bricks",
-          description: "Analyzes frozen bedrock fractures on the Rocky world to further accelerate Brick excavation."
+          description: "Analyzes frozen bedrock fractures on {planet_1} to further accelerate Brick excavation."
         },
         thermal_sintering: {
           name: "Magma Sintering",
@@ -246,14 +284,14 @@
           description: "Refines solar crystal coatings to squeeze higher grid output from all power generation structures."
         },
         hydro_grid: {
-          name: "Oceanic Power Grid",
+          name: "Hydro-Cooling Power Grid",
           effect: "+25% Energy Capacity",
-          description: "Applies fluid-cooled superconducting conduits discovered on the Oceanic world to boost all Power buildings."
+          description: "Applies fluid-cooled superconducting conduits discovered on {planet_2} to boost all Power buildings."
         },
         superconductors: {
-          name: "Volcanic Superconductors",
+          name: "Thermal Superconductors",
           effect: "+35% Energy Capacity",
-          description: "Forges zero-loss thermal alloys from Volcanic core ores to supercharge planetary energy grids."
+          description: "Forges zero-loss thermal alloys from {planet_3} core ores to supercharge planetary energy grids."
         },
         habitat_insulation: {
           name: "Habitat Insulation",
@@ -263,7 +301,7 @@
         biodome_recycling: {
           name: "Biodome Recycling",
           effect: "+25% Citizen Capacity",
-          description: "Closed-loop oceanic hydro-filtration systems supporting denser, self-sustaining residential quarters."
+          description: "Closed-loop hydro-filtration systems tested on {planet_2} supporting denser, self-sustaining residential quarters."
         },
         arcology_habitats: {
           name: "Arcology Habitats",
@@ -278,17 +316,17 @@
         stellar_optics: {
           name: "Deep-Space Optics",
           effect: "+35% Research Points",
-          description: "High-precision volcanic glass lenses calibrated on the Volcanic world to boost Research Point generation."
+          description: "High-precision glass lenses calibrated on {planet_3} to boost Research Point generation."
         },
         quantum_computing: {
           name: "Quantum Computing",
           effect: "Unlocks Quantum Array",
-          description: "Decodes wave-function resonance on the Oceanic world, unlocking the high-output Quantum Array in the Build Menu."
+          description: "Decodes wave-function resonance on {planet_2}, unlocking the high-output Quantum Array in the Build Menu."
         },
         neural_archivists: {
           name: "Neural Archivists",
           effect: "+50% Research Points",
-          description: "Synchronizes colony AI synthesis clusters on the Rocky world to accelerate scientific discovery."
+          description: "Synchronizes colony AI synthesis clusters on {planet_1} to accelerate scientific discovery."
         },
         surface_surveying: {
           name: "Surface Surveying",
@@ -296,34 +334,34 @@
           description: "Standardized orbital terrain mapping improves both mining yields and field research speed."
         },
         oceanic_adaptation: {
-          name: "Oceanic Adaptation",
+          name: "Atmospheric Adaptation",
           effect: "+20% Energy & Citizens",
-          description: "Atmospheric moisture harvesting techniques tested on Oceanic tiles improve life support and power cooling."
+          description: "Atmospheric moisture harvesting techniques tested on {planet_2} improve life support and power cooling."
         },
         volcanic_shielding: {
-          name: "Volcanic Shielding",
+          name: "Basalt-Ceramic Shielding",
           effect: "+30% All Colony Yields",
-          description: "Extreme basalt-ceramic plating tested on Volcanic ground fortifies every planetary production system."
+          description: "Extreme basalt-ceramic plating tested on {planet_3} fortifies every planetary production system."
         },
         hull_metallurgy: {
           name: "Aerospace Metallurgy",
           effect: "+15% Research Points",
-          description: "Develops ultra-lightweight vacuum-forged rocket alloys from Rocky mineral deposits."
+          description: "Develops ultra-lightweight vacuum-forged rocket alloys from {planet_1} mineral deposits."
         },
         cryo_propellant: {
           name: "Cryo Propellant",
           effect: "+20% Energy Capacity",
-          description: "Synthesizes high-impulse liquid hydrogen rocket fuel from Oceanic water reserves."
+          description: "Synthesizes high-impulse liquid hydrogen rocket fuel from {planet_1} glacier ice reserves."
         },
         orbital_rocketry: {
           name: "Orbital Rocketry",
           effect: "Unlocks Space Rocket I",
-          description: "Completes single-stage launch gantry telemetry on Volcanic test pads, unlocking Space Rocket I in the Build Menu."
+          description: "Completes single-stage launch gantry telemetry on {planet_1} test pads, unlocking Space Rocket I in the Build Menu."
         },
         heavy_starship: {
           name: "Heavy Starship Design",
           effect: "Unlocks Space Rocket II",
-          description: "Masters twin strap-on booster staging from high-gravity Rocky pads, unlocking Space Rocket II in the Build Menu."
+          description: "Masters twin strap-on booster staging from {planet_2} launchpads, unlocking Space Rocket II in the Build Menu."
         }
       }
     }

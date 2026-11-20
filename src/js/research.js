@@ -250,7 +250,7 @@
       category: "aerospace",
       order: 2,
       cost: 80,
-      requiredPlanetType: "oceanic",
+      requiredPlanetType: "rocky",
       prereq: "hull_metallurgy",
       iconSrc: "./assets/ui/biome-glacier.svg",
       accent: "#5fd8f8"
@@ -260,7 +260,7 @@
       category: "aerospace",
       order: 3,
       cost: 140,
-      requiredPlanetType: "volcanic",
+      requiredPlanetType: "rocky",
       prereq: "cryo_propellant",
       iconSrc: "./assets/ui/bld-space-rocket-1.svg",
       accent: "#ff5a4d",
@@ -271,7 +271,7 @@
       category: "aerospace",
       order: 4,
       cost: 240,
-      requiredPlanetType: "rocky",
+      requiredPlanetType: "oceanic",
       prereq: "orbital_rocketry",
       iconSrc: "./assets/ui/bld-space-rocket-2.svg",
       accent: "#f59e0b",
@@ -282,19 +282,16 @@
   const PLANET_DEFAULTS = {
     rocky: {
       nameKey: "planets.planet_1.default_name",
-      typeKey: "planets.planet_1.type_label",
       iconSrc: "./assets/ui/planet-rocky.svg",
       accent: "#cbd5e1"
     },
     oceanic: {
       nameKey: "planets.planet_2.default_name",
-      typeKey: "planets.planet_2.type_label",
       iconSrc: "./assets/ui/planet-oceanic.svg",
       accent: "#38bdf8"
     },
     volcanic: {
       nameKey: "planets.planet_3.default_name",
-      typeKey: "planets.planet_3.type_label",
       iconSrc: "./assets/ui/planet-volcanic.svg",
       accent: "#fb923c"
     }
@@ -427,14 +424,15 @@
   }
 
   function resolvePlanetMeta(typeId) {
+    const def = PLANET_DEFAULTS[typeId];
+    const fallbackName = def ? t(def.nameKey) : t("planets.planet_1.default_name");
     if (typeof planetProvider === "function") {
       const list = planetProvider();
       if (Array.isArray(list)) {
         for (let i = 0; i < list.length; i++) {
           if (list[i] && list[i].typeId === typeId) {
             return {
-              name: list[i].name || list[i].defaultName,
-              typeLabel: list[i].typeLabel || typeId,
+              name: list[i].name || list[i].defaultName || fallbackName,
               iconSrc: list[i].iconSrc,
               accent: list[i].accent
             };
@@ -442,25 +440,30 @@
         }
       }
     }
-    const def = PLANET_DEFAULTS[typeId];
     if (def) {
       return {
-        name: t(def.nameKey),
-        typeLabel: t(def.typeKey),
+        name: fallbackName,
         iconSrc: def.iconSrc,
         accent: def.accent
       };
     }
     return {
-      name: typeId,
-      typeLabel: typeId,
+      name: fallbackName,
       iconSrc: "./assets/ui/planet-rocky.svg",
       accent: "#cbd5e1"
     };
   }
 
+  function getPlanetNameParams() {
+    return {
+      planet_1: resolvePlanetMeta("rocky").name,
+      planet_2: resolvePlanetMeta("oceanic").name,
+      planet_3: resolvePlanetMeta("volcanic").name
+    };
+  }
+
   function getNodeName(id) {
-    return t("research.nodes." + id + ".name");
+    return t("research.nodes." + id + ".name", getPlanetNameParams());
   }
 
   function getNodeEffect(id) {
@@ -468,7 +471,7 @@
   }
 
   function getNodeDescription(id) {
-    return t("research.nodes." + id + ".description");
+    return t("research.nodes." + id + ".description", getPlanetNameParams());
   }
 
   function showToast(html) {
@@ -505,9 +508,12 @@
     img.draggable = false;
     const lbl = document.createElement("span");
     lbl.className = "research-terminal-label";
+    const resolvedName =
+      openedFromPlanet.name ||
+      resolvePlanetMeta(openedFromPlanet.typeId).name ||
+      t("planets.planet_1.default_name");
     lbl.textContent = t("research.terminal_from", {
-      planet: openedFromPlanet.name,
-      type: openedFromPlanet.typeLabel
+      planet: resolvedName
     });
     terminalPillEl.style.setProperty("--terminal-accent", openedFromPlanet.accent || "#38bdf8");
     terminalPillEl.appendChild(img);
@@ -559,9 +565,7 @@
           pMeta.iconSrc +
           '" alt="" draggable="false" /> ' +
           pMeta.name +
-          " (" +
-          pMeta.typeLabel +
-          ")</span>";
+          "</span>";
         showToast(
           "<span>" +
             iconImg +
@@ -724,8 +728,7 @@
       pImg.draggable = false;
       const pLbl = document.createElement("span");
       pLbl.textContent = t("research.requires_planet", {
-        planet: pMeta.name,
-        type: pMeta.typeLabel
+        planet: pMeta.name
       });
       pChip.appendChild(pImg);
       pChip.appendChild(pLbl);
@@ -917,20 +920,19 @@
   }
 
   function open(planet) {
+    const defMeta = resolvePlanetMeta("rocky");
     openedFromPlanet = planet
       ? {
           id: planet.id,
-          name: planet.name || planet.defaultName,
+          name: planet.name || planet.defaultName || defMeta.name,
           typeId: planet.typeId,
-          typeLabel: planet.typeLabel,
           iconSrc: planet.iconSrc,
           accent: planet.accent
         }
       : {
           id: 0,
-          name: t("planets.planet_1.default_name"),
+          name: defMeta.name,
           typeId: "rocky",
-          typeLabel: t("planets.planet_1.type_label"),
           iconSrc: "./assets/ui/planet-rocky.svg",
           accent: "#cbd5e1"
         };

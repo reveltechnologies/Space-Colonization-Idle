@@ -22,6 +22,7 @@
   const planetHudNameInputEl = document.getElementById("planet-hud-name-input");
   const planetHudEmblemEl = document.getElementById("planet-hud-emblem");
   const planetHudIconEl = document.getElementById("planet-hud-icon");
+  const planetHudLockEl = document.getElementById("planet-hud-lock");
   const planetHudNameEl = document.getElementById("planet-hud-name");
   const citizensCurrEl = document.getElementById("val-citizens-curr");
   const citizensMaxEl = document.getElementById("val-citizens-max");
@@ -35,6 +36,33 @@
   const bricksRateEl = document.getElementById("rate-bricks");
   const bricksStatBar = document.getElementById("planet-stat-bricks");
   const tileResearchBtn = document.getElementById("btn-tile-research-tree");
+  const tileRocketActionsEl = document.getElementById("tile-rocket-actions");
+  const tileRocketCargoBtn = document.getElementById("btn-tile-rocket-cargo");
+  const tileRocketCargoLabelEl = document.getElementById("tile-rocket-cargo-label");
+  const tileRocketLaunchBtn = document.getElementById("btn-tile-rocket-launch");
+  const tileRocketLaunchIconEl = document.getElementById("tile-rocket-launch-icon");
+  const followRocketBtn = document.getElementById("btn-follow-rocket");
+  const followRocketIconEl = document.getElementById("follow-rocket-icon");
+  const followRocketLabelEl = document.getElementById("follow-rocket-label");
+  const rocketCargoModalEl = document.getElementById("rocket-cargo-modal");
+  const rocketCargoBackdropEl = rocketCargoModalEl
+    ? rocketCargoModalEl.querySelector(".rocket-cargo-backdrop")
+    : null;
+  const rocketCargoIconEl = document.getElementById("rocket-cargo-icon");
+  const rocketCargoTitleEl = document.getElementById("rocket-cargo-title");
+  const rocketCargoDestPillEl = document.getElementById("rocket-cargo-dest-pill");
+  const closeRocketCargoBtn = document.getElementById("btn-close-rocket-cargo");
+  const rocketCargoCrewValEl = document.getElementById("rocket-cargo-crew-val");
+  const rocketCargoCrewAvailEl = document.getElementById("rocket-cargo-crew-avail");
+  const rocketCargoBricksValEl = document.getElementById("rocket-cargo-bricks-val");
+  const rocketCargoBricksStockEl = document.getElementById("rocket-cargo-bricks-stock");
+  const rocketCargoSliderEl = document.getElementById("rocket-cargo-bricks-slider");
+  const cargoEmptyBtn = document.getElementById("btn-cargo-empty");
+  const cargoMinusBtn = document.getElementById("btn-cargo-minus");
+  const cargoPlusBtn = document.getElementById("btn-cargo-plus");
+  const cargoMaxBtn = document.getElementById("btn-cargo-max");
+  const cargoDoneBtn = document.getElementById("btn-cargo-done");
+  const cargoLaunchBtn = document.getElementById("btn-cargo-launch");
 
   const PLANET_COUNT = 3;
   const PLANET_NAMES_STORAGE_KEY = "sci_planet_names_v1";
@@ -430,11 +458,14 @@
       defaultName: t("planets.planet_1.default_name"),
       name: t("planets.planet_1.default_name"),
       typeId: "rocky",
-      typeLabel: t("planets.planet_1.type_label"),
       accent: "#cbd5e1",
       accentBg: "#25344d",
       iconSrc: "./assets/ui/planet-rocky.svg",
       freq: 2,
+      unlocked: true,
+      requiredRocketTier: 0,
+      shadowAmount: 0,
+      unlockVfx: null,
       atmosphere: { r: 203, g: 213, b: 225 },
       coreScale: 0.92,
       roll: 0.21,
@@ -459,11 +490,14 @@
       defaultName: t("planets.planet_2.default_name"),
       name: t("planets.planet_2.default_name"),
       typeId: "oceanic",
-      typeLabel: t("planets.planet_2.type_label"),
       accent: "#38bdf8",
       accentBg: "#0f3a5c",
       iconSrc: "./assets/ui/planet-oceanic.svg",
       freq: 3,
+      unlocked: false,
+      requiredRocketTier: 1,
+      shadowAmount: 1,
+      unlockVfx: null,
       atmosphere: { r: 56, g: 189, b: 248 },
       coreScale: 0.955,
       roll: -0.26,
@@ -488,11 +522,14 @@
       defaultName: t("planets.planet_3.default_name"),
       name: t("planets.planet_3.default_name"),
       typeId: "volcanic",
-      typeLabel: t("planets.planet_3.type_label"),
       accent: "#fb923c",
       accentBg: "#571e12",
       iconSrc: "./assets/ui/planet-volcanic.svg",
       freq: 4,
+      unlocked: false,
+      requiredRocketTier: 2,
+      shadowAmount: 1,
+      unlockVfx: null,
       atmosphere: { r: 251, g: 146, b: 60 },
       coreScale: 0.97,
       roll: 0.18,
@@ -531,8 +568,11 @@
   const buildingsByPlanet = [Object.create(null), Object.create(null), Object.create(null)];
   const tileEffectsByPlanet = [Object.create(null), Object.create(null), Object.create(null)];
   const bricksByPlanet = [0, 0, 0];
+  const citizensByPlanet = [0, 0, 0];
+  const CITIZEN_REGEN_PER_SEC = 0.08;
   const BUILD_VFX_MS = 760;
   const DEMOLISH_VFX_MS = 900;
+  const UNLOCK_SHATTER_MS = 1550;
   let drawerShiftX = 0;
   let drawerShiftY = 0;
   let drawerScale = 1;
@@ -547,6 +587,18 @@
   const energyHudState = { planet: -1, max: -1, curr: -1, bumpTimer: 0 };
   const bricksHudState = { planet: -1, amount: -1, rateText: "", bumpTimer: 0 };
   const researchButtonAnchor = { visible: false, x: 0, y: 0, planetId: -1 };
+  const rocketActionAnchor = {
+    visible: false,
+    x: 0,
+    y: 0,
+    planetId: -1,
+    tileId: null,
+    buildingId: null
+  };
+  const activeFlights = [];
+  let nextFlightId = 1;
+  let followingFlightId = null;
+  const cargoModalState = { open: false, planetId: -1, tileId: null };
   let lastHeaderPlanet = -1;
   let emblemPopTimer = 0;
   let isRenamingPlanet = false;
@@ -555,6 +607,15 @@
   function sanitizePlanetName(raw, fallback) {
     const cleaned = String(raw || "").replace(/\s+/g, " ").trim().slice(0, MAX_PLANET_NAME_LEN);
     return cleaned || fallback;
+  }
+
+  function getPlanetName(planet, fallbackIdx) {
+    if (planet) {
+      if (planet.name) return planet.name;
+      if (planet.defaultName) return planet.defaultName;
+    }
+    const idx = clamp(Math.round(fallbackIdx || 0), 0, PLANET_COUNT - 1);
+    return t("planets.planet_" + (idx + 1) + ".default_name");
   }
 
   function loadSavedPlanetNames() {
@@ -592,7 +653,7 @@
       finishPlanetRename(true);
     }
     const p = planets[activeDotIndex];
-    if (!p) return;
+    if (!p || !p.unlocked) return;
 
     isRenamingPlanet = true;
     renamingPlanetIndex = activeDotIndex;
@@ -657,17 +718,23 @@
     if (planetHudIconEl) {
       planetHudIconEl.src = p.iconSrc;
     }
+    if (planetHudLockEl) {
+      planetHudLockEl.classList.toggle("is-hidden", Boolean(p.unlocked));
+    }
     if (planetHudNameEl) {
-      planetHudNameEl.textContent = p.name;
+      planetHudNameEl.textContent = getPlanetName(p, activeDotIndex);
     }
     if (planetStatsDeckEl) {
       planetStatsDeckEl.setAttribute("data-planet", String(activeDotIndex));
       planetStatsDeckEl.setAttribute("data-planet-type", p.typeId);
+      planetStatsDeckEl.classList.toggle("is-locked", !p.unlocked);
       planetStatsDeckEl.style.setProperty("--planet-accent", p.accent);
       planetStatsDeckEl.style.setProperty("--planet-accent-bg", p.accentBg);
     }
     if (planetHudEmblemEl) {
-      planetHudEmblemEl.title = p.name;
+      planetHudEmblemEl.title = p.unlocked
+        ? p.name
+        : t("planet.requires_rocket_tier", { tier: p.requiredRocketTier || 1 });
       if (switched) {
         planetHudEmblemEl.classList.remove("is-switched");
         void planetHudEmblemEl.offsetWidth;
@@ -752,18 +819,42 @@
     return count;
   }
 
+  function calculateLandedRocketCitizenCapacity(planetIdx) {
+    const buildings = buildingsByPlanet[planetIdx];
+    if (!buildings) return 0;
+    let cap = 0;
+    const keys = Object.keys(buildings);
+    for (let i = 0; i < keys.length; i++) {
+      const bInfo = buildings[keys[i]];
+      if (bInfo && bInfo.isLanded && bInfo.landedCitizens > 0) {
+        cap += bInfo.landedCitizens;
+      }
+    }
+    return cap;
+  }
+
   function calculatePlanetCitizenCapacity(planetIdx) {
     const base = calculatePlanetStatCapacity(planetIdx, "citizenSlots");
     const mult =
       window.GameResearch && typeof window.GameResearch.getCitizenMultiplier === "function"
         ? window.GameResearch.getCitizenMultiplier()
         : 1;
-    return Math.round(base * mult);
+    return Math.round(base * mult) + calculateLandedRocketCitizenCapacity(planetIdx);
   }
 
   function getPlanetCitizenCount(planetIdx) {
-    // Current citizen population fills available capacity
-    return calculatePlanetCitizenCapacity(planetIdx);
+    const cap = calculatePlanetCitizenCapacity(planetIdx);
+    const cur = Math.floor(citizensByPlanet[planetIdx] || 0);
+    return Math.max(0, Math.min(cap, cur));
+  }
+
+  function showGameToast(messageHtml, variant) {
+    if (!window.GameBuildings) return;
+    if (typeof window.GameBuildings.showToast === "function") {
+      window.GameBuildings.showToast(messageHtml, variant);
+    } else if (typeof window.GameBuildings.showErrorToast === "function") {
+      window.GameBuildings.showErrorToast(messageHtml);
+    }
   }
 
   function updatePlanetCitizenHud(force) {
@@ -940,14 +1031,27 @@
     return Math.max(min, Math.min(max, val));
   }
 
+  function updatePlanetLockDots() {
+    for (let i = 0; i < dotButtons.length && i < planets.length; i++) {
+      dotButtons[i].classList.toggle("is-locked", !planets[i].unlocked);
+    }
+  }
+
   function clearSelectionAndCloseBuildMenu() {
     for (let i = 0; i < selectedHexByPlanet.length; i++) {
       selectedHexByPlanet[i] = null;
     }
     selectionPulse = null;
     researchButtonAnchor.visible = false;
+    rocketActionAnchor.visible = false;
     if (tileResearchBtn) {
       tileResearchBtn.classList.add("is-hidden");
+    }
+    if (tileRocketActionsEl) {
+      tileRocketActionsEl.classList.add("is-hidden");
+    }
+    if (cargoModalState.open) {
+      closeRocketCargoModal();
     }
     if (window.GameBuildings) {
       window.GameBuildings.close(false);
@@ -974,6 +1078,7 @@
         }
       }
     }
+    updatePlanetLockDots();
   }
 
   function updateControlStates() {
@@ -1010,7 +1115,10 @@
     updatePlanetStatsHud(false);
   }
 
-  function goToPlanet(index) {
+  function goToPlanet(index, preserveFollow) {
+    if (!preserveFollow) {
+      followingFlightId = null;
+    }
     if (isRenamingPlanet) {
       finishPlanetRename(true);
     }
@@ -1179,6 +1287,27 @@
     const selectedId = selectedHexByPlanet[planet.id];
     const elevLerp = 1 - Math.exp(-14 * dtSec);
 
+    if (planet.unlockVfx) {
+      const unlockP = clamp((time - planet.unlockVfx.startTime) / planet.unlockVfx.duration, 0, 1);
+      planet.shadowAmount = 1 - easeOutCubic(clamp(unlockP / 0.52, 0, 1));
+      if (unlockP >= 1) {
+        planet.shadowAmount = 0;
+        planet.unlockVfx = null;
+      }
+    } else {
+      planet.shadowAmount = planet.unlocked ? 0 : 1;
+    }
+
+    const shadow = planet.shadowAmount || 0;
+    const drawAtmo =
+      shadow > 0
+        ? {
+            r: Math.round(atmo.r + (14 - atmo.r) * shadow * 0.88),
+            g: Math.round(atmo.g + (18 - atmo.g) * shadow * 0.88),
+            b: Math.round(atmo.b + (34 - atmo.b) * shadow * 0.88)
+          }
+        : atmo;
+
     if (isFocused) {
       focusedHitPolys = [];
     }
@@ -1189,9 +1318,9 @@
     // 1. Outer 3D Atmospheric Halo
     const haloRadius = r * 1.28;
     const haloGrad = ctx.createRadialGradient(cx, cy, r * 0.85, cx, cy, haloRadius);
-    haloGrad.addColorStop(0, `rgba(${atmo.r}, ${atmo.g}, ${atmo.b}, 0.28)`);
-    haloGrad.addColorStop(0.55, `rgba(${atmo.r}, ${atmo.g}, ${atmo.b}, 0.08)`);
-    haloGrad.addColorStop(1, `rgba(${atmo.r}, ${atmo.g}, ${atmo.b}, 0)`);
+    haloGrad.addColorStop(0, `rgba(${drawAtmo.r}, ${drawAtmo.g}, ${drawAtmo.b}, 0.28)`);
+    haloGrad.addColorStop(0.55, `rgba(${drawAtmo.r}, ${drawAtmo.g}, ${drawAtmo.b}, 0.08)`);
+    haloGrad.addColorStop(1, `rgba(${drawAtmo.r}, ${drawAtmo.g}, ${drawAtmo.b}, 0)`);
     ctx.fillStyle = haloGrad;
     ctx.beginPath();
     ctx.arc(cx, cy, haloRadius, 0, Math.PI * 2);
@@ -1323,13 +1452,14 @@
           const sideNormUnit = normalize(sideN);
           const sideNdotL = Math.max(0, dot(sideNormUnit, LIGHT_DIR));
           const sideLight =
-            0.52 * (0.28 + 0.72 * sideNdotL) +
-            tile.emissive * 0.35 +
-            (isSelected ? 0.12 : 0);
+            (0.52 * (0.28 + 0.72 * sideNdotL) +
+              tile.emissive * (1 - shadow) * 0.35 +
+              (isSelected ? 0.12 : 0)) *
+            (1 - shadow * 0.84);
 
-          const sr = clamp(Math.round(tile.rgb[0] * sideLight), 0, 255);
-          const sg = clamp(Math.round(tile.rgb[1] * sideLight), 0, 255);
-          const sb = clamp(Math.round(tile.rgb[2] * sideLight), 0, 255);
+          const sr = clamp(Math.round(tile.rgb[0] * sideLight + 4 * shadow), 0, 255);
+          const sg = clamp(Math.round(tile.rgb[1] * sideLight + 5 * shadow), 0, 255);
+          const sb = clamp(Math.round(tile.rgb[2] * sideLight + 12 * shadow), 0, 255);
 
           ctx.beginPath();
           ctx.moveTo(basePts[k].x, basePts[k].y);
@@ -1372,10 +1502,22 @@
         // Improved front-hemisphere fill lighting so tiles stay readable near terminator
         const ndotl = Math.max(0, dot(rotNormal, LIGHT_DIR));
         const frontFill = 0.16 * Math.max(0, rotNormal.z);
-        const lightAmt = Math.min(1.18, 0.28 + 0.82 * ndotl + frontFill + tile.emissive * (1 - ndotl * 0.6));
-        const specAmt = tile.spec * Math.pow(Math.max(0, dot(rotNormal, HALF_VEC)), 18);
-        const fresnelAmt = Math.pow(Math.max(0, 1 - Math.max(0, rotNormal.z)), 2.6) * 0.28;
-        const topFill = computeShadedColor(tile.rgb, lightAmt, specAmt, fresnelAmt, atmo);
+        const effEmissive = tile.emissive * (1 - shadow);
+        const lightAmt =
+          Math.min(1.18, 0.28 + 0.82 * ndotl + frontFill + effEmissive * (1 - ndotl * 0.6)) *
+          (1 - shadow * 0.82);
+        const specAmt = tile.spec * Math.pow(Math.max(0, dot(rotNormal, HALF_VEC)), 18) * (1 - shadow * 0.72);
+        const fresnelAmt =
+          Math.pow(Math.max(0, 1 - Math.max(0, rotNormal.z)), 2.6) * 0.28 * (1 - shadow * 0.65);
+        const shadedRgb =
+          shadow > 0
+            ? [
+                Math.round(tile.rgb[0] + (8 - tile.rgb[0]) * shadow * 0.82),
+                Math.round(tile.rgb[1] + (10 - tile.rgb[1]) * shadow * 0.82),
+                Math.round(tile.rgb[2] + (20 - tile.rgb[2]) * shadow * 0.82)
+              ]
+            : tile.rgb;
+        const topFill = computeShadedColor(shadedRgb, lightAmt, specAmt, fresnelAmt, drawAtmo);
 
         // Draw Tile Top Face
         tracePolygon(topPts);
@@ -1394,7 +1536,7 @@
         }
 
         const pulse = 0.5 + 0.5 * Math.sin(time * 0.002 + tile.phase);
-        const rimFade = clamp(entry.facingDot * 1.45, 0.30, 1.0);
+        const rimFade = clamp(entry.facingDot * 1.45, 0.30, 1.0) * (1 - shadow * 0.84);
 
         tracePolygon(innerPts);
 
@@ -1544,7 +1686,33 @@
           researchButtonAnchor.x = clamp(anchorPt.x, 76, Math.max(76, width - 76));
           researchButtonAnchor.y = clamp(anchorPt.y, 72, Math.max(72, height - 24));
         }
+
+        if (
+          isFocused &&
+          isSelected &&
+          entry.placed &&
+          !entry.placed.isLanded &&
+          (entry.placed.id === "space_rocket_1" || entry.placed.id === "space_rocket_2") &&
+          planet.id + 1 < PLANET_COUNT &&
+          (!eff || eff.type !== "demolish")
+        ) {
+          const anchorWorld = add(entry.elevPlaneCenter, scale(rotNormal, tile.hexScale * elev * 1.24));
+          const anchorPt = project(anchorWorld, cx, cy, focalLength);
+          rocketActionAnchor.visible = true;
+          rocketActionAnchor.planetId = planet.id;
+          rocketActionAnchor.tileId = tile.id;
+          rocketActionAnchor.buildingId = entry.placed.id;
+          rocketActionAnchor.x = clamp(anchorPt.x, 128, Math.max(128, width - 128));
+          rocketActionAnchor.y = clamp(anchorPt.y, 76, Math.max(76, height - 24));
+        }
       }
+    }
+
+    if (shadow > 0.03) {
+      ctx.fillStyle = `rgba(3, 5, 14, ${(shadow * 0.56).toFixed(3)})`;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r * 1.01, 0, Math.PI * 2);
+      ctx.fill();
     }
 
     // 5. Subtle Front Atmospheric Limb Sheen
@@ -1557,12 +1725,18 @@
       r * 1.01
     );
     limbGrad.addColorStop(0, "rgba(255, 255, 255, 0)");
-    limbGrad.addColorStop(0.82, `rgba(${atmo.r}, ${atmo.g}, ${atmo.b}, 0.05)`);
-    limbGrad.addColorStop(1, `rgba(${atmo.r}, ${atmo.g}, ${atmo.b}, 0.22)`);
+    limbGrad.addColorStop(0.82, `rgba(${drawAtmo.r}, ${drawAtmo.g}, ${drawAtmo.b}, 0.05)`);
+    limbGrad.addColorStop(1, `rgba(${drawAtmo.r}, ${drawAtmo.g}, ${drawAtmo.b}, 0.22)`);
     ctx.fillStyle = limbGrad;
     ctx.beginPath();
     ctx.arc(cx, cy, r * 1.01, 0, Math.PI * 2);
     ctx.fill();
+
+    if (!planet.unlocked && !planet.unlockVfx) {
+      drawPlanetLockOverlay(ctx, cx, cy, r, planet.requiredRocketTier || 1, transform.alpha, time);
+    } else if (planet.unlockVfx) {
+      drawPlanetUnlockShatter(ctx, cx, cy, r, planet.unlockVfx, time, transform.alpha);
+    }
 
     ctx.restore();
   }
@@ -1626,6 +1800,1271 @@
     return bestId !== null ? { planetId: idx, hexId: bestId } : null;
   }
 
+  // --- Planet Lock Overlay, Shatter VFX, Rocket Cargo & Flight Systems ---
+
+  function clamp01(v) {
+    return v < 0 ? 0 : v > 1 ? 1 : v;
+  }
+
+  function easeOutCubic(t) {
+    const inv = 1 - clamp01(t);
+    return 1 - inv * inv * inv;
+  }
+
+  function easeInOutCubic(t) {
+    const x = clamp01(t);
+    return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+  }
+
+  function lerp(a, b, t) {
+    return a + (b - a) * t;
+  }
+
+  function drawRoundedRectPath(ctx, x, y, w, h, r) {
+    const rad = Math.min(r, w * 0.5, h * 0.5);
+    ctx.beginPath();
+    ctx.moveTo(x + rad, y);
+    ctx.lineTo(x + w - rad, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + rad);
+    ctx.lineTo(x + w, y + h - rad);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - rad, y + h);
+    ctx.lineTo(x + rad, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - rad);
+    ctx.lineTo(x, y + rad);
+    ctx.quadraticCurveTo(x, y, x + rad, y);
+    ctx.closePath();
+  }
+
+  function drawStar4(ctx, x, y, size, rot, fillCol, outlineCol, alpha) {
+    if (size <= 0.5 || alpha <= 0.02) return;
+    const inner = size * 0.28;
+    ctx.save();
+    ctx.globalAlpha *= clamp01(alpha);
+    ctx.translate(x, y);
+    ctx.rotate(rot);
+    ctx.beginPath();
+    for (let i = 0; i < 8; i++) {
+      const r = i % 2 === 0 ? size : inner;
+      const a = (i * Math.PI) / 4;
+      const px = Math.cos(a) * r;
+      const py = Math.sin(a) * r;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.lineJoin = "round";
+    ctx.lineWidth = Math.max(1.5, size * 0.30);
+    ctx.strokeStyle = outlineCol;
+    ctx.stroke();
+    ctx.fillStyle = fillCol;
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawPadlockVector(ctx, x, y, size) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+
+    const s = size / 64;
+    const inkW = Math.max(2.2, 4 * s);
+
+    // Metallic shackle
+    ctx.beginPath();
+    ctx.moveTo(-11 * s, -3 * s);
+    ctx.lineTo(-11 * s, -12 * s);
+    ctx.arc(0, -12 * s, 11 * s, Math.PI, 0, false);
+    ctx.lineTo(11 * s, -3 * s);
+    ctx.lineWidth = 10.5 * s;
+    ctx.strokeStyle = "#1b1147";
+    ctx.stroke();
+    ctx.lineWidth = 5.5 * s;
+    ctx.strokeStyle = "#cbd5e1";
+    ctx.stroke();
+
+    // Shackle highlight
+    ctx.beginPath();
+    ctx.arc(0, -12 * s, 11 * s, Math.PI, Math.PI * 1.48, false);
+    ctx.lineWidth = 2.2 * s;
+    ctx.strokeStyle = "#ffffff";
+    ctx.stroke();
+
+    // Golden padlock body
+    drawRoundedRectPath(ctx, -18 * s, -5 * s, 36 * s, 29 * s, 8 * s);
+    ctx.fillStyle = "#ffb129";
+    ctx.fill();
+    ctx.lineWidth = inkW;
+    ctx.strokeStyle = "#1b1147";
+    ctx.stroke();
+
+    // Inner bright amber face
+    drawRoundedRectPath(ctx, -14.5 * s, -2 * s, 29 * s, 20 * s, 5 * s);
+    ctx.fillStyle = "#ffd84d";
+    ctx.fill();
+
+    // Highlight streak
+    ctx.beginPath();
+    ctx.moveTo(-11 * s, 1 * s);
+    ctx.lineTo(2 * s, 1 * s);
+    ctx.lineWidth = Math.max(1.5, 2.8 * s);
+    ctx.strokeStyle = "#fff9d6";
+    ctx.stroke();
+
+    // Keyhole
+    ctx.fillStyle = "#1b1147";
+    ctx.beginPath();
+    ctx.arc(0, 7.5 * s, 4.2 * s, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(-2.4 * s, 9.5 * s);
+    ctx.lineTo(2.4 * s, 9.5 * s);
+    ctx.lineTo(3.8 * s, 17.5 * s);
+    ctx.lineTo(-3.8 * s, 17.5 * s);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  function drawPlanetLockOverlay(ctx, cx, cy, r, requiredTier, alpha, time) {
+    if (r < 24 || alpha <= 0.02) return;
+
+    const bobY = Math.sin(time * 0.0028) * Math.max(2, r * 0.016);
+    const lockSize = clamp(r * 0.36, 40, 68);
+    const lockY = cy - lockSize * 0.24 + bobY;
+
+    ctx.save();
+    ctx.globalAlpha = clamp01(alpha);
+
+    // Subtle glowing radial ring behind padlock so it pops over deep shadow
+    const backGrad = ctx.createRadialGradient(cx, lockY, lockSize * 0.1, cx, lockY, lockSize * 0.95);
+    backGrad.addColorStop(0, "rgba(255, 210, 80, 0.24)");
+    backGrad.addColorStop(1, "rgba(255, 210, 80, 0)");
+    ctx.fillStyle = backGrad;
+    ctx.beginPath();
+    ctx.arc(cx, lockY, lockSize * 0.95, 0, Math.PI * 2);
+    ctx.fill();
+
+    drawPadlockVector(ctx, cx, lockY, lockSize);
+
+    // Label banner right underneath lock
+    const label = t("planet.requires_rocket_tier", { tier: requiredTier });
+    const fontSize = Math.round(clamp(r * 0.095, 11.5, 16));
+    ctx.font = "900 " + fontSize + "px 'Fredoka', 'Nunito', 'Segoe UI', system-ui, sans-serif";
+    const textW = ctx.measureText(label).width;
+    const padX = Math.max(12, fontSize * 0.95);
+    const pillW = Math.min(r * 2.15, textW + padX * 2);
+    const pillH = Math.round(fontSize * 1.95);
+    const pillX = cx - pillW * 0.5;
+    const pillY = lockY + lockSize * 0.56;
+
+    // Shadow lip + dark indigo pill
+    drawRoundedRectPath(ctx, pillX, pillY + 3, pillW, pillH, pillH * 0.5);
+    ctx.fillStyle = "#1b1147";
+    ctx.fill();
+
+    drawRoundedRectPath(ctx, pillX, pillY, pillW, pillH, pillH * 0.5);
+    ctx.fillStyle = "#2b1d63";
+    ctx.fill();
+    ctx.lineWidth = Math.max(2.2, fontSize * 0.18);
+    ctx.strokeStyle = "#1b1147";
+    ctx.stroke();
+
+    drawRoundedRectPath(ctx, pillX + 2, pillY + 2, pillW - 4, pillH - 4, pillH * 0.5);
+    ctx.lineWidth = 1.6;
+    ctx.strokeStyle = "#ffd84d";
+    ctx.stroke();
+
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.lineJoin = "round";
+    ctx.lineWidth = Math.max(2.6, fontSize * 0.22);
+    ctx.strokeStyle = "#1b1147";
+    ctx.strokeText(label, cx, pillY + pillH * 0.52);
+    ctx.fillStyle = "#ffe485";
+    ctx.fillText(label, cx, pillY + pillH * 0.52);
+
+    ctx.restore();
+  }
+
+  function createUnlockShatterVfx(time) {
+    const shards = [];
+    const shardCols = ["#090c1a", "#141933", "#1e1b4b", "#0f172a"];
+    for (let i = 0; i < 14; i++) {
+      const a = (Math.PI * 2 * i) / 14 + Math.sin(i * 3.1) * 0.18;
+      shards.push({
+        angle: a,
+        speed: 0.95 + ((i * 37) % 10) * 0.09,
+        spin: (i % 2 === 0 ? 1 : -1) * (3.5 + (i % 5) * 1.4),
+        size: 0.08 + (i % 4) * 0.025,
+        color: shardCols[i % shardCols.length]
+      });
+    }
+    const lockPieces = [
+      { vx: -0.68, vy: -0.42, spin: -6.2, w: 0.15, h: 0.16, col: "#ffd84d" },
+      { vx: 0.72, vy: -0.34, spin: 5.8, w: 0.15, h: 0.16, col: "#ffb129" },
+      { vx: -0.38, vy: -0.88, spin: -7.5, w: 0.14, h: 0.08, col: "#cbd5e1" },
+      { vx: 0.44, vy: -0.82, spin: 7.1, w: 0.14, h: 0.08, col: "#e2e8f0" }
+    ];
+    return {
+      startTime: time,
+      duration: UNLOCK_SHATTER_MS,
+      shards: shards,
+      lockPieces: lockPieces
+    };
+  }
+
+  function drawPlanetUnlockShatter(ctx, cx, cy, r, vfx, time, alpha) {
+    const p = clamp01((time - vfx.startTime) / vfx.duration);
+    if (p >= 1 || r < 20) return;
+
+    ctx.save();
+    ctx.globalAlpha = clamp01(alpha);
+
+    // Expanding luminous sky-gold shatter shockwave
+    if (p < 0.72) {
+      const rp = easeOutCubic(p / 0.72);
+      const ringR = r * (0.28 + 1.08 * rp);
+      ctx.save();
+      ctx.globalAlpha *= (1 - rp) * 0.92;
+      ctx.beginPath();
+      ctx.arc(cx, cy, ringR, 0, Math.PI * 2);
+      ctx.lineWidth = Math.max(3, r * 0.08 * (1 - rp * 0.6));
+      ctx.strokeStyle = "#ffd84d";
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(cx, cy, ringR * 0.86, 0, Math.PI * 2);
+      ctx.lineWidth = Math.max(2, r * 0.045 * (1 - rp * 0.5));
+      ctx.strokeStyle = "#67e8f9";
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Center golden comic starburst flash
+    if (p < 0.36) {
+      const bp = p / 0.36;
+      const spikes = 10;
+      const rOut = r * (0.25 + 0.55 * Math.sin(bp * Math.PI));
+      const rIn = rOut * 0.42;
+      ctx.save();
+      ctx.globalAlpha *= 1 - bp;
+      ctx.translate(cx, cy);
+      ctx.beginPath();
+      for (let i = 0; i < spikes * 2; i++) {
+        const rad = i % 2 === 0 ? rOut : rIn;
+        const a = (i * Math.PI) / spikes + bp * 0.35;
+        const px = Math.cos(a) * rad;
+        const py = Math.sin(a) * rad;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fillStyle = "#ffe44d";
+      ctx.strokeStyle = "#1b1147";
+      ctx.lineWidth = Math.max(2, r * 0.02);
+      ctx.stroke();
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Flying obsidian darkness shards
+    if (p < 0.86) {
+      const sp = easeOutCubic(p / 0.86);
+      const shardFade = p > 0.45 ? 1 - (p - 0.45) / 0.41 : 1;
+      for (let i = 0; i < vfx.shards.length; i++) {
+        const sh = vfx.shards[i];
+        const dist = r * (0.18 + sh.speed * 1.15 * sp);
+        const sx = cx + Math.cos(sh.angle) * dist;
+        const sy = cy + Math.sin(sh.angle) * dist;
+        const sz = r * sh.size * (1 - sp * 0.35);
+
+        ctx.save();
+        ctx.globalAlpha *= clamp01(shardFade);
+        ctx.translate(sx, sy);
+        ctx.rotate(sh.angle + sp * sh.spin);
+        ctx.beginPath();
+        ctx.moveTo(-sz, -sz * 0.45);
+        ctx.lineTo(sz * 0.75, -sz * 0.8);
+        ctx.lineTo(sz * 1.05, sz * 0.35);
+        ctx.lineTo(-sz * 0.4, sz * 0.85);
+        ctx.closePath();
+        ctx.fillStyle = sh.color;
+        ctx.fill();
+        ctx.lineWidth = Math.max(1.5, sz * 0.25);
+        ctx.strokeStyle = "#1b1147";
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    // Shattered golden padlock halves
+    if (p < 0.80) {
+      const lp = p / 0.80;
+      const lFade = p > 0.42 ? 1 - (p - 0.42) / 0.38 : 1;
+      for (let i = 0; i < vfx.lockPieces.length; i++) {
+        const pc = vfx.lockPieces[i];
+        const px = cx + pc.vx * r * lp * 1.25;
+        const py = cy + pc.vy * r * lp * 1.1 + 0.55 * r * lp * lp;
+        const pw = r * pc.w;
+        const ph = r * pc.h;
+        ctx.save();
+        ctx.globalAlpha *= clamp01(lFade);
+        ctx.translate(px, py);
+        ctx.rotate(lp * pc.spin);
+        ctx.fillStyle = pc.col;
+        ctx.strokeStyle = "#1b1147";
+        ctx.lineWidth = Math.max(1.8, r * 0.022);
+        ctx.fillRect(-pw * 0.5, -ph * 0.5, pw, ph);
+        ctx.strokeRect(-pw * 0.5, -ph * 0.5, pw, ph);
+        ctx.restore();
+      }
+    }
+
+    // Celebratory star sparkles
+    if (p > 0.12) {
+      const kp = clamp01((p - 0.12) / 0.86);
+      for (let i = 0; i < 8; i++) {
+        const a = (Math.PI * 2 * i) / 8 + 0.3;
+        const dist = r * (0.45 + 0.75 * easeOutCubic(kp));
+        const sx = cx + Math.cos(a) * dist;
+        const sy = cy + Math.sin(a) * dist;
+        const pop = Math.sin(kp * Math.PI);
+        drawStar4(
+          ctx,
+          sx,
+          sy,
+          Math.max(4, r * 0.08 * pop),
+          kp * 2.2 + i,
+          i % 2 === 0 ? "#ffd84d" : "#ffffff",
+          "#1b1147",
+          pop
+        );
+      }
+    }
+
+    ctx.restore();
+  }
+
+  function drawSmokePuffCloud(ctx, x, y, radiusPx, alpha, warm) {
+    if (radiusPx <= 1 || alpha <= 0.02) return;
+    ctx.save();
+    ctx.globalAlpha *= clamp01(alpha);
+    ctx.beginPath();
+    ctx.arc(x, y, radiusPx, 0, Math.PI * 2);
+    ctx.fillStyle = "#1b1147";
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(x, y, radiusPx * 0.82, 0, Math.PI * 2);
+    ctx.fillStyle = warm ? "#ffedd5" : "#eef6ff";
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(x - radiusPx * 0.18, y - radiusPx * 0.2, radiusPx * 0.45, 0, Math.PI * 2);
+    ctx.fillStyle = "#ffffff";
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawFlightRocket(ctx, x, y, angleRad, scalePx, rocketId, thrust, alpha, time) {
+    if (scalePx <= 2 || alpha <= 0.02) return;
+    const isTier2 = rocketId === "space_rocket_2";
+
+    ctx.save();
+    ctx.globalAlpha *= clamp01(alpha);
+    ctx.translate(x, y);
+    ctx.rotate(angleRad + Math.PI * 0.5);
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+
+    const s = scalePx;
+    const inkW = Math.max(1.8, s * 0.075);
+
+    // Exhaust plume
+    if (thrust > 0.02) {
+      const flicker = 0.88 + 0.24 * Math.sin(time * 0.045);
+      const flameLen = s * (isTier2 ? 1.15 : 0.95) * thrust * flicker;
+      const flameW = s * (isTier2 ? 0.34 : 0.25);
+
+      function drawPlume(ox, oy, w, l) {
+        ctx.beginPath();
+        ctx.moveTo(ox - w, oy);
+        ctx.quadraticCurveTo(ox - w * 0.65, oy + l * 0.6, ox, oy + l);
+        ctx.quadraticCurveTo(ox + w * 0.65, oy + l * 0.6, ox + w, oy);
+        ctx.closePath();
+        ctx.fillStyle = "#ff5a4d";
+        ctx.fill();
+        ctx.lineWidth = Math.max(1.4, inkW * 0.8);
+        ctx.strokeStyle = "#1b1147";
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(ox - w * 0.62, oy);
+        ctx.quadraticCurveTo(ox - w * 0.35, oy + l * 0.5, ox, oy + l * 0.74);
+        ctx.quadraticCurveTo(ox + w * 0.35, oy + l * 0.5, ox + w * 0.62, oy);
+        ctx.closePath();
+        ctx.fillStyle = "#ffc83a";
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.moveTo(ox - w * 0.28, oy);
+        ctx.lineTo(ox, oy + l * 0.42);
+        ctx.lineTo(ox + w * 0.28, oy);
+        ctx.closePath();
+        ctx.fillStyle = "#ffffff";
+        ctx.fill();
+      }
+
+      if (isTier2) {
+        drawPlume(-s * 0.34, s * 0.42, flameW * 0.56, flameLen * 0.78);
+        drawPlume(s * 0.34, s * 0.42, flameW * 0.56, flameLen * 0.78);
+      }
+      drawPlume(0, s * 0.48, flameW, flameLen);
+    }
+
+    if (isTier2) {
+      // Twin side boosters
+      const bXs = [-s * 0.34, s * 0.34];
+      for (let b = 0; b < 2; b++) {
+        const bx = bXs[b];
+        ctx.beginPath();
+        ctx.rect(bx - s * 0.11, -s * 0.16, s * 0.22, s * 0.56);
+        ctx.fillStyle = "#e2e8f0";
+        ctx.fill();
+        ctx.lineWidth = inkW;
+        ctx.strokeStyle = "#1b1147";
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(bx - s * 0.11, -s * 0.16);
+        ctx.lineTo(bx, -s * 0.36);
+        ctx.lineTo(bx + s * 0.11, -s * 0.16);
+        ctx.closePath();
+        ctx.fillStyle = "#f59e0b";
+        ctx.fill();
+        ctx.stroke();
+      }
+
+      // Main starship core (navy & gold)
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.22, s * 0.42);
+      ctx.lineTo(-s * 0.22, -s * 0.44);
+      ctx.quadraticCurveTo(0, -s * 0.92, s * 0.22, -s * 0.44);
+      ctx.lineTo(s * 0.22, s * 0.42);
+      ctx.closePath();
+      ctx.fillStyle = "#1e293b";
+      ctx.fill();
+      ctx.lineWidth = inkW;
+      ctx.strokeStyle = "#1b1147";
+      ctx.stroke();
+
+      // Golden nose cone & thruster bell
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.19, -s * 0.46);
+      ctx.quadraticCurveTo(0, -s * 0.92, s * 0.19, -s * 0.46);
+      ctx.closePath();
+      ctx.fillStyle = "#f59e0b";
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.14, s * 0.42);
+      ctx.lineTo(s * 0.14, s * 0.42);
+      ctx.lineTo(s * 0.19, s * 0.54);
+      ctx.lineTo(-s * 0.19, s * 0.54);
+      ctx.closePath();
+      ctx.fillStyle = "#ffc83a";
+      ctx.fill();
+      ctx.stroke();
+    } else {
+      // Delta fins
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.20, s * 0.14);
+      ctx.lineTo(-s * 0.44, s * 0.44);
+      ctx.lineTo(-s * 0.18, s * 0.38);
+      ctx.closePath();
+      ctx.fillStyle = "#ff5a4d";
+      ctx.fill();
+      ctx.lineWidth = inkW;
+      ctx.strokeStyle = "#1b1147";
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(s * 0.20, s * 0.14);
+      ctx.lineTo(s * 0.44, s * 0.44);
+      ctx.lineTo(s * 0.18, s * 0.38);
+      ctx.closePath();
+      ctx.fillStyle = "#e03e31";
+      ctx.fill();
+      ctx.stroke();
+
+      // Thruster bell
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.13, s * 0.40);
+      ctx.lineTo(s * 0.13, s * 0.40);
+      ctx.lineTo(s * 0.17, s * 0.52);
+      ctx.lineTo(-s * 0.17, s * 0.52);
+      ctx.closePath();
+      ctx.fillStyle = "#ffc83a";
+      ctx.fill();
+      ctx.stroke();
+
+      // White hull
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.21, s * 0.40);
+      ctx.lineTo(-s * 0.21, -s * 0.36);
+      ctx.quadraticCurveTo(0, -s * 0.86, s * 0.21, -s * 0.36);
+      ctx.lineTo(s * 0.21, s * 0.40);
+      ctx.closePath();
+      ctx.fillStyle = "#f8fafc";
+      ctx.fill();
+      ctx.stroke();
+
+      // Crimson nose
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.185, -s * 0.40);
+      ctx.quadraticCurveTo(0, -s * 0.86, s * 0.185, -s * 0.40);
+      ctx.closePath();
+      ctx.fillStyle = "#ff5a4d";
+      ctx.fill();
+      ctx.stroke();
+    }
+
+    // Cyan cockpit porthole
+    ctx.beginPath();
+    ctx.arc(0, -s * 0.18, s * 0.115, 0, Math.PI * 2);
+    ctx.fillStyle = "#38bdf8";
+    ctx.fill();
+    ctx.lineWidth = Math.max(1.4, inkW * 0.78);
+    ctx.strokeStyle = "#1b1147";
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(-s * 0.035, -s * 0.21, s * 0.038, 0, Math.PI * 2);
+    ctx.fillStyle = "#e0f7ff";
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  function getPlanetTileScreenInfo(planet, transform, tile) {
+    const r = transform.scaledRadius;
+    const focalLength = r * Math.sqrt(CAM_DIST * CAM_DIST - 1);
+    const pitchX = clamp(planet.basePitch + planet.pitchOffset, -MAX_PITCH, MAX_PITCH);
+    const rotatePoint = createRotator(planet.spinY, pitchX, planet.roll);
+    const rotNormal = rotatePoint(tile.normal);
+    const rotPlaneCenter = rotatePoint(tile.planeCenter);
+    const elev = tile.currentElev || tile.baseElev || 1.02;
+    const elevCenter = scale(rotPlaneCenter, elev);
+    const tipWorld = add(elevCenter, scale(rotNormal, tile.hexScale * elev * 0.8));
+    const basePt = project(elevCenter, transform.x, transform.y, focalLength);
+    const upPt = project(tipWorld, transform.x, transform.y, focalLength);
+    const dx = upPt.x - basePt.x;
+    const dy = upPt.y - basePt.y;
+    const dLen = Math.hypot(dx, dy) || 1;
+    return {
+      basePt: basePt,
+      upPt: upPt,
+      nx: dx / dLen,
+      ny: dy / dLen,
+      z: elevCenter.z
+    };
+  }
+
+  function findFreeLandingTile(destPlanetId, rocketId) {
+    const destPlanet = planets[destPlanetId];
+    if (!destPlanet || !Array.isArray(destPlanet.tiles)) return null;
+    const candidates = [];
+    for (let i = 0; i < destPlanet.tiles.length; i++) {
+      const tile = destPlanet.tiles[i];
+      if (window.GameBuildings && !window.GameBuildings.canBuildOnBiome(rocketId, tile.biome)) {
+        continue;
+      }
+      if (buildingsByPlanet[destPlanetId][tile.id]) {
+        continue;
+      }
+      let reserved = false;
+      for (let f = 0; f < activeFlights.length; f++) {
+        if (activeFlights[f].destIdx === destPlanetId && activeFlights[f].destTileId === tile.id) {
+          reserved = true;
+          break;
+        }
+      }
+      if (!reserved) {
+        candidates.push(tile);
+      }
+    }
+    if (candidates.length === 0) return null;
+    candidates.sort(function (a, b) {
+      return Math.abs(a.center.y) - Math.abs(b.center.y);
+    });
+    const poolSize = Math.min(4, candidates.length);
+    const idx =
+      (destPlanetId + activeFlights.length + Object.keys(buildingsByPlanet[destPlanetId]).length) % poolSize;
+    return candidates[idx];
+  }
+
+  function getRocketLaunchStatus(srcPlanetId, srcTileId, includeHtml) {
+    const placed =
+      srcPlanetId >= 0 && srcTileId ? buildingsByPlanet[srcPlanetId] && buildingsByPlanet[srcPlanetId][srcTileId] : null;
+    const bld = placed && window.GameBuildings ? window.GameBuildings.getBuilding(placed.id) : null;
+    if (!placed || placed.isLanded || !bld || !bld.rocketTier) {
+      return { ok: false, reasonKey: "invalid", reasonHtml: "" };
+    }
+
+    const destPlanetId = srcPlanetId + 1;
+    if (destPlanetId >= PLANET_COUNT) {
+      return {
+        ok: false,
+        reasonKey: "no_destination",
+        bld: bld,
+        placed: placed,
+        reasonHtml: includeHtml ? "<span>" + t("toast.rocket_no_destination") + "</span>" : ""
+      };
+    }
+
+    const destPlanet = planets[destPlanetId];
+    const reqTier = destPlanet.requiredRocketTier || 1;
+    if (bld.rocketTier < reqTier) {
+      let reasonHtml = "";
+      if (includeHtml) {
+        const iconImg = '<img class="game-toast-icon" src="' + bld.iconSrc + '" alt="" draggable="false" />';
+        const pPill =
+          '<span class="game-toast-pill"><img class="game-toast-pill-icon" src="' +
+          destPlanet.iconSrc +
+          '" alt="" draggable="false" /> ' +
+          destPlanet.name +
+          "</span>";
+        reasonHtml =
+          "<span>" + iconImg + t("toast.rocket_tier_too_low", { planet: pPill, tier: reqTier }) + "</span>";
+      }
+      return {
+        ok: false,
+        reasonKey: "tier_too_low",
+        bld: bld,
+        placed: placed,
+        destPlanetId: destPlanetId,
+        reasonHtml: reasonHtml
+      };
+    }
+
+    const currCitizens = Math.floor(citizensByPlanet[srcPlanetId] || 0);
+    if (currCitizens < bld.rocketCitizens) {
+      let reasonHtml = "";
+      if (includeHtml) {
+        const iconImg = '<img class="game-toast-icon" src="./assets/ui/icon-citizen.svg" alt="" draggable="false" />';
+        const rStrong = '<strong class="game-toast-strong">' + bld.name + "</strong>";
+        const srcPlanet = planets[srcPlanetId];
+        const pName = '<strong class="game-toast-strong">' + srcPlanet.name + "</strong>";
+        reasonHtml =
+          "<span>" +
+          iconImg +
+          t("toast.rocket_need_citizens", {
+            needed: formatPlanetStat(bld.rocketCitizens),
+            planet: pName,
+            rocket: rStrong,
+            curr: formatPlanetStat(currCitizens)
+          }) +
+          "</span>";
+      }
+      return {
+        ok: false,
+        reasonKey: "need_citizens",
+        bld: bld,
+        placed: placed,
+        destPlanetId: destPlanetId,
+        reasonHtml: reasonHtml
+      };
+    }
+
+    const destTile = findFreeLandingTile(destPlanetId, bld.id);
+    if (!destTile) {
+      let reasonHtml = "";
+      if (includeHtml) {
+        const iconImg = '<img class="game-toast-icon" src="' + bld.iconSrc + '" alt="" draggable="false" />';
+        const pStrong = '<strong class="game-toast-strong">' + destPlanet.name + "</strong>";
+        reasonHtml = "<span>" + iconImg + t("toast.rocket_no_free_tile", { planet: pStrong }) + "</span>";
+      }
+      return {
+        ok: false,
+        reasonKey: "no_free_tile",
+        bld: bld,
+        placed: placed,
+        destPlanetId: destPlanetId,
+        reasonHtml: reasonHtml
+      };
+    }
+
+    return {
+      ok: true,
+      bld: bld,
+      placed: placed,
+      destPlanetId: destPlanetId,
+      destTile: destTile,
+      reasonHtml: ""
+    };
+  }
+
+  function setRocketLoadedBricks(planetId, tileId, desiredAmount) {
+    const placed = buildingsByPlanet[planetId] && buildingsByPlanet[planetId][tileId];
+    const bld = placed && window.GameBuildings ? window.GameBuildings.getBuilding(placed.id) : null;
+    if (!placed || !bld || !bld.rocketTier) return;
+
+    const currentLoaded = Math.max(0, Math.floor(placed.loadedBricks || 0));
+    const availableStock = Math.max(0, Math.floor(bricksByPlanet[planetId] || 0));
+    const maxAllowed = Math.min(bld.rocketMaxBricks, currentLoaded + availableStock);
+    const target = clamp(Math.round(Number(desiredAmount) || 0), 0, maxAllowed);
+    const delta = target - currentLoaded;
+
+    if (delta !== 0) {
+      bricksByPlanet[planetId] = Math.max(0, bricksByPlanet[planetId] - delta);
+      placed.loadedBricks = target;
+      updatePlanetBricksHud(true);
+    }
+    syncRocketCargoModal();
+  }
+
+  let lastCargoUiKey = "";
+  let lastCargoDestKey = "";
+
+  function syncRocketCargoModal(force) {
+    if (!cargoModalState.open || !rocketCargoModalEl) return;
+    const pId = cargoModalState.planetId;
+    const tId = cargoModalState.tileId;
+    const placed = buildingsByPlanet[pId] && buildingsByPlanet[pId][tId];
+    const bld = placed && window.GameBuildings ? window.GameBuildings.getBuilding(placed.id) : null;
+    if (!placed || !bld || !bld.rocketTier || pId + 1 >= PLANET_COUNT) {
+      closeRocketCargoModal();
+      return;
+    }
+
+    const destPlanet = planets[pId + 1];
+    const currCitz = getPlanetCitizenCount(pId);
+    const capCitz = calculatePlanetCitizenCapacity(pId);
+    const loadedBricks = Math.max(0, Math.floor(placed.loadedBricks || 0));
+    const availStock = Math.max(0, Math.floor(bricksByPlanet[pId] || 0));
+    const status = getRocketLaunchStatus(pId, tId, false);
+    const destUnlocked = destPlanet ? Boolean(destPlanet.unlocked) : false;
+    const uiKey = [
+      pId,
+      tId,
+      bld.id,
+      currCitz,
+      capCitz,
+      loadedBricks,
+      availStock,
+      destUnlocked ? 1 : 0,
+      status.ok ? 1 : 0
+    ].join("|");
+
+    if (!force && uiKey === lastCargoUiKey) {
+      return;
+    }
+    lastCargoUiKey = uiKey;
+
+    const maxFillable = Math.min(bld.rocketMaxBricks, loadedBricks + availStock);
+    const fillPct = bld.rocketMaxBricks > 0 ? clamp((loadedBricks / bld.rocketMaxBricks) * 100, 0, 100) : 0;
+
+    const destKey = destPlanet ? destPlanet.id + "|" + getPlanetName(destPlanet, pId + 1) : "";
+    if (force || destKey !== lastCargoDestKey) {
+      lastCargoDestKey = destKey;
+      if (rocketCargoIconEl) {
+        rocketCargoIconEl.src = bld.iconSrc;
+      }
+      if (rocketCargoTitleEl) {
+        rocketCargoTitleEl.textContent = bld.name;
+      }
+      if (rocketCargoDestPillEl && destPlanet) {
+        rocketCargoDestPillEl.innerHTML = "";
+        rocketCargoDestPillEl.style.setProperty("--dest-accent", destPlanet.accent || "#38bdf8");
+        const dImg = document.createElement("img");
+        dImg.className = "rocket-cargo-dest-icon";
+        dImg.src = destPlanet.iconSrc;
+        dImg.alt = "";
+        dImg.draggable = false;
+        const dLbl = document.createElement("span");
+        dLbl.textContent = t("rocket.target_planet", {
+          planet: getPlanetName(destPlanet, pId + 1)
+        });
+        rocketCargoDestPillEl.appendChild(dImg);
+        rocketCargoDestPillEl.appendChild(dLbl);
+      }
+    }
+
+    if (rocketCargoCrewValEl) {
+      rocketCargoCrewValEl.textContent = t("rocket.crew_unit", { count: formatPlanetStat(bld.rocketCitizens) });
+    }
+    if (rocketCargoCrewAvailEl) {
+      rocketCargoCrewAvailEl.textContent = t("rocket.crew_available", {
+        curr: formatPlanetStat(currCitz),
+        max: formatPlanetStat(capCitz)
+      });
+      rocketCargoCrewAvailEl.classList.toggle("is-short", currCitz < bld.rocketCitizens);
+    }
+
+    if (rocketCargoBricksValEl) {
+      rocketCargoBricksValEl.textContent = t("rocket.bricks_loaded_fmt", {
+        loaded: formatPlanetStat(loadedBricks),
+        max: formatPlanetStat(bld.rocketMaxBricks)
+      });
+    }
+    if (rocketCargoBricksStockEl) {
+      rocketCargoBricksStockEl.textContent = t("rocket.bricks_stock", {
+        stock: formatPlanetStat(availStock)
+      });
+    }
+    if (rocketCargoSliderEl) {
+      rocketCargoSliderEl.min = "0";
+      rocketCargoSliderEl.max = String(bld.rocketMaxBricks);
+      if (Number(rocketCargoSliderEl.value) !== loadedBricks) {
+        rocketCargoSliderEl.value = String(loadedBricks);
+      }
+      rocketCargoSliderEl.style.setProperty("--slider-fill", fillPct.toFixed(1) + "%");
+    }
+
+    if (cargoEmptyBtn) cargoEmptyBtn.disabled = loadedBricks <= 0;
+    if (cargoMinusBtn) cargoMinusBtn.disabled = loadedBricks <= 0;
+    if (cargoPlusBtn) cargoPlusBtn.disabled = loadedBricks >= maxFillable;
+    if (cargoMaxBtn) cargoMaxBtn.disabled = loadedBricks >= maxFillable;
+
+    if (cargoLaunchBtn) {
+      cargoLaunchBtn.classList.toggle("is-disabled", !status.ok);
+    }
+  }
+
+  function openRocketCargoModal(planetId, tileId) {
+    const placed = buildingsByPlanet[planetId] && buildingsByPlanet[planetId][tileId];
+    const bld = placed && window.GameBuildings ? window.GameBuildings.getBuilding(placed.id) : null;
+    if (!placed || !bld || !bld.rocketTier || planetId + 1 >= PLANET_COUNT) return;
+
+    cargoModalState.open = true;
+    cargoModalState.planetId = planetId;
+    cargoModalState.tileId = tileId;
+    lastCargoUiKey = "";
+    lastCargoDestKey = "";
+
+    syncRocketCargoModal(true);
+
+    if (rocketCargoModalEl) {
+      rocketCargoModalEl.classList.remove("is-hidden");
+      rocketCargoModalEl.classList.add("is-open");
+      rocketCargoModalEl.setAttribute("aria-hidden", "false");
+    }
+    document.body.classList.add("rocket-cargo-open");
+  }
+
+  function closeRocketCargoModal() {
+    if (!cargoModalState.open && (!rocketCargoModalEl || !rocketCargoModalEl.classList.contains("is-open"))) {
+      return;
+    }
+    cargoModalState.open = false;
+    cargoModalState.planetId = -1;
+    cargoModalState.tileId = null;
+    if (rocketCargoModalEl) {
+      rocketCargoModalEl.classList.remove("is-open");
+      rocketCargoModalEl.classList.add("is-hidden");
+      rocketCargoModalEl.setAttribute("aria-hidden", "true");
+    }
+    document.body.classList.remove("rocket-cargo-open");
+  }
+
+  function updateFollowRocketButton() {
+    if (!followRocketBtn) return;
+    const researchOpen =
+      window.GameResearch && typeof window.GameResearch.isOpen === "function" && window.GameResearch.isOpen();
+    if (activeFlights.length === 0 || researchOpen || cargoModalState.open) {
+      followRocketBtn.classList.add("is-hidden");
+      followRocketBtn.classList.remove("is-following");
+      return;
+    }
+
+    const targetFlight = activeFlights[activeFlights.length - 1];
+    const isFollowing = followingFlightId !== null && activeFlights.some(function (f) { return f.id === followingFlightId; });
+    followRocketBtn.classList.remove("is-hidden");
+    followRocketBtn.classList.toggle("is-following", isFollowing);
+    if (followRocketIconEl) {
+      followRocketIconEl.src =
+        targetFlight.rocketId === "space_rocket_2"
+          ? "./assets/ui/bld-space-rocket-2.svg"
+          : "./assets/ui/bld-space-rocket-1.svg";
+    }
+    if (followRocketLabelEl) {
+      followRocketLabelEl.textContent = t(isFollowing ? "rocket.following_btn" : "rocket.follow_btn");
+    }
+  }
+
+  function launchRocket(srcPlanetId, srcTileId) {
+    const status = getRocketLaunchStatus(srcPlanetId, srcTileId, true);
+    if (!status.ok) {
+      if (status.reasonHtml) {
+        showGameToast(status.reasonHtml);
+      }
+      return false;
+    }
+
+    const now = performance.now();
+    const srcPlanet = planets[srcPlanetId];
+    const destPlanet = planets[status.destPlanetId];
+    const srcTile = srcPlanet && srcPlanet.tileById[srcTileId];
+    const bricksLoaded = Math.max(0, Math.floor(status.placed.loadedBricks || 0));
+
+    // Deduct fixed citizen crew from current citizens on launch
+    citizensByPlanet[srcPlanetId] = Math.max(0, citizensByPlanet[srcPlanetId] - status.bld.rocketCitizens);
+    delete buildingsByPlanet[srcPlanetId][srcTileId];
+
+    closeRocketCargoModal();
+    clearSelectionAndCloseBuildMenu();
+
+    activeFlights.push({
+      id: nextFlightId++,
+      srcIdx: srcPlanetId,
+      destIdx: status.destPlanetId,
+      srcTileId: srcTileId,
+      srcTile: srcTile,
+      destTileId: status.destTile.id,
+      destTile: status.destTile,
+      rocketId: status.bld.id,
+      rocketName: status.bld.name,
+      rocketIcon: status.bld.iconSrc,
+      tier: status.bld.rocketTier,
+      citizens: status.bld.rocketCitizens,
+      bricks: bricksLoaded,
+      startTime: now,
+      liftoffDur: 1350,
+      cruiseDur: 2050,
+      landDur: 1200,
+      trail: [],
+      lastTrailAt: 0,
+      focusedDest: false
+    });
+
+    lastInteractionTime = now;
+    updatePlanetStatsHud(true);
+    updateFollowRocketButton();
+
+    const rImg = '<img class="game-toast-icon" src="' + status.bld.iconSrc + '" alt="" draggable="false" />';
+    const rStrong = '<strong class="game-toast-strong">' + status.bld.name + "</strong>";
+    const dStrong =
+      '<strong class="game-toast-strong">' +
+      getPlanetName(destPlanet, status.destPlanetId) +
+      "</strong>";
+    showGameToast(
+      "<span>" +
+        rImg +
+        t("toast.rocket_launched", {
+          rocket: rStrong,
+          planet: dStrong,
+          citizens: formatPlanetStat(status.bld.rocketCitizens),
+          bricks: formatPlanetStat(bricksLoaded)
+        }) +
+        "</span>",
+      "success"
+    );
+    return true;
+  }
+
+  function updateFollowCamera(time, dtSec) {
+    if (followingFlightId === null) return false;
+    let flight = null;
+    for (let i = 0; i < activeFlights.length; i++) {
+      if (activeFlights[i].id === followingFlightId) {
+        flight = activeFlights[i];
+        break;
+      }
+    }
+    if (!flight) {
+      followingFlightId = null;
+      return false;
+    }
+
+    const elapsed = time - flight.startTime;
+    const zoomLerp = 1 - Math.exp(-8 * dtSec);
+    for (let i = 0; i < planets.length; i++) {
+      planets[i].targetZoom = MIN_ZOOM;
+    }
+
+    if (elapsed < flight.liftoffDur) {
+      const diff = flight.srcIdx - scrollPos;
+      scrollPos += diff * zoomLerp;
+      targetIndex = flight.srcIdx;
+      return true;
+    }
+
+    if (elapsed < flight.liftoffDur + flight.cruiseDur) {
+      const u = clamp01((elapsed - flight.liftoffDur) / flight.cruiseDur);
+      const e = easeInOutCubic(u);
+      scrollPos = lerp(flight.srcIdx, flight.destIdx, e);
+      targetIndex = u >= 0.5 ? flight.destIdx : flight.srcIdx;
+      return true;
+    }
+
+    const destPlanet = planets[flight.destIdx];
+    const diff = flight.destIdx - scrollPos;
+    if (Math.abs(diff) < 0.001) {
+      scrollPos = flight.destIdx;
+    } else {
+      scrollPos += diff * (1 - Math.exp(-10 * dtSec));
+    }
+    targetIndex = flight.destIdx;
+    if (!flight.focusedDest && destPlanet && flight.destTile) {
+      flight.focusedDest = true;
+      focusOnTile(destPlanet, flight.destTile);
+    }
+    return true;
+  }
+
+  function completeRocketFlight(flight, time) {
+    const destIdx = flight.destIdx;
+    const destPlanet = planets[destIdx];
+    const wasLocked = destPlanet && !destPlanet.unlocked;
+
+    buildingsByPlanet[destIdx][flight.destTileId] = {
+      id: flight.rocketId,
+      placedAt: time,
+      isLanded: true,
+      landedCitizens: flight.citizens,
+      loadedBricks: 0
+    };
+    tileEffectsByPlanet[destIdx][flight.destTileId] = {
+      type: "build",
+      prevBuildingId: null,
+      startTime: time,
+      duration: BUILD_VFX_MS,
+      seed: Number(flight.destTileId) * 1.43 + (time % 97) * 0.013
+    };
+
+    if (flight.bricks > 0) {
+      bricksByPlanet[destIdx] = (bricksByPlanet[destIdx] || 0) + flight.bricks;
+    }
+    const newCap = calculatePlanetCitizenCapacity(destIdx);
+    citizensByPlanet[destIdx] = Math.min(newCap, (citizensByPlanet[destIdx] || 0) + flight.citizens);
+
+    if (wasLocked) {
+      destPlanet.unlocked = true;
+      destPlanet.unlockVfx = createUnlockShatterVfx(time);
+      updatePlanetLockDots();
+      updatePlanetHeaderHud(true);
+    }
+
+    lastInteractionTime = time;
+    updatePlanetStatsHud(true);
+
+    const pImg = '<img class="game-toast-icon" src="' + destPlanet.iconSrc + '" alt="" draggable="false" />';
+    const pStrong = '<strong class="game-toast-strong">' + destPlanet.name + "</strong>";
+    const rStrong = '<strong class="game-toast-strong">' + flight.rocketName + "</strong>";
+    const msgKey = wasLocked ? "toast.rocket_landed_unlocked" : "toast.rocket_landed_delivered";
+    showGameToast(
+      "<span>" +
+        pImg +
+        t(msgKey, {
+          planet: pStrong,
+          rocket: rStrong,
+          citizens: formatPlanetStat(flight.citizens),
+          bricks: formatPlanetStat(flight.bricks)
+        }) +
+        "</span>",
+      "success"
+    );
+  }
+
+  function updateAndDrawActiveFlights(time) {
+    if (activeFlights.length === 0) return;
+
+    for (let i = activeFlights.length - 1; i >= 0; i--) {
+      const flight = activeFlights[i];
+      const elapsed = time - flight.startTime;
+      const totalDur = flight.liftoffDur + flight.cruiseDur + flight.landDur;
+
+      if (elapsed >= totalDur) {
+        const finished = flight;
+        activeFlights.splice(i, 1);
+        if (followingFlightId === finished.id) {
+          followingFlightId = null;
+        }
+        completeRocketFlight(finished, time);
+        updateFollowRocketButton();
+        continue;
+      }
+
+      const srcPlanet = planets[flight.srcIdx];
+      const destPlanet = planets[flight.destIdx];
+      const srcTr = getPlanetTransform(srcPlanet, flight.srcIdx);
+      const destTr = getPlanetTransform(destPlanet, flight.destIdx);
+
+      const exitX = srcTr.x + srcTr.scaledRadius * 0.72;
+      const exitY = srcTr.y - srcTr.scaledRadius * 1.15;
+      const entryX = destTr.x - destTr.scaledRadius * 0.72;
+      const entryY = destTr.y - destTr.scaledRadius * 1.18;
+
+      let rx = 0;
+      let ry = 0;
+      let rAngle = -Math.PI * 0.35;
+      let rScale = 18;
+      let rAlpha = 1;
+      let thrust = 1;
+
+      if (elapsed < flight.liftoffDur) {
+        const p = clamp01(elapsed / flight.liftoffDur);
+        const e = p * p;
+        const tInfo = flight.srcTile ? getPlanetTileScreenInfo(srcPlanet, srcTr, flight.srcTile) : null;
+        const padX = tInfo && tInfo.z > -0.15 ? tInfo.basePt.x : srcTr.x + srcTr.scaledRadius * 0.35;
+        const padY = tInfo && tInfo.z > -0.15 ? tInfo.basePt.y : srcTr.y - srcTr.scaledRadius * 0.25;
+        const padNx = tInfo && tInfo.z > -0.15 ? tInfo.nx : 0.45;
+        const padNy = tInfo && tInfo.z > -0.15 ? tInfo.ny : -0.89;
+
+        const climb = srcTr.scaledRadius * 1.05 * e;
+        const rawX = padX + padNx * climb;
+        const rawY = padY + padNy * climb;
+        const blend = clamp01((p - 0.55) / 0.45);
+        rx = lerp(rawX, exitX, blend * blend);
+        ry = lerp(rawY, exitY, blend * blend);
+
+        const baseAng = Math.atan2(padNy, padNx);
+        const targetAng = Math.atan2(exitY - rawY, exitX - rawX);
+        rAngle = lerp(baseAng, targetAng, blend);
+        rScale = clamp(srcTr.scaledRadius * 0.145 * lerp(1, 0.78, e), 14, 34);
+        rAlpha = srcTr.alpha;
+        thrust = 1.1;
+
+        // Pad smoke billows right around launchpad during liftoff
+        if (p < 0.75) {
+          const smP = p / 0.75;
+          for (let s = 0; s < 5; s++) {
+            const ang = s * 1.25 + smP * 0.4;
+            const spread = srcTr.scaledRadius * (0.06 + 0.22 * easeOutCubic(smP));
+            drawSmokePuffCloud(
+              ctx,
+              padX + Math.cos(ang) * spread,
+              padY + Math.sin(ang) * spread * 0.7,
+              rScale * (0.36 + 0.25 * (1 - smP)),
+              srcTr.alpha * (1 - smP) * 0.85,
+              true
+            );
+          }
+        }
+      } else if (elapsed < flight.liftoffDur + flight.cruiseDur) {
+        const u = clamp01((elapsed - flight.liftoffDur) / flight.cruiseDur);
+        const e = easeInOutCubic(u);
+        const arcPeakY = Math.min(exitY, entryY) - Math.min(height * 0.16, 110);
+        const midX = (exitX + entryX) * 0.5;
+        const omt = 1 - e;
+
+        rx = omt * omt * exitX + 2 * omt * e * midX + e * e * entryX;
+        ry = omt * omt * exitY + 2 * omt * e * arcPeakY + e * e * entryY;
+
+        const vx = 2 * omt * (midX - exitX) + 2 * e * (entryX - midX);
+        const vy = 2 * omt * (arcPeakY - exitY) + 2 * e * (entryY - arcPeakY);
+        rAngle = Math.atan2(vy, vx);
+        rScale = clamp(Math.min(width, height) * 0.044, 18, 32);
+        rAlpha = 1;
+        thrust = 1.0;
+
+        if (time - flight.lastTrailAt > 42) {
+          flight.lastTrailAt = time;
+          flight.trail.push({
+            x: rx - Math.cos(rAngle) * rScale * 0.65,
+            y: ry - Math.sin(rAngle) * rScale * 0.65,
+            r: rScale * 0.34,
+            born: time
+          });
+        }
+      } else {
+        const q = clamp01((elapsed - flight.liftoffDur - flight.cruiseDur) / flight.landDur);
+        const e = easeOutCubic(q);
+        const tInfo = flight.destTile ? getPlanetTileScreenInfo(destPlanet, destTr, flight.destTile) : null;
+        const landX = tInfo && tInfo.z > -0.15 ? tInfo.basePt.x : destTr.x;
+        const landY = tInfo && tInfo.z > -0.15 ? tInfo.basePt.y : destTr.y;
+        const landNx = tInfo && tInfo.z > -0.15 ? tInfo.nx : 0;
+        const landNy = tInfo && tInfo.z > -0.15 ? tInfo.ny : -1;
+
+        const approachDist = destTr.scaledRadius * 1.12;
+        const startX = lerp(entryX, landX + landNx * approachDist, clamp01(q * 2.1));
+        const startY = lerp(entryY, landY + landNy * approachDist, clamp01(q * 2.1));
+        rx = lerp(startX, landX, e);
+        ry = lerp(startY, landY, e);
+
+        const uprightAng = Math.atan2(landNy, landNx);
+        rAngle = q < 0.35 ? lerp(0.1, uprightAng, q / 0.35) : uprightAng;
+        rScale = clamp(destTr.scaledRadius * 0.125, 14, 30);
+        rAlpha = destTr.alpha;
+        thrust = q < 0.9 ? 0.72 * (1 - q * 0.6) : 0;
+
+        if (q > 0.72) {
+          const dustP = (q - 0.72) / 0.28;
+          for (let d = 0; d < 4; d++) {
+            const da = d * 1.57 + dustP * 0.5;
+            const spread = destTr.scaledRadius * (0.04 + 0.14 * dustP);
+            drawSmokePuffCloud(
+              ctx,
+              landX + Math.cos(da) * spread,
+              landY + Math.sin(da) * spread * 0.7,
+              rScale * 0.32 * (1 - dustP * 0.5),
+              destTr.alpha * (1 - dustP) * 0.85,
+              false
+            );
+          }
+        }
+      }
+
+      // Draw smoke trail puffs behind cruising rocket
+      for (let tIdx = flight.trail.length - 1; tIdx >= 0; tIdx--) {
+        const pt = flight.trail[tIdx];
+        const age = (time - pt.born) / 680;
+        if (age >= 1) {
+          flight.trail.splice(tIdx, 1);
+          continue;
+        }
+        drawSmokePuffCloud(ctx, pt.x, pt.y, pt.r * (0.7 + age * 0.75), (1 - age) * 0.78, false);
+      }
+
+      if (rAlpha > 0.02 && rx > -120 && rx < width + 120 && ry > -120 && ry < height + 120) {
+        drawFlightRocket(ctx, rx, ry, rAngle, rScale, flight.rocketId, thrust, rAlpha, time);
+      }
+    }
+  }
+
+  function updateRocketActionOverlay() {
+    if (!tileRocketActionsEl) return;
+    const modalBlocking =
+      (window.GameResearch && typeof window.GameResearch.isOpen === "function" && window.GameResearch.isOpen()) ||
+      cargoModalState.open;
+    if (!rocketActionAnchor.visible || modalBlocking) {
+      tileRocketActionsEl.classList.add("is-hidden");
+      return;
+    }
+
+    const placed =
+      buildingsByPlanet[rocketActionAnchor.planetId] &&
+      buildingsByPlanet[rocketActionAnchor.planetId][rocketActionAnchor.tileId];
+    const bld = placed && window.GameBuildings ? window.GameBuildings.getBuilding(placed.id) : null;
+    if (!placed || !bld || !bld.rocketTier) {
+      tileRocketActionsEl.classList.add("is-hidden");
+      return;
+    }
+
+    const loaded = Math.max(0, Math.floor(placed.loadedBricks || 0));
+    if (tileRocketCargoLabelEl) {
+      tileRocketCargoLabelEl.textContent =
+        loaded > 0
+          ? t("rocket.cargo_btn_loaded", {
+              loaded: formatPlanetStat(loaded),
+              max: formatPlanetStat(bld.rocketMaxBricks)
+            })
+          : t("rocket.cargo_btn");
+    }
+    if (tileRocketLaunchIconEl) {
+      tileRocketLaunchIconEl.src = bld.iconSrc;
+    }
+    if (tileRocketLaunchBtn) {
+      const status = getRocketLaunchStatus(rocketActionAnchor.planetId, rocketActionAnchor.tileId, false);
+      tileRocketLaunchBtn.classList.toggle("is-disabled", !status.ok);
+    }
+
+    tileRocketActionsEl.classList.remove("is-hidden");
+    tileRocketActionsEl.style.transform =
+      "translate3d(" + rocketActionAnchor.x.toFixed(1) + "px, " + rocketActionAnchor.y.toFixed(1) + "px, 0) translate(-50%, -100%)";
+  }
+
   // --- Main Render Loop ---
 
   function render(time) {
@@ -1640,14 +3079,27 @@
       if (brickRate > 0) {
         bricksByPlanet[i] += brickRate * dtSec;
       }
+      if (planets[i] && planets[i].unlocked) {
+        const maxCit = calculatePlanetCitizenCapacity(i);
+        if (maxCit > 0 && citizensByPlanet[i] < maxCit) {
+          citizensByPlanet[i] = Math.min(maxCit, citizensByPlanet[i] + CITIZEN_REGEN_PER_SEC * dtSec);
+        } else if (citizensByPlanet[i] > maxCit) {
+          citizensByPlanet[i] = maxCit;
+        }
+      }
     }
     updatePlanetBricksHud(false);
+    updatePlanetCitizenHud(false);
+    if (cargoModalState.open) {
+      syncRocketCargoModal();
+    }
 
     if (window.GameResearch && typeof window.GameResearch.tick === "function") {
       window.GameResearch.tick(dtSec, calculateTotalResearchRate());
     }
 
     researchButtonAnchor.visible = false;
+    rocketActionAnchor.visible = false;
 
     let targetShiftX = 0;
     let targetShiftY = 0;
@@ -1696,7 +3148,8 @@
     if (Math.abs(targetShiftY - drawerShiftY) < 0.25) drawerShiftY = targetShiftY;
     if (Math.abs(targetScale - drawerScale) < 0.001) drawerScale = targetScale;
 
-    if (!isDragging || gestureMode !== "scroll") {
+    const followingActive = updateFollowCamera(time, dtSec);
+    if (!followingActive && (!isDragging || gestureMode !== "scroll")) {
       const diff = targetIndex - scrollPos;
       if (Math.abs(diff) < 0.0005) {
         scrollPos = targetIndex;
@@ -1790,8 +3243,12 @@
       drawPlanet(planets[i], transform, time, dtSec);
     }
 
+    updateAndDrawActiveFlights(time);
+
     if (tileResearchBtn) {
-      const modalActive = window.GameResearch && typeof window.GameResearch.isOpen === "function" && window.GameResearch.isOpen();
+      const modalActive =
+        (window.GameResearch && typeof window.GameResearch.isOpen === "function" && window.GameResearch.isOpen()) ||
+        cargoModalState.open;
       if (researchButtonAnchor.visible && !modalActive) {
         tileResearchBtn.classList.remove("is-hidden");
         tileResearchBtn.style.transform =
@@ -1800,6 +3257,9 @@
         tileResearchBtn.classList.add("is-hidden");
       }
     }
+
+    updateRocketActionOverlay();
+    updateFollowRocketButton();
 
     window.requestAnimationFrame(render);
   }
@@ -1864,6 +3324,7 @@
       }
     } else {
       gestureMode = "scroll";
+      followingFlightId = null;
     }
 
     canvas.classList.add("is-dragging");
@@ -1877,7 +3338,9 @@
     if (!isDragging) {
       if (e.pointerType === "mouse") {
         isHoveringPlanet = isPointOnPlanet(e.clientX, e.clientY);
-        const hit = isHoveringPlanet ? findHexAtPoint(e.clientX, e.clientY, false) : null;
+        const idx = Math.round(clamp(scrollPos, 0, PLANET_COUNT - 1));
+        const unlocked = planets[idx] && planets[idx].unlocked;
+        const hit = isHoveringPlanet && unlocked ? findHexAtPoint(e.clientX, e.clientY, false) : null;
         hoveredHexId = hit ? hit.hexId : null;
         canvas.style.cursor = hit ? "pointer" : "grab";
       }
@@ -1955,6 +3418,41 @@
     const now = performance.now();
     const onPlanet = isPointOnPlanet(e.clientX, e.clientY);
     const activePlanet = planets[startSnapIndex];
+
+    if (onPlanet && activePlanet && !activePlanet.unlocked) {
+      const reqTier = activePlanet.requiredRocketTier || 1;
+      const rocketImgName = reqTier >= 2 ? "bld-space-rocket-2.svg" : "bld-space-rocket-1.svg";
+      const prevPlanet = planets[Math.max(0, startSnapIndex - 1)];
+      const lockIcon = '<img class="game-toast-icon" src="./assets/ui/icon-lock.svg" alt="" draggable="false" />';
+      const planetPill =
+        '<span class="game-toast-pill"><img class="game-toast-pill-icon" src="' +
+        activePlanet.iconSrc +
+        '" alt="" draggable="false" /> ' +
+        getPlanetName(activePlanet, startSnapIndex) +
+        "</span>";
+      const tierPill =
+        '<span class="game-toast-pill"><img class="game-toast-pill-icon" src="./assets/ui/' +
+        rocketImgName +
+        '" alt="" draggable="false" /> ' +
+        t("rocket.tier_chip", { tier: reqTier }) +
+        "</span>";
+      const prevPill =
+        '<strong class="game-toast-strong">' +
+        getPlanetName(prevPlanet, Math.max(0, startSnapIndex - 1)) +
+        "</strong>";
+      showGameToast(
+        "<span>" +
+          lockIcon +
+          t("toast.planet_locked_requires_rocket", {
+            planet: planetPill,
+            tier: tierPill,
+            prevPlanet: prevPill
+          }) +
+          "</span>"
+      );
+      lastInteractionTime = now;
+      return;
+    }
     const isDoubleTap =
       onPlanet &&
       now - lastTapTime < DOUBLE_TAP_MS &&
@@ -2104,6 +3602,12 @@
       }
       return;
     }
+    if (cargoModalState.open) {
+      if (e.key === "Escape") {
+        closeRocketCargoModal();
+      }
+      return;
+    }
     const activeTag = document.activeElement && document.activeElement.tagName;
     if (
       isRenamingPlanet ||
@@ -2192,6 +3696,115 @@
       });
     }
 
+    if (tileRocketCargoBtn) {
+      tileRocketCargoBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        if (rocketActionAnchor.planetId >= 0 && rocketActionAnchor.tileId) {
+          openRocketCargoModal(rocketActionAnchor.planetId, rocketActionAnchor.tileId);
+        }
+      });
+    }
+
+    if (tileRocketLaunchBtn) {
+      tileRocketLaunchBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        if (rocketActionAnchor.planetId >= 0 && rocketActionAnchor.tileId) {
+          launchRocket(rocketActionAnchor.planetId, rocketActionAnchor.tileId);
+        }
+      });
+    }
+
+    if (followRocketBtn) {
+      followRocketBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        if (activeFlights.length === 0) {
+          followingFlightId = null;
+          updateFollowRocketButton();
+          return;
+        }
+        const targetFlight = activeFlights[activeFlights.length - 1];
+        if (followingFlightId === targetFlight.id) {
+          followingFlightId = null;
+        } else {
+          followingFlightId = targetFlight.id;
+          isDragging = false;
+          activePointerId = null;
+          gestureMode = null;
+          clearSelectionAndCloseBuildMenu();
+        }
+        updateFollowRocketButton();
+      });
+    }
+
+    if (closeRocketCargoBtn) {
+      closeRocketCargoBtn.addEventListener("click", closeRocketCargoModal);
+    }
+    if (rocketCargoBackdropEl) {
+      rocketCargoBackdropEl.addEventListener("click", closeRocketCargoModal);
+    }
+    if (cargoDoneBtn) {
+      cargoDoneBtn.addEventListener("click", closeRocketCargoModal);
+    }
+    if (cargoLaunchBtn) {
+      cargoLaunchBtn.addEventListener("click", function () {
+        if (cargoModalState.open && cargoModalState.planetId >= 0 && cargoModalState.tileId) {
+          launchRocket(cargoModalState.planetId, cargoModalState.tileId);
+        }
+      });
+    }
+    if (rocketCargoSliderEl) {
+      rocketCargoSliderEl.addEventListener("input", function () {
+        if (cargoModalState.open) {
+          setRocketLoadedBricks(cargoModalState.planetId, cargoModalState.tileId, Number(this.value));
+        }
+      });
+    }
+    if (cargoEmptyBtn) {
+      cargoEmptyBtn.addEventListener("click", function () {
+        if (cargoModalState.open) {
+          setRocketLoadedBricks(cargoModalState.planetId, cargoModalState.tileId, 0);
+        }
+      });
+    }
+    if (cargoMinusBtn) {
+      cargoMinusBtn.addEventListener("click", function () {
+        if (!cargoModalState.open) return;
+        const placed =
+          buildingsByPlanet[cargoModalState.planetId] &&
+          buildingsByPlanet[cargoModalState.planetId][cargoModalState.tileId];
+        setRocketLoadedBricks(
+          cargoModalState.planetId,
+          cargoModalState.tileId,
+          ((placed && placed.loadedBricks) || 0) - 10
+        );
+      });
+    }
+    if (cargoPlusBtn) {
+      cargoPlusBtn.addEventListener("click", function () {
+        if (!cargoModalState.open) return;
+        const placed =
+          buildingsByPlanet[cargoModalState.planetId] &&
+          buildingsByPlanet[cargoModalState.planetId][cargoModalState.tileId];
+        setRocketLoadedBricks(
+          cargoModalState.planetId,
+          cargoModalState.tileId,
+          ((placed && placed.loadedBricks) || 0) + 10
+        );
+      });
+    }
+    if (cargoMaxBtn) {
+      cargoMaxBtn.addEventListener("click", function () {
+        if (!cargoModalState.open) return;
+        const placed =
+          buildingsByPlanet[cargoModalState.planetId] &&
+          buildingsByPlanet[cargoModalState.planetId][cargoModalState.tileId];
+        const bld = placed && window.GameBuildings ? window.GameBuildings.getBuilding(placed.id) : null;
+        if (bld && bld.rocketMaxBricks) {
+          setRocketLoadedBricks(cargoModalState.planetId, cargoModalState.tileId, bld.rocketMaxBricks);
+        }
+      });
+    }
+
     if (renamePlanetBtn) {
       renamePlanetBtn.addEventListener("pointerdown", function (e) {
         if (isRenamingPlanet) {
@@ -2244,6 +3857,12 @@
       }
       if (typeof window.GameResearch.onChange === "function") {
         window.GameResearch.onChange(function () {
+          for (let i = 0; i < PLANET_COUNT; i++) {
+            const cap = calculatePlanetCitizenCapacity(i);
+            if (citizensByPlanet[i] > cap) {
+              citizensByPlanet[i] = cap;
+            }
+          }
           updatePlanetStatsHud(true);
         });
       }
@@ -2255,11 +3874,12 @@
         onPlace: function (buildingId) {
           const tileId = selectedHexByPlanet[targetIndex];
           if (!tileId) return;
+          const planet = planets[targetIndex];
+          if (!planet || !planet.unlocked) return;
           const existing = buildingsByPlanet[targetIndex][tileId];
           if (existing && existing.id === buildingId) return;
 
-          const planet = planets[targetIndex];
-          const tile = planet && planet.tileById[tileId];
+          const tile = planet.tileById[tileId];
           const bld = window.GameBuildings.getBuilding(buildingId);
           if (!bld || !tile) return;
           if (
@@ -2278,11 +3898,27 @@
             return;
           }
 
+          if (existing && existing.loadedBricks > 0) {
+            bricksByPlanet[targetIndex] = (bricksByPlanet[targetIndex] || 0) + existing.loadedBricks;
+          }
+
+          const prevCap = calculatePlanetCitizenCapacity(targetIndex);
           const now = performance.now();
           buildingsByPlanet[targetIndex][tileId] = {
             id: buildingId,
-            placedAt: now
+            placedAt: now,
+            isLanded: false,
+            loadedBricks: 0,
+            landedCitizens: 0
           };
+          const newCap = calculatePlanetCitizenCapacity(targetIndex);
+          const capDiff = newCap - prevCap;
+          if (capDiff > 0) {
+            citizensByPlanet[targetIndex] = Math.min(newCap, (citizensByPlanet[targetIndex] || 0) + capDiff);
+          } else {
+            citizensByPlanet[targetIndex] = Math.min(newCap, citizensByPlanet[targetIndex] || 0);
+          }
+
           tileEffectsByPlanet[targetIndex][tileId] = {
             type: "build",
             prevBuildingId: existing ? existing.id : null,
@@ -2305,8 +3941,17 @@
           const removed = buildingsByPlanet[targetIndex][tileId];
           if (!removed) return;
 
+          if (removed.loadedBricks > 0) {
+            bricksByPlanet[targetIndex] = (bricksByPlanet[targetIndex] || 0) + removed.loadedBricks;
+          }
+          if (cargoModalState.open && cargoModalState.planetId === targetIndex && cargoModalState.tileId === tileId) {
+            closeRocketCargoModal();
+          }
+
           const now = performance.now();
           delete buildingsByPlanet[targetIndex][tileId];
+          const newCap = calculatePlanetCitizenCapacity(targetIndex);
+          citizensByPlanet[targetIndex] = Math.min(newCap, citizensByPlanet[targetIndex] || 0);
           tileEffectsByPlanet[targetIndex][tileId] = {
             type: "demolish",
             buildingId: removed.id,
