@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" stroke-linejoin="round" stroke-linecap="round">
+  <ellipse cx="50" cy="91" rx="44" ry="5.5" fill="#1b1147" opacity="0.28"/>
+  <!-- Heavy slate mountain dome -->
+  <path d="M8 88 Q14 38 50 30 Q86 38 92 88 Z" fill="#64748b" stroke="#1b1147" stroke-width="5"/>
+  <path d="M20 66 Q24 44 45 36 Q33 52 31 70 Z" fill="#94a3b8"/>
+  <!-- Twin steel truss derrick towers -->
+  <polygon points="26,50 34,14 42,50" fill="#cbd5e1" stroke="#1b1147" stroke-width="4"/>
+  <polygon points="58,50 66,14 74,50" fill="#cbd5e1" stroke="#1b1147" stroke-width="4"/>
+  <!-- Orange industrial crossbeam -->
+  <rect x="24" y="22" width="52" height="10" rx="3.5" fill="#f97316" stroke="#1b1147" stroke-width="4"/>
+  <path d="M29 25 H71" stroke="#fdba74" stroke-width="2.8"/>
+  <!-- Glowing amber drill shaft -->
+  <rect x="46" y="32" width="8" height="36" rx="2" fill="#e2e8f0" stroke="#1b1147" stroke-width="3.5"/>
+  <polygon points="43,54 50,74 57,54" fill="#fbbf24" stroke="#1b1147" stroke-width="3.5"/>
+  <!-- Deep bore arch -->
+  <path d="M32 88 V66 Q32 54 50 54 Q68 54 68 66 V88 Z" fill="#2a1a6e" stroke="#1b1147" stroke-width="4"/>
+  <!-- Stacked construction brick crates at base -->
+  <rect x="13" y="75" width="22" height="13" rx="3" fill="#e85d3f" stroke="#1b1147" stroke-width="3.5"/>
+  <path d="M24 75 V88 M13 81.5 H35" stroke="#1b1147" stroke-width="2.2"/>
+  <rect x="65" y="75" width="22" height="13" rx="3" fill="#e85d3f" stroke="#1b1147" stroke-width="3.5"/>
+  <path d="M76 75 V88 M65 81.5 H87" stroke="#1b1147" stroke-width="2.2"/>
+</svg>

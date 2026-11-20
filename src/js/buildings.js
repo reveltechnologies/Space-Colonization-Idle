@@ -55,7 +55,8 @@
 
   const STAT_ICONS = {
     citizens: "./assets/ui/icon-citizen.svg",
-    energy: "./assets/ui/icon-energy.svg"
+    energy: "./assets/ui/icon-energy.svg",
+    bricks: "./assets/ui/icon-bricks.svg"
   };
 
   const BUILDINGS = [
@@ -65,12 +66,35 @@
       category: "mining",
       tag: t("categories.mining"),
       terrain: "mountainous",
-      specialtyLabel: t("buildings.mine.specialty"),
-      specialtyIconSrc: "./assets/ui/icon-ore.svg",
+      bricksPerSec: 0.2,
       description: t("buildings.mine.description"),
       cost: { credits: 100 },
       accent: "#ffb13b",
       iconSrc: "./assets/ui/bld-mine.svg"
+    },
+    {
+      id: "deep_mine",
+      name: t("buildings.deep_mine.name"),
+      category: "mining",
+      tag: t("categories.mining"),
+      terrain: "mountainous",
+      bricksPerSec: 0.8,
+      description: t("buildings.deep_mine.description"),
+      cost: { credits: 230, ore: 40 },
+      accent: "#f97316",
+      iconSrc: "./assets/ui/bld-deep-mine.svg"
+    },
+    {
+      id: "mega_quarry",
+      name: t("buildings.mega_quarry.name"),
+      category: "mining",
+      tag: t("categories.mining"),
+      terrain: "mountainous",
+      bricksPerSec: 2.5,
+      description: t("buildings.mega_quarry.description"),
+      cost: { credits: 460, ore: 90 },
+      accent: "#ef4444",
+      iconSrc: "./assets/ui/bld-mega-quarry.svg"
     },
     {
       id: "research_lab",
@@ -257,6 +281,35 @@
       return window.GameCurrencies.formatNumber(amount);
     }
     return String(amount);
+  }
+
+  function formatRateNumber(val) {
+    if (val >= 1000) {
+      return formatCostValue(val);
+    }
+    if (val >= 100) {
+      return String(Math.round(val));
+    }
+    const rounded = Math.round(val * 10) / 10;
+    return rounded % 1 === 0 ? String(rounded | 0) : rounded.toFixed(1);
+  }
+
+  function formatProductionRate(perSec) {
+    const r = Math.max(0, Number(perSec) || 0);
+    if (r <= 0) return "";
+    if (r >= 1) {
+      return t("rates.per_second", { rate: formatRateNumber(r) });
+    }
+    const perMin = r * 60;
+    if (perMin >= 1) {
+      return t("rates.per_minute", { rate: formatRateNumber(perMin) });
+    }
+    const perHour = r * 3600;
+    if (perHour >= 1) {
+      return t("rates.per_hour", { rate: formatRateNumber(perHour) });
+    }
+    const perDay = Math.max(1, r * 86400);
+    return t("rates.per_day", { rate: formatRateNumber(perDay) });
   }
 
   // --- Drawer UI References & State ---
@@ -596,6 +649,18 @@
             b.energySlots
           )
         );
+      } else if (!showInvalidTerrain && b.bricksPerSec && b.bricksPerSec > 0) {
+        info.appendChild(
+          createCardInfoChip(
+            "build-bricks-chip",
+            "build-bricks-icon",
+            STAT_ICONS.bricks,
+            "build-bricks-label",
+            formatProductionRate(b.bricksPerSec),
+            "data-bricks-rate",
+            b.bricksPerSec
+          )
+        );
       } else {
         info.appendChild(
           createCardInfoChip(
@@ -809,6 +874,18 @@
             formatEnergyGain(b.energySlots),
             "data-energy-slots",
             b.energySlots
+          )
+        );
+      } else if (b.bricksPerSec && b.bricksPerSec > 0) {
+        confirmBadgesEl.appendChild(
+          createCardInfoChip(
+            "build-bricks-chip",
+            "build-bricks-icon",
+            STAT_ICONS.bricks,
+            "build-bricks-label",
+            formatProductionRate(b.bricksPerSec),
+            "data-bricks-rate",
+            b.bricksPerSec
           )
         );
       } else if (b.specialtyLabel && b.specialtyIconSrc) {
@@ -1686,6 +1763,88 @@
     m.addPrism(0.32, -0.16, 0.25, 0.37, 0.08, 0.01, 5, 0.4, [34, 211, 238], { emissive: 0.45, spec: 0.65 });
   }
 
+  function buildDeepMineModel(m, time, phase, pxScale) {
+    // Heavy hexagonal reinforced foundation
+    m.addPrism(0, 0, 0.0, 0.10, 0.60, 0.54, 6, Math.PI / 6, [68, 80, 98], { spec: 0.30 });
+    // Glowing deep-bore pit
+    m.addPrism(0, 0, 0.10, 0.12, 0.25, 0.21, 8, 0, [249, 115, 22], { emissive: 0.60 });
+
+    const lw = Math.max(1.5, pxScale * 0.065);
+    // Twin steel truss derrick towers
+    const towers = [
+      { x: -0.26, y: 0.0 },
+      { x: 0.26, y: 0.0 }
+    ];
+    for (let i = 0; i < towers.length; i++) {
+      const tx = towers[i].x;
+      const ty = towers[i].y;
+      m.addLine([tx - 0.11, ty - 0.11, 0.10], [tx - 0.04, ty - 0.04, 0.78], "#cbd5e1", lw);
+      m.addLine([tx + 0.11, ty - 0.11, 0.10], [tx + 0.04, ty - 0.04, 0.78], "#cbd5e1", lw);
+      m.addLine([tx - 0.11, ty + 0.11, 0.10], [tx - 0.04, ty + 0.04, 0.78], "#cbd5e1", lw);
+      m.addLine([tx + 0.11, ty + 0.11, 0.10], [tx + 0.04, ty + 0.04, 0.78], "#cbd5e1", lw);
+    }
+
+    // Orange industrial crossbeam bridge + hazard beacons
+    m.addBox(0, 0, 0.78, 0.36, 0.09, 0.06, [249, 115, 22], { spec: 0.32 });
+    const beaconGlow = 0.55 + 0.38 * Math.sin(time * 0.007 + phase);
+    m.addPrism(-0.26, 0, 0.84, 0.91, 0.05, 0.02, 6, 0, [251, 191, 36], { emissive: beaconGlow });
+    m.addPrism(0.26, 0, 0.84, 0.91, 0.05, 0.02, 6, 0, [251, 191, 36], { emissive: beaconGlow });
+
+    // Thick animated hydraulic piston drill shaft
+    const bob = 0.08 * Math.abs(Math.sin(time * 0.008 + phase));
+    m.addPrism(0, 0, 0.08 + bob, 0.74, 0.075, 0.06, 8, time * 0.007, [226, 232, 240], { spec: 0.55 });
+    m.addPrism(0, 0, 0.05 + bob, 0.18 + bob, 0.12, 0.015, 8, time * 0.007, [251, 191, 36], { emissive: 0.70 });
+
+    // Stacked terracotta construction brick pallets
+    m.addBox(-0.34, -0.24, 0.16, 0.13, 0.09, 0.06, [232, 93, 63], { spec: 0.15 });
+    m.addBox(-0.34, -0.24, 0.26, 0.10, 0.08, 0.04, [240, 103, 72], { spec: 0.15 });
+    m.addBox(0.34, 0.24, 0.16, 0.13, 0.09, 0.06, [217, 78, 50], { spec: 0.15 });
+  }
+
+  function buildMegaQuarryModel(m, time, phase, pxScale) {
+    // Stepped octagonal open-pit quarry foundation
+    m.addPrism(0, 0, 0.0, 0.09, 0.66, 0.61, 8, Math.PI / 8, [63, 63, 70], { spec: 0.22 });
+    m.addPrism(0, 0, 0.09, 0.15, 0.52, 0.46, 8, Math.PI / 8, [82, 82, 91], { spec: 0.25 });
+    // Glowing thermal quarry core pit
+    m.addPrism(0, 0, 0.15, 0.175, 0.24, 0.19, 8, 0, [249, 115, 22], { emissive: 0.68 });
+
+    // Tri-pillar heavy crimson/steel orbital gantry legs
+    const lw = Math.max(1.6, pxScale * 0.07);
+    const gantryPts = [
+      [-0.36, -0.26],
+      [0.36, -0.26],
+      [0.0, 0.38]
+    ];
+    for (let i = 0; i < gantryPts.length; i++) {
+      const gx = gantryPts[i][0];
+      const gy = gantryPts[i][1];
+      m.addPrism(gx, gy, 0.15, 0.24, 0.08, 0.07, 6, 0, [148, 163, 184], { spec: 0.35 });
+      m.addLine([gx, gy, 0.22], [gx * 0.35, gy * 0.35, 0.88], "#ef4444", lw);
+    }
+
+    // Upper crimson-amber crane crown & floodlights
+    m.addPrism(0, 0, 0.82, 0.92, 0.24, 0.19, 6, 0, [239, 68, 68], { spec: 0.38 });
+    const glow = 0.60 + 0.32 * Math.sin(time * 0.006 + phase);
+    m.addPrism(0, 0, 0.92, 0.98, 0.09, 0.04, 6, 0, [251, 191, 36], { emissive: glow });
+
+    // Rotating upper crane jib arm
+    const armAngle = time * 0.0018 + phase;
+    const ax = Math.cos(armAngle) * 0.42;
+    const ay = Math.sin(armAngle) * 0.42;
+    m.addLine([0, 0, 0.92], [ax, ay, 0.96], "#ff9838", lw * 0.9);
+    m.addLine([0, 0, 0.92], [-ax * 0.45, -ay * 0.45, 0.94], "#cbd5e1", lw * 0.8);
+
+    // Pulsing central auger/laser excavator column
+    const pulseR = 0.055 + 0.015 * Math.sin(time * 0.01 + phase);
+    m.addPrism(0, 0, 0.17, 0.82, pulseR, pulseR * 0.85, 8, time * 0.008, [56, 189, 248], { emissive: 0.85, spec: 0.6 });
+
+    // Dual terracotta brick sintering silos / stacks
+    m.addBox(-0.40, 0.18, 0.22, 0.12, 0.10, 0.09, [232, 93, 63], { spec: 0.18 });
+    m.addBox(-0.40, 0.18, 0.34, 0.09, 0.08, 0.05, [240, 103, 72], { spec: 0.18 });
+    m.addBox(0.40, 0.18, 0.22, 0.12, 0.10, 0.09, [217, 78, 50], { spec: 0.18 });
+    m.addBox(0.40, 0.18, 0.34, 0.09, 0.08, 0.05, [240, 103, 72], { spec: 0.18 });
+  }
+
   function buildResearchLabModel(m, time, phase, pxScale) {
     // Titanium hex foundation deck
     m.addPrism(0, 0, 0.0, 0.09, 0.58, 0.53, 6, 0, [100, 116, 139], { spec: 0.25 });
@@ -2201,6 +2360,10 @@
 
     if (buildingId === "mine") {
       buildMineModel(collector, time, phase, pxScale);
+    } else if (buildingId === "deep_mine") {
+      buildDeepMineModel(collector, time, phase, pxScale);
+    } else if (buildingId === "mega_quarry") {
+      buildMegaQuarryModel(collector, time, phase, pxScale);
     } else if (buildingId === "research_lab") {
       buildResearchLabModel(collector, time, phase, pxScale);
     } else if (buildingId === "small_house" || buildingId === "house") {
@@ -2592,6 +2755,8 @@
     // Height of impact target for each building type (local Z above tile base)
     const buildingImpactHeights = {
       mine: 0.60,
+      deep_mine: 0.72,
+      mega_quarry: 0.84,
       research_lab: 0.38,
       small_house: 0.36,
       house: 0.36,
@@ -2818,6 +2983,7 @@
     getCategory: getCategory,
     canBuildOnBiome: canBuildOnBiome,
     canAffordBuilding: canAffordBuilding,
+    formatProductionRate: formatProductionRate,
     setHandlers: setHandlers,
     openForTile: openForTile,
     updateCurrentBuilding: updateCurrentBuilding,

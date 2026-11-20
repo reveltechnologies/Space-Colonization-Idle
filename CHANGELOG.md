@@ -52,6 +52,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **English (`en_us`) Language Pack & Localization System**:
   - Created centralized `en_us` localization resource in `src/lang/en_us.js` (`window.GameLang`) covering all UI text, ARIA labels, planet names, biomes, terrain groups, categories, building names, specialized descriptions, tooltips, and toast templates.
   - Refactored `src/index.html` (via `data-i18n*` attributes) and `src/js/currencies.js`, `src/js/buildings.js`, and `src/js/planets.js` to resolve strings dynamically from `en_us` instead of hardcoding them.
+- **Per-Planet Construction Bricks Resource & Multi-Tier Mining**:
+  - Added a per-planet **Construction Bricks** resource (`bricksByPlanet`) displayed in the top-right Planet Status Deck (`#planet-stat-bricks`) as a single live counter (`#val-bricks`) and production rate (`#rate-bricks`, without current/max).
+  - Implemented smart localized production rate formatting (`formatProductionRate`) scaling automatically across `/s`, `/min`, `/hr`, and `/day`.
+  - Expanded the Mining line to 3 tiers with custom cel-shaded SVG icons (`icon-bricks.svg`, `bld-deep-mine.svg`, `bld-mega-quarry.svg`), 3D models (`buildDeepMineModel`, `buildMegaQuarryModel`), and brick production rate chips:
+    - **Tier 1 - Mine** (`mine`): 100 SC, **+12/min** Bricks (`0.2/s`).
+    - **Tier 2 - Deep Mine** (`deep_mine`): 230 SC, 40 Ore, **+48/min** Bricks (`0.8/s`).
+    - **Tier 3 - Mega Quarry** (`mega_quarry`): 460 SC, 90 Ore, **+2.5/s** Bricks.
 
 ### Removed
 - **Cannot Build on Fluid Error Message in Build Menu**:

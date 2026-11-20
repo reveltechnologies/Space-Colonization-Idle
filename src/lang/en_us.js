@@ -46,7 +46,14 @@
       name_placeholder: "Planet name",
       citizens_tooltip: "Citizens on this planet (Current / Max Capacity)",
       energy_tooltip: "Energy on this planet (Current / Max Capacity)",
+      bricks_tooltip: "Construction Bricks on this planet (Obtained by Mines)",
       zoom_format: "{zoom}×"
+    },
+    rates: {
+      per_second: "+{rate}/s",
+      per_minute: "+{rate}/min",
+      per_hour: "+{rate}/hr",
+      per_day: "+{rate}/day"
     },
     planets: {
       planet_1: {
@@ -90,8 +97,15 @@
     buildings: {
       mine: {
         name: "Mine",
-        specialty: "Ore Extraction",
-        description: "Deep-core automated drill rig anchored into rocky ridges to excavate raw Space Ore veins from the planetary crust."
+        description: "Automated shaft drill anchored into rocky ridges that extracts dense stone and presses it into sturdy Construction Bricks."
+      },
+      deep_mine: {
+        name: "Deep Mine",
+        description: "Reinforced deep-crust boring facility with heavy hydraulic crushers that rapidly refine bedrock into high-grade Construction Bricks."
+      },
+      mega_quarry: {
+        name: "Mega Quarry",
+        description: "Colossal industrial strip-quarry and thermal sintering complex engineered to mass-produce Construction Bricks around the clock."
       },
       research_lab: {
         name: "Research Lab",

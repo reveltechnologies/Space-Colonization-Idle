@@ -485,6 +485,28 @@ img {
   box-shadow: 0 0 6px rgba(255, 210, 70, 0.65);
 }
 
+.planet-stat-cell--bricks {
+  min-width: 68px;
+}
+
+.planet-stat-cell--bricks .planet-stat-info {
+  gap: 2px;
+  min-width: 40px;
+}
+
+.planet-stat-rate {
+  font-size: 10.5px;
+  line-height: 1;
+  color: #ffab8a;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1.5px 0 var(--ink);
+  white-space: nowrap;
+}
+
+.planet-stat-rate:empty {
+  display: none;
+}
+
 /* ---------- Planet navigation ---------- */
 .planet-nav {
   --b: var(--blue);
@@ -1187,6 +1209,34 @@ img {
 }
 
 .build-energy-label {
+  font-size: 11.5px;
+  line-height: 1.05;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.build-bricks-chip {
+  max-width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 3px 9px 3px 5px;
+  border: 2px solid #b53822;
+  border-radius: 999px;
+  background: #ffe4dc;
+  color: #6e1c0e;
+}
+
+.build-bricks-icon {
+  flex-shrink: 0;
+  width: 17px;
+  height: 17px;
+  display: block;
+  object-fit: contain;
+}
+
+.build-bricks-label {
   font-size: 11.5px;
   line-height: 1.05;
   white-space: nowrap;
@@ -1975,21 +2025,24 @@ body.build-menu-open .planet-dots {
 
   .build-terrain-chip,
   .build-citizen-chip,
-  .build-energy-chip {
+  .build-energy-chip,
+  .build-bricks-chip {
     padding: 2px 6px 2px 4px;
     gap: 3px;
   }
 
   .build-terrain-icon,
   .build-citizen-icon,
-  .build-energy-icon {
+  .build-energy-icon,
+  .build-bricks-icon {
     width: 13px;
     height: 13px;
   }
 
   .build-terrain-label,
   .build-citizen-label,
-  .build-energy-label {
+  .build-energy-label,
+  .build-bricks-label {
     font-size: 10px;
   }
 
@@ -2237,7 +2290,8 @@ body.build-menu-open .planet-dots {
 
   .build-terrain-chip,
   .build-citizen-chip,
-  .build-energy-chip {
+  .build-energy-chip,
+  .build-bricks-chip {
     padding: 1.5px 5px 1.5px 3px;
   }
 
@@ -2416,6 +2470,14 @@ body.build-menu-open .planet-dots {
 
   .planet-stat-meter {
     height: 4px;
+  }
+
+  .planet-stat-cell--bricks {
+    min-width: 56px;
+  }
+
+  .planet-stat-rate {
+    font-size: 9.5px;
   }
 }
 

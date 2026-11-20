@@ -31,6 +31,9 @@
   const energyMaxEl = document.getElementById("val-energy-max");
   const energyStatBar = document.getElementById("planet-stat-energy");
   const energyMeterFillEl = document.getElementById("meter-energy-fill");
+  const bricksValEl = document.getElementById("val-bricks");
+  const bricksRateEl = document.getElementById("rate-bricks");
+  const bricksStatBar = document.getElementById("planet-stat-bricks");
 
   const PLANET_COUNT = 3;
   const PLANET_NAMES_STORAGE_KEY = "sci_planet_names_v1";
@@ -526,6 +529,7 @@
   const selectedHexByPlanet = [null, null, null];
   const buildingsByPlanet = [Object.create(null), Object.create(null), Object.create(null)];
   const tileEffectsByPlanet = [Object.create(null), Object.create(null), Object.create(null)];
+  const bricksByPlanet = [0, 0, 0];
   const BUILD_VFX_MS = 760;
   const DEMOLISH_VFX_MS = 900;
   let drawerShiftX = 0;
@@ -540,6 +544,7 @@
   let lastZoomGaugeKey = -1;
   const citizensHudState = { planet: -1, max: -1, curr: -1, bumpTimer: 0 };
   const energyHudState = { planet: -1, max: -1, curr: -1, bumpTimer: 0 };
+  const bricksHudState = { planet: -1, amount: -1, rateText: "", bumpTimer: 0 };
   let lastHeaderPlanet = -1;
   let emblemPopTimer = 0;
   let isRenamingPlanet = false;
@@ -775,10 +780,64 @@
     );
   }
 
+  function calculatePlanetBrickRate(planetIdx) {
+    return calculatePlanetStatCapacity(planetIdx, "bricksPerSec");
+  }
+
+  function formatPlanetBrickRate(ratePerSec) {
+    if (window.GameBuildings && typeof window.GameBuildings.formatProductionRate === "function") {
+      return window.GameBuildings.formatProductionRate(ratePerSec);
+    }
+    return "";
+  }
+
+  function updatePlanetBricksHud(force) {
+    if (!bricksValEl) return;
+    const activeIdx = activeDotIndex;
+    const shownAmount = Math.floor(bricksByPlanet[activeIdx] || 0);
+    const rateText = formatPlanetBrickRate(calculatePlanetBrickRate(activeIdx));
+    const changed =
+      force ||
+      activeIdx !== bricksHudState.planet ||
+      shownAmount !== bricksHudState.amount ||
+      rateText !== bricksHudState.rateText;
+    if (!changed) return;
+
+    const hadPrior = bricksHudState.planet !== -1 && bricksHudState.planet === activeIdx;
+    const gained = hadPrior && shownAmount > bricksHudState.amount;
+
+    bricksHudState.planet = activeIdx;
+    bricksHudState.amount = shownAmount;
+    bricksHudState.rateText = rateText;
+
+    bricksValEl.textContent = formatPlanetStat(shownAmount);
+    if (bricksRateEl) {
+      bricksRateEl.textContent = rateText;
+    }
+    if (bricksStatBar) {
+      bricksStatBar.classList.toggle("is-empty", shownAmount <= 0 && !rateText);
+    }
+
+    if (gained && bricksStatBar) {
+      const valWrap = bricksStatBar.querySelector(".planet-stat-value");
+      if (valWrap) {
+        valWrap.classList.remove("is-bumped");
+        void valWrap.offsetWidth;
+        valWrap.classList.add("is-bumped");
+        if (bricksHudState.bumpTimer) window.clearTimeout(bricksHudState.bumpTimer);
+        bricksHudState.bumpTimer = window.setTimeout(function () {
+          valWrap.classList.remove("is-bumped");
+          bricksHudState.bumpTimer = 0;
+        }, 160);
+      }
+    }
+  }
+
   function updatePlanetStatsHud(force) {
     updatePlanetHeaderHud(force);
     updatePlanetCitizenHud(force);
     updatePlanetEnergyHud(force);
+    updatePlanetBricksHud(force);
   }
 
   // Multi-touch & pointer tracking
@@ -1487,6 +1546,14 @@
     const dtMs = Math.min(time - lastFrameTime, 60);
     const dtSec = dtMs / 1000;
     lastFrameTime = time;
+
+    for (let i = 0; i < PLANET_COUNT; i++) {
+      const brickRate = calculatePlanetBrickRate(i);
+      if (brickRate > 0) {
+        bricksByPlanet[i] += brickRate * dtSec;
+      }
+    }
+    updatePlanetBricksHud(false);
 
     let targetShiftX = 0;
     let targetShiftY = 0;
