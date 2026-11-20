@@ -5,6 +5,39 @@ All notable changes to **Space Colonization: Idle** will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.0-alpha.13] - 2026-11-20
+
+### Changed
+- **Comprehensive Economy Rebalance & Construction Bricks Integration**:
+  - Rebalanced src/economy/economy.js so that Construction Bricks form an integral building currency in mid-and-high tier expansion alongside Space Credits:
+    - **Starter Mines**: Basic Mine costs 80 Credits (0 Bricks) to ensure immediate bootstrapping of the planetary economy.
+    - **Advanced Mines**: Deep Mine costs 180 Credits + 25 Bricks (0.85/s, 3 Energy); Mega Quarry costs 420 Credits + 70 Bricks (2.4/s, 7 Energy).
+    - **Automated Trade Rockets**:
+      - Trade Rocket I: 120 Credits + 15 Bricks (5 Bricks -> 20 SC every 6s).
+      - Trade Rocket II: 260 Credits + 45 Bricks (12 Bricks -> 60 SC every 4s).
+      - Trade Rocket III: 450 Credits + 100 Bricks (25 Bricks -> 150 SC every 2.5s).
+    - **Colony Housing**:
+      - Small House: 60 Credits + 10 Bricks (+2 Citizens).
+      - Big House: 160 Credits + 35 Bricks (+6 Citizens).
+      - Villa: 360 Credits + 80 Bricks (+15 Citizens).
+    - **Power Generation**:
+      - Solar Panel: 50 Credits (0 Bricks, +3 Energy).
+      - Solar Array: 150 Credits + 25 Bricks (+8 Energy).
+      - Solar Tower: 360 Credits + 65 Bricks (+20 Energy).
+      - Windmill: 100 Credits + 15 Bricks (+6 Energy).
+      - Wind Turbine: 240 Credits + 45 Bricks (+16 Energy).
+      - Wind Farm: 460 Credits + 95 Bricks (+35 Energy).
+    - **Science & Colonization**:
+      - Research Center: 140 Credits + 20 Bricks (+0.3 RP/s).
+      - Research Lab: 220 Credits + 40 Bricks (+0.7 RP/s).
+      - Observatory: 380 Credits + 75 Bricks (+1.6 RP/s).
+      - Quantum Array: 550 Credits + 120 Bricks (+3.8 RP/s).
+      - Space Rocket I: 400 Credits + 80 Bricks.
+      - Space Rocket II: 550 Credits + 160 Bricks.
+- **Planetary Currency Cost & Affordability Support**:
+  - Updated src/js/buildings.js to support `bricks` alongside `credits` in `CURRENCY_ICONS`, `canAffordBuilding`, cost items, confirm scenes, and error toasts.
+  - Linked planetary brick reserves via `callbacks.getPlanetBricks(planetId)` in src/js/planets.js so construction immediately and safely deducts planetary bricks when placing buildings or upgrading structures.
+
 ## [0.1.0-alpha.12] - 2026-11-20
 
 ### Added

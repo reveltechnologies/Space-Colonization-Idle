@@ -54,6 +54,7 @@
 
   const CURRENCY_ICONS = {
     credits: "./assets/ui/icon-credits.svg",
+    bricks: "./assets/ui/icon-bricks.svg",
     ore: "./assets/ui/icon-ore.svg"
   };
 
@@ -445,13 +446,40 @@
     return Boolean(biome && biome.terrains && biome.terrains.indexOf(b.terrain) !== -1);
   }
 
-  function canAffordBuilding(buildingId) {
+  function getAvailableCurrencyAmount(key, planetId) {
+    if (key === "bricks") {
+      const pId = planetId !== undefined && planetId !== null ? planetId : currentPlanetId;
+      if (typeof callbacks.getPlanetBricks === "function") {
+        return Math.max(0, Math.floor(callbacks.getPlanetBricks(pId) || 0));
+      }
+      return 0;
+    }
+    return (window.GameCurrencies && typeof window.GameCurrencies.get === "function" ? window.GameCurrencies.get(key) : 0) || 0;
+  }
+
+  function canAffordBuilding(buildingId, planetId) {
     const b = getBuilding(buildingId);
     if (!b || !b.cost) return true;
+    const pId = planetId !== undefined && planetId !== null ? planetId : currentPlanetId;
+    if (b.cost.bricks) {
+      const bricksReq = Math.max(0, Number(b.cost.bricks) || 0);
+      if (bricksReq > 0) {
+        const currentBricks = getAvailableCurrencyAmount("bricks", pId);
+        if (currentBricks < bricksReq) {
+          return false;
+        }
+      }
+    }
     if (!window.GameCurrencies || typeof window.GameCurrencies.canAfford !== "function") {
       return true;
     }
-    return window.GameCurrencies.canAfford(b.cost);
+    const globalCosts = {};
+    for (const key in b.cost) {
+      if (key !== "bricks" && Object.prototype.hasOwnProperty.call(b.cost, key)) {
+        globalCosts[key] = b.cost[key];
+      }
+    }
+    return window.GameCurrencies.canAfford(globalCosts);
   }
 
   function isBuildingResearchLocked(buildingId) {
@@ -807,20 +835,20 @@
       return true;
     }
 
-    if (!canAffordBuilding(b.id)) {
+    if (!canAffordBuilding(b.id, pId)) {
       const bldImg = '<img class="game-toast-icon" src="' + b.iconSrc + '" alt="" draggable="false" />';
       const bldStrong = '<strong class="game-toast-strong">' + b.name + "</strong>";
       const missing = [];
-      const costOrder = ["credits", "ore"];
+      const costOrder = ["credits", "bricks", "ore"];
       for (let c = 0; c < costOrder.length; c++) {
         const key = costOrder[c];
         const req = b.cost && b.cost[key];
         if (!req || req <= 0) continue;
-        const has = (window.GameCurrencies && window.GameCurrencies.get(key)) || 0;
+        const has = getAvailableCurrencyAmount(key, pId);
         if (has < req) {
           const diff = req - has;
           const cIcon = CURRENCY_ICONS[key];
-          const cLabel = key === "credits" ? t("currencies.credits") : t("currencies.ore");
+          const cLabel = key === "credits" ? t("currencies.credits") : (key === "bricks" ? t("currencies.bricks") : t("currencies.ore"));
           missing.push(
             '<span class="game-toast-pill"><img class="game-toast-pill-icon" src="' +
               cIcon +
@@ -1076,12 +1104,12 @@
         builtLbl.textContent = t("build.built_badge");
         actionBtn.appendChild(builtLbl);
       } else {
-        const costOrder = ["credits", "ore"];
+        const costOrder = ["credits", "bricks", "ore"];
         for (let c = 0; c < costOrder.length; c++) {
           const key = costOrder[c];
           const req = b.cost && b.cost[key];
           if (!req || req <= 0) continue;
-          const hasEnough = !window.GameCurrencies || window.GameCurrencies.get(key) >= req;
+          const hasEnough = getAvailableCurrencyAmount(key, currentPlanetId) >= req;
           const item = document.createElement("span");
           item.className = "build-cost-item" + (hasEnough ? "" : " is-short");
           const cIcon = document.createElement("img");
@@ -1335,12 +1363,12 @@
 
     if (confirmCostsEl) {
       confirmCostsEl.innerHTML = "";
-      const costOrder = ["credits", "ore"];
+      const costOrder = ["credits", "bricks", "ore"];
       for (let c = 0; c < costOrder.length; c++) {
         const key = costOrder[c];
         const req = b.cost && b.cost[key];
         if (!req || req <= 0) continue;
-        const hasEnough = !window.GameCurrencies || window.GameCurrencies.get(key) >= req;
+        const hasEnough = getAvailableCurrencyAmount(key, currentPlanetId) >= req;
         const item = document.createElement("span");
         item.className = "build-cost-item" + (hasEnough ? "" : " is-short");
         const cIcon = document.createElement("img");

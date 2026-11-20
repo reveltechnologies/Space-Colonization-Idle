@@ -46,6 +46,7 @@
     currencies: {
       credits: "Credits",
       ore: "Ore",
+      bricks: "Bricks",
       space_ore: "Space Ore",
       per_second: "/s",
       suffixes: ["", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No", "Dc"]

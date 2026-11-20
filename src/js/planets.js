@@ -2278,20 +2278,25 @@
     ctx.save();
     ctx.globalAlpha = clamp01(alpha);
 
-    // Dark ink outer disc + indigo backing
+    // Dark ink outer circle + bright white interior backing
     ctx.beginPath();
-    ctx.arc(bx, by + 1.5, radiusPx + 1.5, 0, Math.PI * 2);
+    ctx.arc(bx, by + 2, radiusPx + 2, 0, Math.PI * 2);
     ctx.fillStyle = "#1b1147";
     ctx.fill();
 
     ctx.beginPath();
-    ctx.arc(bx, by, radiusPx, 0, Math.PI * 2);
-    ctx.fillStyle = "#261447";
+    ctx.arc(bx, by, radiusPx + 1.5, 0, Math.PI * 2);
+    ctx.fillStyle = "#1b1147";
     ctx.fill();
 
-    // Draw resource SVG icon centered inside
+    ctx.beginPath();
+    ctx.arc(bx, by, Math.max(2, radiusPx - 0.5), 0, Math.PI * 2);
+    ctx.fillStyle = "#ffffff";
+    ctx.fill();
+
+    // Draw resource SVG icon larger inside the white circle
     if (iconImg && iconImg.complete && iconImg.naturalWidth > 0) {
-      const iconSize = radiusPx * 1.32;
+      const iconSize = radiusPx * 1.38;
       ctx.drawImage(iconImg, bx - iconSize * 0.5, by - iconSize * 0.5, iconSize, iconSize);
     }
 
@@ -2304,7 +2309,7 @@
     ctx.arc(bx, by, ringR, 0, Math.PI * 2);
     ctx.moveTo(bx - slashOff, by + slashOff);
     ctx.lineTo(bx + slashOff, by - slashOff);
-    ctx.lineWidth = Math.max(3.2, radiusPx * 0.34);
+    ctx.lineWidth = Math.max(3.6, radiusPx * 0.30);
     ctx.strokeStyle = "#1b1147";
     ctx.stroke();
 
@@ -2312,7 +2317,7 @@
     ctx.arc(bx, by, ringR, 0, Math.PI * 2);
     ctx.moveTo(bx - slashOff, by + slashOff);
     ctx.lineTo(bx + slashOff, by - slashOff);
-    ctx.lineWidth = Math.max(1.8, radiusPx * 0.19);
+    ctx.lineWidth = Math.max(2.2, radiusPx * 0.17);
     ctx.strokeStyle = "#ff3b4e";
     ctx.stroke();
 
@@ -2321,12 +2326,12 @@
 
   function drawBuildingBlockedOverlay(ctx, x, y, tileScale, planetR, isEnergyBlocked, isBricksBlocked, time, phase, alpha) {
     if ((!isEnergyBlocked && !isBricksBlocked) || alpha <= 0.04) return;
-    const bobY = Math.sin(time * 0.0046 + (phase || 0)) * Math.max(1.5, planetR * 0.012);
-    const badgeR = clamp(planetR * Math.max(0.055, tileScale * 0.24), 9.5, 16);
-    const py = y - badgeR * 0.95 + bobY;
+    const bobY = Math.sin(time * 0.0046 + (phase || 0)) * Math.max(2, planetR * 0.014);
+    const badgeR = clamp(planetR * Math.max(0.082, tileScale * 0.36), 15, 24);
+    const py = y - badgeR * 1.05 + bobY;
 
     if (isEnergyBlocked && isBricksBlocked) {
-      const sep = badgeR * 1.12;
+      const sep = badgeR * 1.18;
       drawBuildingBlockedBadge(ctx, x - sep, py, badgeR, blockedOverlayIcons.energy, alpha);
       drawBuildingBlockedBadge(ctx, x + sep, py, badgeR, blockedOverlayIcons.bricks, alpha);
     } else if (isEnergyBlocked) {
@@ -3707,7 +3712,7 @@
         tileTradeUpgradeBtn.classList.remove("is-hidden");
         const canAfford =
           window.GameBuildings && typeof window.GameBuildings.canAffordBuilding === "function"
-            ? window.GameBuildings.canAffordBuilding(nextDef.id)
+            ? window.GameBuildings.canAffordBuilding(nextDef.id, planet.id)
             : true;
         const researchLocked =
           window.GameBuildings && typeof window.GameBuildings.isBuildingResearchLocked === "function"
@@ -4639,6 +4644,10 @@
 
     if (window.GameBuildings) {
       window.GameBuildings.setHandlers({
+        getPlanetBricks: function (planetId) {
+          const idx = planetId !== undefined && planetId !== null ? planetId : targetIndex;
+          return bricksByPlanet[idx] || 0;
+        },
         getBuildingCountOnPlanet: countBuildingOnPlanet,
         onPlace: function (buildingId) {
           const tileId = selectedHexByPlanet[targetIndex];
@@ -4663,8 +4672,27 @@
             return;
           }
           if (!window.GameBuildings.canBuildOnBiome(buildingId, tile.biome)) return;
-          if (bld.cost && window.GameCurrencies && !window.GameCurrencies.spend(bld.cost)) {
-            return;
+          if (bld.cost) {
+            if (bld.cost.bricks) {
+              const reqBricks = Math.max(0, Number(bld.cost.bricks) || 0);
+              if ((bricksByPlanet[targetIndex] || 0) < reqBricks) {
+                return;
+              }
+            }
+            const globalCosts = {};
+            for (const cKey in bld.cost) {
+              if (cKey !== "bricks" && Object.prototype.hasOwnProperty.call(bld.cost, cKey)) {
+                globalCosts[cKey] = bld.cost[cKey];
+              }
+            }
+            if (window.GameCurrencies && !window.GameCurrencies.spend(globalCosts)) {
+              return;
+            }
+            if (bld.cost.bricks) {
+              const reqBricks = Math.max(0, Number(bld.cost.bricks) || 0);
+              bricksByPlanet[targetIndex] = Math.max(0, (bricksByPlanet[targetIndex] || 0) - reqBricks);
+              updatePlanetBricksHud(true);
+            }
           }
 
           const existingDef =
