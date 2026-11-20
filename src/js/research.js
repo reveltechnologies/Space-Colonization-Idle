@@ -321,10 +321,11 @@
     }
   };
 
-  let researchPoints =
+  const STARTING_RP =
     window.GameEconomy && typeof window.GameEconomy.get === "function"
       ? Number(window.GameEconomy.get("planets.startingResearchPoints", 0)) || 0
       : 0;
+  let researchPoints = STARTING_RP;
   let currentRpPerSec = 0;
   const researched = Object.create(null);
   let modalOpen = false;
@@ -614,6 +615,9 @@
     renderTree();
     renderDetailPanel();
     notifyChange();
+    if (window.GameSave && typeof window.GameSave.requestSave === "function") {
+      window.GameSave.requestSave("research_purchase", true);
+    }
   }
 
   function renderCategories() {
@@ -1003,6 +1007,85 @@
     }
   }
 
+  function addPoints(delta) {
+    const val = Number(delta);
+    if (!Number.isFinite(val) || val <= 0) return researchPoints;
+    researchPoints = Math.max(0, researchPoints + val);
+    if (modalOpen) {
+      const updated = syncRpHeader(false);
+      if (updated) {
+        renderTree();
+        renderDetailPanel();
+      }
+    }
+    return researchPoints;
+  }
+
+  function exportState() {
+    const list = [];
+    const keys = Object.keys(researched);
+    for (let i = 0; i < keys.length; i++) {
+      const id = keys[i];
+      if (researched[id] && getNode(id)) {
+        list.push(id);
+      }
+    }
+    list.sort();
+    return {
+      points: Math.max(0, Number(researchPoints) || 0),
+      researched: list
+    };
+  }
+
+  function importState(data) {
+    const existingKeys = Object.keys(researched);
+    for (let i = 0; i < existingKeys.length; i++) {
+      delete researched[existingKeys[i]];
+    }
+    if (data && typeof data === "object") {
+      if (data.points !== undefined && data.points !== null) {
+        const pts = Number(data.points);
+        researchPoints = Number.isFinite(pts) && pts >= 0 ? pts : STARTING_RP;
+      } else {
+        researchPoints = STARTING_RP;
+      }
+      if (Array.isArray(data.researched)) {
+        for (let i = 0; i < data.researched.length; i++) {
+          const id = data.researched[i];
+          if (typeof id === "string" && getNode(id)) {
+            researched[id] = true;
+          }
+        }
+      }
+    } else {
+      researchPoints = STARTING_RP;
+    }
+
+    syncRpHeader(true);
+    if (modalOpen) {
+      renderCategories();
+      renderTree();
+      renderDetailPanel();
+    }
+    notifyChange();
+  }
+
+  function resetState() {
+    const existingKeys = Object.keys(researched);
+    for (let i = 0; i < existingKeys.length; i++) {
+      delete researched[existingKeys[i]];
+    }
+    researchPoints = STARTING_RP;
+    currentRpPerSec = 0;
+    syncRpHeader(true);
+    if (modalOpen) {
+      renderCategories();
+      renderTree();
+      renderDetailPanel();
+    }
+    notifyChange();
+  }
+
   if (closeBtn) {
     closeBtn.addEventListener("click", close);
   }
@@ -1017,6 +1100,7 @@
     close: close,
     isOpen: isOpen,
     tick: tick,
+    addPoints: addPoints,
     getPoints: function () {
       return researchPoints;
     },
@@ -1032,6 +1116,9 @@
     getEnergyMultiplier: getEnergyMultiplier,
     getCitizenMultiplier: getCitizenMultiplier,
     setPlanetProvider: setPlanetProvider,
-    onChange: onChange
+    onChange: onChange,
+    exportState: exportState,
+    importState: importState,
+    resetState: resetState
   };
 })();

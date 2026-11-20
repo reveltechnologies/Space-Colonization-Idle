@@ -669,7 +669,15 @@
   const activeTradeFlights = [];
   const TRADE_FLIGHT_BASE_MS = readEconomyNumber("planets.tradeFlightBaseMs", 1400);
   let nextFlightId = 1;
+  let nextBuildingOrder = 1;
+  let lastBackgroundPerfMs = 0;
   let followingFlightId = null;
+
+  function notifySave(reason, immediate) {
+    if (window.GameSave && typeof window.GameSave.requestSave === "function") {
+      window.GameSave.requestSave(reason, Boolean(immediate));
+    }
+  }
   const cargoModalState = { open: false, planetId: -1, tileId: null };
   const RESOURCE_TOOLTIP_META = {
     credits: { iconSrc: "./assets/ui/icon-credits.svg", scope: "global" },
@@ -788,6 +796,7 @@
       if (dotButtons[idx]) {
         dotButtons[idx].setAttribute("aria-label", planets[idx].name);
       }
+      notifySave("planet_rename", true);
     }
 
     updatePlanetHeaderHud(true);
@@ -971,7 +980,7 @@
         if (bDef && bDef[reqField] > 0) {
           consumers.push({
             tileId: tileId,
-            placedAt: bInfo.placedAt || 0,
+            placedOrder: Number.isFinite(bInfo.placedOrder) ? bInfo.placedOrder : (bInfo.placedAt || 0),
             req: bDef[reqField]
           });
         }
@@ -979,7 +988,7 @@
     }
 
     consumers.sort(function (a, b) {
-      if (a.placedAt !== b.placedAt) return a.placedAt - b.placedAt;
+      if (a.placedOrder !== b.placedOrder) return a.placedOrder - b.placedOrder;
       return Number(a.tileId) - Number(b.tileId);
     });
 
@@ -1532,6 +1541,7 @@
       targetIndex = nextIdx;
       hoveredHexId = null;
       isHoveringPlanet = false;
+      notifySave("planet_switch", false);
     }
   }
 
@@ -3065,6 +3075,7 @@
       bricksByPlanet[planetId] = Math.max(0, bricksByPlanet[planetId] - delta);
       placed.loadedBricks = target;
       updatePlanetBricksHud(true);
+      notifySave("cargo_change", false);
     }
     syncRocketCargoModal();
   }
@@ -3308,6 +3319,7 @@
         "</span>",
       "success"
     );
+    notifySave("launch_rocket", true);
     return true;
   }
 
@@ -3369,6 +3381,7 @@
     buildingsByPlanet[destIdx][flight.destTileId] = {
       id: flight.rocketId,
       placedAt: time,
+      placedOrder: nextBuildingOrder++,
       isLanded: true,
       landedCitizens: flight.citizens,
       loadedBricks: 0
@@ -3416,6 +3429,7 @@
         "</span>",
       "success"
     );
+    notifySave("rocket_landed", true);
   }
 
   function updateAndDrawActiveFlights(time) {
@@ -4552,6 +4566,7 @@
           showTradeNoticeToast(bDef, pId, "toast.trade_started", "success");
         }
         updateTradeActionOverlay();
+        notifySave("trade_toggle", true);
       });
     }
 
@@ -4863,6 +4878,7 @@
           buildingsByPlanet[targetIndex][tileId] = {
             id: buildingId,
             placedAt: now,
+            placedOrder: nextBuildingOrder++,
             isLanded: false,
             loadedBricks: preservedLoadedBricks,
             landedCitizens: 0,
@@ -4893,6 +4909,7 @@
           lastInteractionTime = now;
           updatePlanetStatsHud(true);
           window.GameBuildings.updateCurrentBuilding(buildingId);
+          notifySave("build", true);
         },
         onRemove: function () {
           const tileId = selectedHexByPlanet[targetIndex];
@@ -4922,6 +4939,7 @@
           lastInteractionTime = now;
           updatePlanetStatsHud(true);
           window.GameBuildings.updateCurrentBuilding(null);
+          notifySave("demolish", true);
         },
         onClose: function () {
           selectedHexByPlanet[targetIndex] = null;
@@ -4940,6 +4958,9 @@
     }
 
     loadSavedPlanetNames();
+    if (window.GameSave && typeof window.GameSave.boot === "function") {
+      window.GameSave.boot();
+    }
     syncOreProductionRate(true);
     resizeCanvas();
     updateIndicatorDots();
@@ -4947,6 +4968,609 @@
     bindEvents();
     window.requestAnimationFrame(render);
   }
+
+  function roundDecimals(num, decimals) {
+    const factor = Math.pow(10, decimals);
+    return Math.round((Number(num) || 0) * factor) / factor;
+  }
+
+  function formatOfflineDuration(sec) {
+    const total = Math.max(1, Math.floor(sec));
+    if (total < 60) {
+      return t("save.duration_sec", { s: total });
+    }
+    const mins = Math.floor(total / 60);
+    if (mins < 60) {
+      return t("save.duration_min", { m: mins });
+    }
+    const hrs = Math.floor(mins / 60);
+    const remMins = mins % 60;
+    if (remMins === 0) {
+      return t("save.duration_hr", { h: hrs });
+    }
+    return t("save.duration_hr_min", { h: hrs, m: remMins });
+  }
+
+  function settleSavedFlightSilently(flightData) {
+    if (!flightData || typeof flightData !== "object") return false;
+    const destIdx = Math.round(Number(flightData.destIdx));
+    if (!Number.isFinite(destIdx) || destIdx < 0 || destIdx >= PLANET_COUNT) return false;
+    const destPlanet = planets[destIdx];
+    if (!destPlanet) return false;
+
+    const bDef = window.GameBuildings ? window.GameBuildings.getBuilding(flightData.rocketId) : null;
+    if (!bDef) return false;
+
+    let destTileId = flightData.destTileId != null ? String(flightData.destTileId) : null;
+    if (!destTileId || !destPlanet.tileById || !destPlanet.tileById[destTileId] || buildingsByPlanet[destIdx][destTileId]) {
+      const freeTile = findFreeLandingTile(destIdx, bDef.id);
+      destTileId = freeTile ? freeTile.id : null;
+    }
+
+    const landedCitizens = Math.max(0, Math.floor(Number(flightData.citizens) || bDef.rocketCitizens || 0));
+    const deliveredBricks = Math.max(0, Math.floor(Number(flightData.bricks) || 0));
+
+    if (destTileId) {
+      buildingsByPlanet[destIdx][destTileId] = {
+        id: bDef.id,
+        placedAt: -1000,
+        placedOrder: nextBuildingOrder++,
+        isLanded: true,
+        landedCitizens: landedCitizens,
+        loadedBricks: 0,
+        tradeEnabled: false,
+        tradeTimer: 0
+      };
+    }
+
+    if (deliveredBricks > 0) {
+      bricksByPlanet[destIdx] = Math.max(0, (bricksByPlanet[destIdx] || 0) + deliveredBricks);
+    }
+
+    destPlanet.unlocked = true;
+    destPlanet.shadowAmount = 0;
+    destPlanet.unlockVfx = null;
+
+    const minCit = getPlanetBaseCitizenCount(destIdx);
+    const newCap = calculatePlanetCitizenCapacity(destIdx);
+    citizensByPlanet[destIdx] = Math.max(
+      minCit,
+      Math.min(Math.max(minCit, newCap), (citizensByPlanet[destIdx] || 0) + landedCitizens)
+    );
+    return true;
+  }
+
+  function exportState() {
+    const exportedPlanets = [];
+    for (let i = 0; i < planets.length; i++) {
+      const p = planets[i];
+      const srcBuildings = buildingsByPlanet[i] || {};
+      const outBuildings = {};
+      const tileKeys = Object.keys(srcBuildings);
+      for (let k = 0; k < tileKeys.length; k++) {
+        const tileId = tileKeys[k];
+        const bInfo = srcBuildings[tileId];
+        if (!bInfo || !bInfo.id) continue;
+        const bDef = window.GameBuildings ? window.GameBuildings.getBuilding(bInfo.id) : null;
+        const entry = {
+          id: bInfo.id,
+          order: Number.isFinite(bInfo.placedOrder) ? bInfo.placedOrder : 0
+        };
+        if (bInfo.isLanded) {
+          entry.isLanded = true;
+          entry.landedCitizens = Math.max(0, Math.floor(bInfo.landedCitizens || 0));
+        }
+        if (bInfo.loadedBricks > 0) {
+          entry.loadedBricks = Math.max(0, Math.floor(bInfo.loadedBricks));
+        }
+        if (bDef && bDef.tradeVariant) {
+          entry.tradeEnabled = Boolean(bInfo.tradeEnabled);
+          entry.tradeTimer = roundDecimals(bInfo.tradeTimer || 0, 3);
+        }
+        outBuildings[tileId] = entry;
+      }
+
+      exportedPlanets.push({
+        name: p ? p.name : getPlanetName(null, i),
+        unlocked: i === 0 ? true : Boolean(p && p.unlocked),
+        bricks: roundDecimals(Math.max(0, Number(bricksByPlanet[i]) || 0), 4),
+        citizens: roundDecimals(Math.max(getPlanetBaseCitizenCount(i), Number(citizensByPlanet[i]) || 0), 4),
+        buildings: outBuildings
+      });
+    }
+
+    const nowPerf = performance.now();
+    const pendingFlights = [];
+    for (let f = 0; f < activeFlights.length; f++) {
+      const fl = activeFlights[f];
+      const totalDur = (fl.liftoffDur || 1350) + (fl.cruiseDur || 2050) + (fl.landDur || 1200);
+      const elapsed = Math.max(0, nowPerf - (fl.startTime || nowPerf));
+      const remainingMs = Math.max(0, Math.round(totalDur - elapsed));
+      pendingFlights.push({
+        srcIdx: fl.srcIdx,
+        destIdx: fl.destIdx,
+        srcTileId: fl.srcTileId,
+        destTileId: fl.destTileId,
+        rocketId: fl.rocketId,
+        tier: fl.tier,
+        citizens: fl.citizens,
+        bricks: fl.bricks,
+        remainingMs: remainingMs
+      });
+    }
+
+    return {
+      activePlanet: clamp(Math.round(targetIndex || 0), 0, PLANET_COUNT - 1),
+      nextBuildingOrder: nextBuildingOrder,
+      planets: exportedPlanets,
+      pendingFlights: pendingFlights
+    };
+  }
+
+  function importState(data, elapsedOfflineMs) {
+    activeFlights.length = 0;
+    activeTradeFlights.length = 0;
+    followingFlightId = null;
+    for (let i = 0; i < PLANET_COUNT; i++) {
+      tileEffectsByPlanet[i] = Object.create(null);
+      buildingsByPlanet[i] = Object.create(null);
+    }
+    clearSelectionAndCloseBuildMenu();
+
+    let maxOrderSeen = 0;
+    const savedPlanets = data && Array.isArray(data.planets) ? data.planets : [];
+
+    for (let i = 0; i < PLANET_COUNT; i++) {
+      const p = planets[i];
+      const sp = savedPlanets[i] && typeof savedPlanets[i] === "object" ? savedPlanets[i] : null;
+      if (!p) continue;
+
+      p.name = sp && sp.name ? sanitizePlanetName(sp.name, p.defaultName) : p.defaultName;
+      p.unlocked = i === 0 ? true : Boolean(sp && sp.unlocked);
+      p.shadowAmount = p.unlocked ? 0 : 1;
+      p.unlockVfx = null;
+
+      if (dotButtons[i]) {
+        dotButtons[i].setAttribute("aria-label", p.name);
+      }
+
+      if (sp && sp.bricks !== undefined && Number.isFinite(Number(sp.bricks))) {
+        bricksByPlanet[i] = Math.max(0, Number(sp.bricks));
+      } else {
+        bricksByPlanet[i] = Array.isArray(startingBricksCfg) ? Math.max(0, Number(startingBricksCfg[i]) || 0) : 0;
+      }
+
+      const rawBuildings = sp && sp.buildings && typeof sp.buildings === "object" ? sp.buildings : {};
+      const tileKeys = Object.keys(rawBuildings);
+      for (let k = 0; k < tileKeys.length; k++) {
+        const tileId = String(tileKeys[k]);
+        const bData = rawBuildings[tileKeys[k]];
+        if (!bData || typeof bData !== "object" || !bData.id) continue;
+        if (!p.tileById || !p.tileById[tileId]) continue;
+        const bDef = window.GameBuildings ? window.GameBuildings.getBuilding(bData.id) : null;
+        if (!bDef) continue;
+
+        const ord =
+          Number.isFinite(Number(bData.order)) && Number(bData.order) > 0
+            ? Math.floor(Number(bData.order))
+            : ++maxOrderSeen;
+        if (ord > maxOrderSeen) maxOrderSeen = ord;
+
+        const isLanded = Boolean(bData.isLanded);
+        buildingsByPlanet[i][tileId] = {
+          id: bDef.id,
+          placedAt: -1000,
+          placedOrder: ord,
+          isLanded: isLanded,
+          landedCitizens: isLanded ? Math.max(0, Math.floor(Number(bData.landedCitizens) || bDef.rocketCitizens || 0)) : 0,
+          loadedBricks: !isLanded && bDef.rocketTier ? clamp(Math.floor(Number(bData.loadedBricks) || 0), 0, bDef.rocketMaxBricks || 0) : 0,
+          tradeEnabled: Boolean(bDef.tradeVariant && (bData.tradeEnabled === undefined ? true : bData.tradeEnabled)),
+          tradeTimer:
+            bDef.tradeVariant && Number.isFinite(Number(bData.tradeTimer))
+              ? clamp(Number(bData.tradeTimer), 0, bDef.tradeIntervalSec || 60)
+              : 0
+        };
+      }
+
+      const minCit = getPlanetBaseCitizenCount(i);
+      const capCit = calculatePlanetCitizenCapacity(i);
+      const rawCit =
+        sp && sp.citizens !== undefined && Number.isFinite(Number(sp.citizens))
+          ? Number(sp.citizens)
+          : Array.isArray(startingCitizensCfg)
+            ? Number(startingCitizensCfg[i]) || 0
+            : minCit;
+      citizensByPlanet[i] = clamp(rawCit, minCit, Math.max(minCit, capCit));
+    }
+
+    const savedNextOrder =
+      data && Number.isFinite(Number(data.nextBuildingOrder)) ? Math.floor(Number(data.nextBuildingOrder)) : 1;
+    nextBuildingOrder = Math.max(savedNextOrder, maxOrderSeen + 1, 1);
+
+    let landedCount = 0;
+    const offlineMs = Math.max(0, Number(elapsedOfflineMs) || 0);
+    const pending = data && Array.isArray(data.pendingFlights) ? data.pendingFlights : [];
+    const nowPerf = performance.now();
+
+    for (let f = 0; f < pending.length; f++) {
+      const pf = pending[f];
+      if (!pf || typeof pf !== "object") continue;
+      const remaining = Math.max(0, Number(pf.remainingMs) || 0) - offlineMs;
+      if (remaining <= 250) {
+        if (settleSavedFlightSilently(pf)) {
+          landedCount++;
+        }
+      } else {
+        const srcIdx = clamp(Math.round(Number(pf.srcIdx) || 0), 0, PLANET_COUNT - 1);
+        const destIdx = clamp(Math.round(Number(pf.destIdx) || 0), 0, PLANET_COUNT - 1);
+        const srcPlanet = planets[srcIdx];
+        const destPlanet = planets[destIdx];
+        const bDef = window.GameBuildings ? window.GameBuildings.getBuilding(pf.rocketId) : null;
+        if (!srcPlanet || !destPlanet || !bDef) continue;
+
+        const liftoffDur = 1350;
+        const cruiseDur = 2050;
+        const landDur = 1200;
+        const totalDur = liftoffDur + cruiseDur + landDur;
+        const clampedRem = Math.min(totalDur, remaining);
+
+        const destTileId = pf.destTileId != null ? String(pf.destTileId) : null;
+        const destTile =
+          (destTileId &&
+            destPlanet.tileById[destTileId] &&
+            !buildingsByPlanet[destIdx][destTileId] &&
+            destPlanet.tileById[destTileId]) ||
+          findFreeLandingTile(destIdx, bDef.id);
+
+        if (destTile) {
+          const srcTileId = pf.srcTileId != null ? String(pf.srcTileId) : null;
+          activeFlights.push({
+            id: nextFlightId++,
+            srcIdx: srcIdx,
+            destIdx: destIdx,
+            srcTileId: srcTileId,
+            srcTile: srcTileId && srcPlanet.tileById ? srcPlanet.tileById[srcTileId] || null : null,
+            destTileId: destTile.id,
+            destTile: destTile,
+            rocketId: bDef.id,
+            rocketName: bDef.name,
+            rocketIcon: bDef.iconSrc,
+            tier: bDef.rocketTier || Number(pf.tier) || 1,
+            citizens: Math.max(0, Math.floor(Number(pf.citizens) || bDef.rocketCitizens || 0)),
+            bricks: Math.max(0, Math.floor(Number(pf.bricks) || 0)),
+            startTime: nowPerf - (totalDur - clampedRem),
+            liftoffDur: liftoffDur,
+            cruiseDur: cruiseDur,
+            landDur: landDur,
+            trail: [],
+            lastTrailAt: 0,
+            focusedDest: false
+          });
+        } else if (settleSavedFlightSilently(pf)) {
+          landedCount++;
+        }
+      }
+    }
+
+    const savedActivePlanet =
+      data && Number.isFinite(Number(data.activePlanet))
+        ? clamp(Math.round(Number(data.activePlanet)), 0, PLANET_COUNT - 1)
+        : 0;
+    targetIndex = savedActivePlanet;
+    scrollPos = savedActivePlanet;
+    lastRenderScrollPos = savedActivePlanet;
+    activeDotIndex = savedActivePlanet;
+    lastHeaderPlanet = -1;
+    lastFrameTime = nowPerf;
+    lastBackgroundPerfMs = 0;
+
+    savePlanetNames();
+    syncOreProductionRate(true);
+    updateIndicatorDots();
+    updatePlanetLockDots();
+    updateControlStates();
+    updatePlanetStatsHud(true);
+    updateFollowRocketButton();
+
+    return { landedCount: landedCount };
+  }
+
+  function applyOfflineProgress(elapsedSec, extraLandedCount) {
+    const minOfflineSec = Math.max(1, readEconomyNumber("save.minOfflineSeconds", 5));
+    const toastMinOfflineSec = Math.max(minOfflineSec, readEconomyNumber("save.toastMinOfflineSeconds", 60));
+    const maxOfflineSec = Math.max(60, readEconomyNumber("save.maxOfflineSeconds", 86400));
+
+    const rawSec = Math.max(0, Number(elapsedSec) || 0);
+    const dtTotal = clamp(rawSec, 0, maxOfflineSec);
+    let landedOffline = Math.max(0, Math.floor(Number(extraLandedCount) || 0));
+
+    const nowPerf = performance.now();
+    if (lastBackgroundPerfMs > 0 && activeFlights.length > 0 && rawSec > 0) {
+      const perfAdvanced = Math.max(0, nowPerf - lastBackgroundPerfMs);
+      const frozenMs = Math.max(0, rawSec * 1000 - perfAdvanced);
+      for (let i = activeFlights.length - 1; i >= 0; i--) {
+        const fl = activeFlights[i];
+        fl.startTime -= frozenMs;
+        const totalDur = (fl.liftoffDur || 1350) + (fl.cruiseDur || 2050) + (fl.landDur || 1200);
+        if (nowPerf - fl.startTime >= totalDur) {
+          activeFlights.splice(i, 1);
+          if (followingFlightId === fl.id) {
+            followingFlightId = null;
+          }
+          if (settleSavedFlightSilently(fl)) {
+            landedOffline++;
+          }
+        }
+      }
+    }
+    lastBackgroundPerfMs = 0;
+
+    if (dtTotal < minOfflineSec && landedOffline === 0) {
+      return { applied: false, landedCount: 0 };
+    }
+
+    let gainedCredits = 0;
+    let gainedOre = 0;
+    let gainedRp = 0;
+    let initialBricksSum = 0;
+    for (let i = 0; i < PLANET_COUNT; i++) {
+      initialBricksSum += Math.max(0, bricksByPlanet[i] || 0);
+    }
+
+    if (dtTotal >= minOfflineSec) {
+      let maxRegenSec = 0;
+      if (CITIZEN_REGEN_PER_SEC > 0) {
+        for (let i = 0; i < PLANET_COUNT; i++) {
+          if (!planets[i] || !planets[i].unlocked) continue;
+          const cap = calculatePlanetCitizenCapacity(i);
+          const cur = citizensByPlanet[i] || 0;
+          if (cur < cap) {
+            maxRegenSec = Math.max(maxRegenSec, (cap - cur) / CITIZEN_REGEN_PER_SEC);
+          }
+        }
+      }
+
+      const chunks = [];
+      const regenPhase = Math.min(dtTotal, maxRegenSec);
+      if (regenPhase > 0) {
+        const steps = regenPhase > 8 ? 8 : Math.max(1, Math.ceil(regenPhase));
+        const stepSec = regenPhase / steps;
+        for (let s = 0; s < steps; s++) {
+          chunks.push(stepSec);
+        }
+      }
+      const steadyPhase = dtTotal - regenPhase;
+      if (steadyPhase > 0) {
+        chunks.push(steadyPhase);
+      }
+
+      for (let c = 0; c < chunks.length; c++) {
+        const chunkSec = chunks[c];
+        if (chunkSec <= 0) continue;
+
+        for (let pIdx = 0; pIdx < PLANET_COUNT; pIdx++) {
+          if (!planets[pIdx] || !planets[pIdx].unlocked) continue;
+
+          const minCit = getPlanetBaseCitizenCount(pIdx);
+          const maxCit = calculatePlanetCitizenCapacity(pIdx);
+          if (citizensByPlanet[pIdx] < minCit) {
+            citizensByPlanet[pIdx] = minCit;
+          }
+          if (maxCit > 0 && citizensByPlanet[pIdx] < maxCit) {
+            citizensByPlanet[pIdx] = Math.min(maxCit, citizensByPlanet[pIdx] + CITIZEN_REGEN_PER_SEC * chunkSec);
+          } else if (citizensByPlanet[pIdx] > maxCit) {
+            citizensByPlanet[pIdx] = Math.max(minCit, maxCit);
+          }
+
+          const brickRate = calculatePlanetBrickRate(pIdx);
+          const producedBricks = brickRate * chunkSec;
+          const totalBricksAvail = Math.max(0, (bricksByPlanet[pIdx] || 0) + producedBricks);
+
+          const power = getPlanetPowerStatus(pIdx);
+          const cit = getPlanetCitizenStatus(pIdx);
+          const buildings = buildingsByPlanet[pIdx];
+          let totalDemandRate = 0;
+          let totalCreditRate = 0;
+          if (buildings && window.GameBuildings) {
+            const keys = Object.keys(buildings);
+            for (let k = 0; k < keys.length; k++) {
+              const tileId = keys[k];
+              const bInfo = buildings[tileId];
+              if (!bInfo || !bInfo.id || !bInfo.tradeEnabled) continue;
+              const bDef = window.GameBuildings.getBuilding(bInfo.id);
+              if (!bDef || !bDef.tradeVariant || !bDef.tradeIntervalSec) continue;
+              if (!isTileOperational(tileId, bDef, power, cit)) continue;
+              const launchBricks = bDef.bricksPerLaunch || 0;
+              const cpb = bDef.creditsPerBrick || 0;
+              if (launchBricks > 0 && cpb > 0) {
+                totalDemandRate += launchBricks / bDef.tradeIntervalSec;
+                totalCreditRate += (launchBricks * cpb) / bDef.tradeIntervalSec;
+              }
+            }
+          }
+
+          if (totalDemandRate > 0 && totalCreditRate > 0 && totalBricksAvail >= 1) {
+            const demandBricks = totalDemandRate * chunkSec;
+            const bricksToSell = Math.min(Math.floor(totalBricksAvail), Math.floor(demandBricks + 1e-6));
+            if (bricksToSell > 0) {
+              const weightedCpb = totalCreditRate / totalDemandRate;
+              const earnedCr = Math.floor(bricksToSell * weightedCpb);
+              gainedCredits += earnedCr;
+              bricksByPlanet[pIdx] = Math.max(0, totalBricksAvail - bricksToSell);
+            } else {
+              bricksByPlanet[pIdx] = totalBricksAvail;
+            }
+          } else {
+            bricksByPlanet[pIdx] = totalBricksAvail;
+          }
+
+          gainedRp += calculatePlanetResearchRate(pIdx) * chunkSec;
+          gainedOre += calculatePlanetOreRate(pIdx) * chunkSec;
+        }
+
+        gainedOre += BASE_ORE_RATE_PER_SEC * chunkSec;
+      }
+    }
+
+    let finalBricksSum = 0;
+    for (let i = 0; i < PLANET_COUNT; i++) {
+      finalBricksSum += Math.max(0, bricksByPlanet[i] || 0);
+    }
+    const gainedBricks = Math.max(0, finalBricksSum - initialBricksSum);
+
+    if (window.GameCurrencies) {
+      if (gainedCredits > 0 && typeof window.GameCurrencies.add === "function") {
+        window.GameCurrencies.add("credits", gainedCredits, true);
+      }
+      if (gainedOre > 0 && typeof window.GameCurrencies.add === "function") {
+        window.GameCurrencies.add("ore", gainedOre, true);
+      }
+      if (typeof window.GameCurrencies.resetTickClock === "function") {
+        window.GameCurrencies.resetTickClock();
+      }
+    }
+    if (gainedRp > 0 && window.GameResearch && typeof window.GameResearch.addPoints === "function") {
+      window.GameResearch.addPoints(gainedRp);
+    }
+
+    lastFrameTime = performance.now();
+    syncOreProductionRate(true);
+    updatePlanetLockDots();
+    updatePlanetStatsHud(true);
+    updateFollowRocketButton();
+
+    if (landedOffline > 0) {
+      showGameToast(
+        "<span>" +
+          '<img class="game-toast-icon" src="./assets/ui/bld-space-rocket-1.svg" alt="" draggable="false" />' +
+          t("save.offline_landed", { count: formatPlanetStat(landedOffline) }) +
+          "</span>",
+        "success"
+      );
+    }
+
+    if (dtTotal >= toastMinOfflineSec) {
+      const gainParts = [];
+      if (Math.floor(gainedCredits) >= 1) {
+        gainParts.push(
+          '<span class="game-toast-pill"><img class="game-toast-pill-icon" src="./assets/ui/icon-credits.svg" alt="" draggable="false" /> ' +
+            t("save.gain_credits", { val: formatPlanetStat(gainedCredits) }) +
+            "</span>"
+        );
+      }
+      if (Math.floor(gainedBricks) >= 1) {
+        gainParts.push(
+          '<span class="game-toast-pill"><img class="game-toast-pill-icon" src="./assets/ui/icon-bricks.svg" alt="" draggable="false" /> ' +
+            t("save.gain_bricks", { val: formatPlanetStat(gainedBricks) }) +
+            "</span>"
+        );
+      }
+      if (Math.floor(gainedRp) >= 1) {
+        gainParts.push(
+          '<span class="game-toast-pill"><img class="game-toast-pill-icon" src="./assets/ui/icon-research.svg" alt="" draggable="false" /> ' +
+            t("save.gain_rp", { val: formatPlanetStat(gainedRp) }) +
+            "</span>"
+        );
+      }
+      if (gainedOre >= 1) {
+        gainParts.push(
+          '<span class="game-toast-pill"><img class="game-toast-pill-icon" src="./assets/ui/icon-ore.svg" alt="" draggable="false" /> ' +
+            t("save.gain_ore", { val: formatPlanetStat(gainedOre) }) +
+            "</span>"
+        );
+      } else if (gainedOre >= 0.01) {
+        gainParts.push(
+          '<span class="game-toast-pill"><img class="game-toast-pill-icon" src="./assets/ui/icon-ore.svg" alt="" draggable="false" /> ' +
+            t("save.gain_ore", { val: gainedOre.toFixed(2) }) +
+            "</span>"
+        );
+      }
+
+      if (gainParts.length > 0) {
+        showGameToast(
+          "<span>" +
+            t("save.offline_welcome", {
+              duration: formatOfflineDuration(dtTotal),
+              gains: gainParts.join(t("save.gain_sep"))
+            }) +
+            "</span>",
+          "success"
+        );
+      }
+    }
+
+    return {
+      applied: true,
+      landedCount: landedOffline,
+      credits: gainedCredits,
+      ore: gainedOre,
+      bricks: gainedBricks,
+      rp: gainedRp
+    };
+  }
+
+  function resetState() {
+    activeFlights.length = 0;
+    activeTradeFlights.length = 0;
+    followingFlightId = null;
+    nextBuildingOrder = 1;
+    lastBackgroundPerfMs = 0;
+
+    for (let i = 0; i < PLANET_COUNT; i++) {
+      const p = planets[i];
+      buildingsByPlanet[i] = Object.create(null);
+      tileEffectsByPlanet[i] = Object.create(null);
+      bricksByPlanet[i] = Array.isArray(startingBricksCfg) ? Math.max(0, Number(startingBricksCfg[i]) || 0) : 0;
+      const startCit = Array.isArray(startingCitizensCfg)
+        ? Number(startingCitizensCfg[i]) || 0
+        : baseCitizensByPlanet[i];
+      citizensByPlanet[i] = Math.max(baseCitizensByPlanet[i], startCit);
+
+      if (p) {
+        p.defaultName = t("planets.planet_" + (i + 1) + ".default_name");
+        p.name = p.defaultName;
+        p.unlocked = i === 0;
+        p.shadowAmount = i === 0 ? 0 : 1;
+        p.unlockVfx = null;
+        p.zoom = MIN_ZOOM;
+        p.targetZoom = MIN_ZOOM;
+        p.lookTarget = null;
+        p.spinVelY = 0;
+        p.pitchVelX = 0;
+      }
+      if (dotButtons[i] && p) {
+        dotButtons[i].setAttribute("aria-label", p.name);
+      }
+    }
+
+    clearSelectionAndCloseBuildMenu();
+    targetIndex = 0;
+    scrollPos = 0;
+    lastRenderScrollPos = 0;
+    activeDotIndex = 0;
+    lastHeaderPlanet = -1;
+    lastFrameTime = performance.now();
+
+    syncOreProductionRate(true);
+    updateIndicatorDots();
+    updatePlanetLockDots();
+    updateControlStates();
+    updatePlanetStatsHud(true);
+    updateFollowRocketButton();
+  }
+
+  window.GamePlanets = {
+    exportState: exportState,
+    importState: importState,
+    resetState: resetState,
+    applyOfflineProgress: applyOfflineProgress,
+    onBackground: function () {
+      lastBackgroundPerfMs = performance.now();
+    },
+    resetFrameClock: function () {
+      lastFrameTime = performance.now();
+    }
+  };
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", init);

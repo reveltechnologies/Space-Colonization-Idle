@@ -13,7 +13,7 @@
         baseRatePerSec: 0
       },
       ore: {
-        startingAmount: 100,
+        startingAmount: 0,
         baseRatePerSec: 0
       }
     },
@@ -25,6 +25,14 @@
       startingCitizens: [1, 0, 0],
       startingResearchPoints: 0,
       tradeFlightBaseMs: 1400
+    },
+
+    save: {
+      autosaveIntervalMs: 10000,
+      debounceMs: 500,
+      minOfflineSeconds: 5,
+      toastMinOfflineSeconds: 60,
+      maxOfflineSeconds: 86400
     },
 
     buildings: {

@@ -26,15 +26,24 @@
       ? window.GameEconomy.get("currencies.ore")
       : null;
 
+  const STARTING_AMOUNTS = {
+    credits: econCredits && econCredits.startingAmount !== undefined ? Number(econCredits.startingAmount) || 0 : 500,
+    ore: econOre && econOre.startingAmount !== undefined ? Number(econOre.startingAmount) || 0 : 100
+  };
+  const STARTING_RATES = {
+    credits: econCredits && econCredits.baseRatePerSec ? Number(econCredits.baseRatePerSec) || 0 : 0,
+    ore: econOre && econOre.baseRatePerSec ? Number(econOre.baseRatePerSec) || 0 : 0
+  };
+
   const state = {
     credits: {
-      amount: econCredits && econCredits.startingAmount !== undefined ? Number(econCredits.startingAmount) || 0 : 500,
-      rate: econCredits && econCredits.baseRatePerSec ? Number(econCredits.baseRatePerSec) || 0 : 0,
+      amount: STARTING_AMOUNTS.credits,
+      rate: STARTING_RATES.credits,
       displayRate: 0
     },
     ore: {
-      amount: econOre && econOre.startingAmount !== undefined ? Number(econOre.startingAmount) || 0 : 100,
-      rate: econOre && econOre.baseRatePerSec ? Number(econOre.baseRatePerSec) || 0 : 0,
+      amount: STARTING_AMOUNTS.ore,
+      rate: STARTING_RATES.ore,
       displayRate: 0
     }
   };
@@ -227,14 +236,16 @@
     notifyChange();
   }
 
-  function add(key, delta) {
+  function add(key, delta, silent) {
     if (!state[key]) return 0;
     const val = Number(delta) || 0;
     if (val === 0) return state[key].amount;
 
     state[key].amount = Math.max(0, state[key].amount + val);
     renderCurrency(key);
-    bumpValueElement(key);
+    if (!silent) {
+      bumpValueElement(key);
+    }
     notifyChange();
     return state[key].amount;
   }
@@ -288,6 +299,52 @@
     return entry ? (entry.rate || 0) + (entry.displayRate || 0) : 0;
   }
 
+  function resetTickClock() {
+    lastTickTime = performance.now();
+  }
+
+  function exportState() {
+    return {
+      credits: Math.max(0, Number(state.credits.amount) || 0),
+      ore: Math.max(0, Number(state.ore.amount) || 0)
+    };
+  }
+
+  function importState(data) {
+    if (data && typeof data === "object") {
+      if (data.credits !== undefined && data.credits !== null) {
+        const cr = Number(data.credits);
+        if (Number.isFinite(cr) && cr >= 0) {
+          state.credits.amount = cr;
+        }
+      }
+      if (data.ore !== undefined && data.ore !== null) {
+        const ore = Number(data.ore);
+        if (Number.isFinite(ore) && ore >= 0) {
+          state.ore.amount = ore;
+        }
+      }
+    }
+    lastTickTime = performance.now();
+    renderCurrency("credits");
+    renderCurrency("ore");
+    notifyChange();
+  }
+
+  function resetState() {
+    state.credits.amount = STARTING_AMOUNTS.credits;
+    state.credits.rate = STARTING_RATES.credits;
+    state.credits.displayRate = 0;
+    state.ore.amount = STARTING_AMOUNTS.ore;
+    state.ore.rate = STARTING_RATES.ore;
+    state.ore.displayRate = 0;
+    lastTickTime = performance.now();
+    renderCurrency("credits");
+    renderCurrency("ore");
+    ensureTicker();
+    notifyChange();
+  }
+
   function init() {
     renderCurrency("credits");
     renderCurrency("ore");
@@ -305,7 +362,11 @@
     canAfford: canAfford,
     setRate: setRate,
     setDisplayRate: setDisplayRate,
-    onChange: onChange
+    onChange: onChange,
+    exportState: exportState,
+    importState: importState,
+    resetState: resetState,
+    resetTickClock: resetTickClock
   };
 
   if (document.readyState === "loading") {

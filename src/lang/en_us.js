@@ -94,16 +94,16 @@
     },
     biomes: {
       mountains: { name: "Mountains" },
-      glacier:   { name: "Glacier" },
+      glacier: { name: "Glacier" },
       highlands: { name: "Highlands" },
-      crater:    { name: "Crater" },
-      forest:    { name: "Forest" },
-      plains:    { name: "Plains" },
-      ocean:     { name: "Ocean", unbuildable_hint: "Cannot build on deep water — select a solid land tile" },
-      lava:      { name: "Lava", unbuildable_hint: "Cannot build on molten lava — select a solid land tile" },
-      volcano:   { name: "Volcano" },
-      canyon:    { name: "Canyon" },
-      ashlands:  { name: "Ashlands" }
+      crater: { name: "Crater" },
+      forest: { name: "Forest" },
+      plains: { name: "Plains" },
+      ocean: { name: "Ocean", unbuildable_hint: "Cannot build on deep water — select a solid land tile" },
+      lava: { name: "Lava", unbuildable_hint: "Cannot build on molten lava — select a solid land tile" },
+      volcano: { name: "Volcano" },
+      canyon: { name: "Canyon" },
+      ashlands: { name: "Ashlands" }
     },
     buildings: {
       mine: {
@@ -214,7 +214,7 @@
       cargo_btn_loaded: "Cargo {loaded}/{max}",
       cargo_modal_title: "Rocket Payload",
       target_planet: "Destination: {planet}",
-      crew_label: "Citizens (Fixed)",
+      crew_label: "Citizens",
       crew_hint: "Deducted from current citizens on launch",
       crew_unit: "{count} Citizens",
       crew_available: "Available: {curr}/{max}",
@@ -439,6 +439,19 @@
         title: "Construction Bricks",
         description: "Planetary building material extracted by Mines, Deep Mines, and Mega Quarries on this world. Sold by Trade Rockets for Space Credits or loaded onto Space Rockets for colonization missions."
       }
+    },
+    save: {
+      offline_welcome: "Welcome back ({duration})! Earned {gains}",
+      offline_landed: "{count} Space Rocket(s) landed while you were away!",
+      gain_credits: "+{val} SC",
+      gain_ore: "+{val} Ore",
+      gain_bricks: "+{val} Bricks",
+      gain_rp: "+{val} RP",
+      duration_sec: "{s}s",
+      duration_min: "{m}m",
+      duration_hr: "{h}h",
+      duration_hr_min: "{h}h {m}m",
+      gain_sep: ", "
     }
   };
 
