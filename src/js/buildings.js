@@ -56,7 +56,8 @@
   const STAT_ICONS = {
     citizens: "./assets/ui/icon-citizen.svg",
     energy: "./assets/ui/icon-energy.svg",
-    bricks: "./assets/ui/icon-bricks.svg"
+    bricks: "./assets/ui/icon-bricks.svg",
+    research: "./assets/ui/icon-research.svg"
   };
 
   const BUILDINGS = [
@@ -97,17 +98,54 @@
       iconSrc: "./assets/ui/bld-mega-quarry.svg"
     },
     {
+      id: "research_center",
+      name: t("buildings.research_center.name"),
+      category: "science",
+      tag: t("categories.science"),
+      terrain: "solid",
+      maxPerPlanet: 1,
+      researchPerSec: 0.25,
+      description: t("buildings.research_center.description"),
+      cost: { credits: 150, ore: 20 },
+      accent: "#a855f7",
+      iconSrc: "./assets/ui/bld-research-center.svg"
+    },
+    {
       id: "research_lab",
       name: t("buildings.research_lab.name"),
       category: "science",
       tag: t("categories.science"),
       terrain: "solid",
-      specialtyLabel: t("buildings.research_lab.specialty"),
-      specialtyIconSrc: "./assets/ui/cat-science.svg",
+      researchPerSec: 0.5,
       description: t("buildings.research_lab.description"),
-      cost: { credits: 250, ore: 50 },
+      cost: { credits: 200, ore: 35 },
       accent: "#37a8ff",
       iconSrc: "./assets/ui/bld-research-lab.svg"
+    },
+    {
+      id: "observatory",
+      name: t("buildings.observatory.name"),
+      category: "science",
+      tag: t("categories.science"),
+      terrain: "mountainous",
+      researchPerSec: 1.2,
+      description: t("buildings.observatory.description"),
+      cost: { credits: 340, ore: 60 },
+      accent: "#6366f1",
+      iconSrc: "./assets/ui/bld-observatory.svg"
+    },
+    {
+      id: "quantum_array",
+      name: t("buildings.quantum_array.name"),
+      category: "science",
+      tag: t("categories.science"),
+      terrain: "solid",
+      researchPerSec: 3.5,
+      requiredResearch: "quantum_computing",
+      description: t("buildings.quantum_array.description"),
+      cost: { credits: 450, ore: 85 },
+      accent: "#ec4899",
+      iconSrc: "./assets/ui/bld-quantum-array.svg"
     },
     {
       id: "small_house",
@@ -274,6 +312,23 @@
       return true;
     }
     return window.GameCurrencies.canAfford(b.cost);
+  }
+
+  function isBuildingResearchLocked(buildingId) {
+    const b = getBuilding(buildingId);
+    if (!b || !b.requiredResearch) return false;
+    if (!window.GameResearch || typeof window.GameResearch.isResearched !== "function") {
+      return true;
+    }
+    return !window.GameResearch.isResearched(b.requiredResearch);
+  }
+
+  function isBuildingPlanetLimitReached(buildingId, planetId, placedId) {
+    const b = getBuilding(buildingId);
+    if (!b || !b.maxPerPlanet) return false;
+    if (placedId === b.id) return false;
+    if (typeof callbacks.getBuildingCountOnPlanet !== "function") return false;
+    return callbacks.getBuildingCountOnPlanet(planetId, b.id) >= b.maxPerPlanet;
   }
 
   function formatCostValue(amount) {
@@ -541,13 +596,17 @@
         continue;
       }
       const isBuilt = currentPlacedId === b.id;
+      const researchLocked = isBuildingResearchLocked(b.id);
+      const limitBlocked = !isBuilt && isBuildingPlanetLimitReached(b.id, currentPlanetId, currentPlacedId);
       const terrainOk = canBuildOnBiome(b.id, currentBiomeId);
       const affordable = canAffordBuilding(b.id);
-      const rank = isBuilt ? 0 : terrainOk ? 1 : 2;
+      const rank = isBuilt ? 0 : !researchLocked && !limitBlocked && terrainOk ? 1 : 2;
       entries.push({
         b: b,
         idx: i,
         isBuilt: isBuilt,
+        researchLocked: researchLocked,
+        limitBlocked: limitBlocked,
         terrainOk: terrainOk,
         affordable: affordable,
         rank: rank
@@ -563,18 +622,22 @@
       const entry = entries[i];
       const b = entry.b;
       const isBuilt = entry.isBuilt;
+      const researchLocked = entry.researchLocked;
+      const limitBlocked = entry.limitBlocked;
       const terrain = getTerrainGroup(b.terrain);
       const terrainOk = entry.terrainOk;
       const affordable = entry.affordable;
-      const canPurchase = !isBuilt && terrainOk && affordable;
+      const canPurchase = !isBuilt && !researchLocked && !limitBlocked && terrainOk && affordable;
 
       const card = document.createElement("button");
       card.type = "button";
       card.className =
         "build-card" +
         (isBuilt ? " is-built" : "") +
-        (!isBuilt && !terrainOk ? " is-terrain-blocked" : "") +
-        (!isBuilt && terrainOk && !affordable ? " is-unaffordable" : "");
+        (!isBuilt && researchLocked ? " is-research-locked" : "") +
+        (!isBuilt && !researchLocked && limitBlocked ? " is-limit-blocked" : "") +
+        (!isBuilt && !researchLocked && !limitBlocked && !terrainOk ? " is-terrain-blocked" : "") +
+        (!isBuilt && !researchLocked && !limitBlocked && terrainOk && !affordable ? " is-unaffordable" : "");
       card.setAttribute("data-building", b.id);
       card.setAttribute("data-category", b.category);
       card.setAttribute("data-terrain", b.terrain);
@@ -625,7 +688,28 @@
       info.appendChild(nameEl);
 
       const showInvalidTerrain = !isBuilt && !terrainOk;
-      if (!showInvalidTerrain && b.citizenSlots && b.citizenSlots > 0) {
+      if (!isBuilt && researchLocked) {
+        const reqNodeName = t("research.nodes." + b.requiredResearch + ".name");
+        info.appendChild(
+          createCardInfoChip(
+            "build-lock-chip",
+            "build-research-icon",
+            STAT_ICONS.research,
+            "build-research-label",
+            t("build.requires_research_chip", { research: reqNodeName })
+          )
+        );
+      } else if (!isBuilt && limitBlocked) {
+        info.appendChild(
+          createCardInfoChip(
+            "build-limit-chip",
+            "build-research-icon",
+            STAT_ICONS.research,
+            "build-research-label",
+            t("build.max_per_planet", { limit: b.maxPerPlanet })
+          )
+        );
+      } else if (!showInvalidTerrain && b.citizenSlots && b.citizenSlots > 0) {
         info.appendChild(
           createCardInfoChip(
             "build-citizen-chip",
@@ -659,6 +743,18 @@
             formatProductionRate(b.bricksPerSec),
             "data-bricks-rate",
             b.bricksPerSec
+          )
+        );
+      } else if (!showInvalidTerrain && b.researchPerSec && b.researchPerSec > 0) {
+        info.appendChild(
+          createCardInfoChip(
+            "build-research-chip",
+            "build-research-icon",
+            STAT_ICONS.research,
+            "build-research-label",
+            formatProductionRate(b.researchPerSec),
+            "data-research-rate",
+            b.researchPerSec
           )
         );
       } else {
@@ -718,7 +814,31 @@
             card.classList.remove("is-shake");
           }, 280);
 
-          if (!terrainOk) {
+          if (researchLocked) {
+            const bldImg = '<img class="game-toast-icon" src="' + b.iconSrc + '" alt="" draggable="false" />';
+            const bldStrong = '<strong class="game-toast-strong">' + b.name + '</strong>';
+            const resPill =
+              '<span class="game-toast-pill"><img class="game-toast-pill-icon" src="' +
+              STAT_ICONS.research +
+              '" alt="" draggable="false" /> ' +
+              t("research.nodes." + b.requiredResearch + ".name") +
+              '</span>';
+            showBuildErrorToast(
+              '<span>' +
+                bldImg +
+                t("toast.research_required", { building: bldStrong, research: resPill }) +
+                '</span>'
+            );
+          } else if (limitBlocked) {
+            const bldImg = '<img class="game-toast-icon" src="' + b.iconSrc + '" alt="" draggable="false" />';
+            const bldStrong = '<strong class="game-toast-strong">' + b.name + '</strong>';
+            showBuildErrorToast(
+              '<span>' +
+                bldImg +
+                t("toast.planet_limit_reached", { building: bldStrong, limit: b.maxPerPlanet }) +
+                '</span>'
+            );
+          } else if (!terrainOk) {
             const currentBiome = getBiome(currentBiomeId);
             const bldImg = '<img class="game-toast-icon" src="' + b.iconSrc + '" alt="" draggable="false" />';
             const bldStrong = '<strong class="game-toast-strong">' + b.name + '</strong>';
@@ -746,7 +866,7 @@
                     biome: biomePill,
                     terrain: terrainPill
                   });
-            showBuildErrorToast(bldImg + '<span>' + reasonText + '</span>');
+            showBuildErrorToast('<span>' + bldImg + reasonText + '</span>');
           } else if (!affordable) {
             const bldImg = '<img class="game-toast-icon" src="' + b.iconSrc + '" alt="" draggable="false" />';
             const bldStrong = '<strong class="game-toast-strong">' + b.name + '</strong>';
@@ -773,8 +893,8 @@
               }
             }
             const reasonHtml =
-              bldImg +
               '<span>' +
+              bldImg +
               t("toast.cannot_afford", {
                 building: bldStrong,
                 missing: missing.join(t("toast.missing_joiner"))
@@ -888,6 +1008,18 @@
             b.bricksPerSec
           )
         );
+      } else if (b.researchPerSec && b.researchPerSec > 0) {
+        confirmBadgesEl.appendChild(
+          createCardInfoChip(
+            "build-research-chip",
+            "build-research-icon",
+            STAT_ICONS.research,
+            "build-research-label",
+            formatProductionRate(b.researchPerSec),
+            "data-research-rate",
+            b.researchPerSec
+          )
+        );
       } else if (b.specialtyLabel && b.specialtyIconSrc) {
         confirmBadgesEl.appendChild(
           createCardInfoChip(
@@ -896,6 +1028,17 @@
             b.specialtyIconSrc,
             "build-terrain-label",
             b.specialtyLabel
+          )
+        );
+      }
+      if (b.maxPerPlanet) {
+        confirmBadgesEl.appendChild(
+          createCardInfoChip(
+            "build-limit-chip",
+            "build-research-icon",
+            STAT_ICONS.research,
+            "build-research-label",
+            t("build.max_per_planet", { limit: b.maxPerPlanet })
           )
         );
       }
@@ -1092,7 +1235,12 @@
     confirmBuildBtn.addEventListener("click", function () {
       const bId = pendingConfirmBuildingId;
       if (!bId) return;
-      if (!canBuildOnBiome(bId, currentBiomeId) || !canAffordBuilding(bId)) {
+      if (
+        isBuildingResearchLocked(bId) ||
+        isBuildingPlanetLimitReached(bId, currentPlanetId, currentPlacedId) ||
+        !canBuildOnBiome(bId, currentBiomeId) ||
+        !canAffordBuilding(bId)
+      ) {
         closeConfirmScene();
         renderBuildingCards();
         return;
@@ -1454,6 +1602,14 @@
 
   if (window.GameCurrencies && typeof window.GameCurrencies.onChange === "function") {
     window.GameCurrencies.onChange(function () {
+      if (menuOpen) {
+        renderBuildingCards();
+      }
+    });
+  }
+
+  if (window.GameResearch && typeof window.GameResearch.onChange === "function") {
+    window.GameResearch.onChange(function () {
       if (menuOpen) {
         renderBuildingCards();
       }
@@ -1889,6 +2045,112 @@
       Math.max(1.1, pxScale * 0.035),
       0.006
     );
+  }
+
+  function buildResearchCenterModel(m, time, phase, pxScale) {
+    // Tiered white/indigo science citadel base
+    m.addPrism(0, 0, 0.0, 0.10, 0.64, 0.58, 8, Math.PI / 8, [79, 70, 229], { spec: 0.35 });
+    m.addBox(-0.34, 0.0, 0.19, 0.14, 0.22, 0.10, [226, 232, 240], { spec: 0.35 });
+    m.addBox(0.34, 0.0, 0.19, 0.14, 0.22, 0.10, [226, 232, 240], { spec: 0.35 });
+    m.addBox(0, -0.22, 0.22, 0.26, 0.14, 0.12, [241, 245, 249], { spec: 0.40 });
+    m.addBox(0, -0.365, 0.20, 0.10, 0.015, 0.08, [56, 189, 248], { emissive: 0.80 });
+
+    // Glowing holographic violet dome
+    const domePulse = 0.28 + 0.12 * Math.sin(time * 0.0035 + phase);
+    m.addDome(0, 0.03, 0.24, 0.34, 0.34, 0.36, 3, 8, [168, 85, 247], {
+      spec: 0.65,
+      emissive: domePulse,
+      stroke: "rgba(243, 232, 255, 0.55)",
+      lineWidth: Math.max(0.7, pxScale * 0.016)
+    });
+
+    // Central golden spire
+    m.addPrism(0, 0.03, 0.58, 0.86, 0.04, 0.018, 6, 0, [241, 245, 249], { spec: 0.45 });
+    const spireGlow = 0.60 + 0.35 * Math.sin(time * 0.006 + phase);
+    m.addPrism(0, 0.03, 0.86, 0.94, 0.06, 0.025, 6, 0, [255, 200, 58], { emissive: spireGlow });
+
+    // Orbiting cyan telemetry ring
+    const ringSpin = time * 0.0022 + phase;
+    const ringR = 0.46;
+    const lw = Math.max(1.2, pxScale * 0.045);
+    for (let k = 0; k < 6; k++) {
+      const a0 = ringSpin + (Math.PI * 2 * k) / 6;
+      const a1 = ringSpin + (Math.PI * 2 * (k + 1)) / 6;
+      const z0 = 0.64 + Math.sin(a0) * 0.08;
+      const z1 = 0.64 + Math.sin(a1) * 0.08;
+      m.addLine(
+        [Math.cos(a0) * ringR, 0.03 + Math.sin(a0) * ringR, z0],
+        [Math.cos(a1) * ringR, 0.03 + Math.sin(a1) * ringR, z1],
+        "#38bdf8",
+        lw,
+        0.006
+      );
+    }
+  }
+
+  function buildObservatoryModel(m, time, phase, pxScale) {
+    // Indigo stone octagonal plinth
+    m.addPrism(0, 0, 0.0, 0.14, 0.58, 0.52, 8, Math.PI / 8, [99, 102, 241], { spec: 0.28 });
+    m.addPrism(0, 0, 0.14, 0.22, 0.44, 0.42, 8, Math.PI / 8, [199, 210, 254], { spec: 0.35 });
+
+    // Observatory dome
+    m.addDome(0, 0, 0.22, 0.38, 0.38, 0.36, 3, 8, [226, 232, 240], { spec: 0.55 });
+
+    // Slowly panning skyward telescope tube
+    const pan = Math.sin(time * 0.0009 + phase) * 0.45 + 0.4;
+    const dirX = Math.cos(pan);
+    const dirY = Math.sin(pan);
+    const base = [dirX * 0.08, dirY * 0.08, 0.44];
+    const tip = [dirX * 0.48, dirY * 0.48, 0.80];
+    m.addLine(base, tip, "#4f46e5", Math.max(3.0, pxScale * 0.12), 0.008);
+    m.addPrism(tip[0], tip[1], tip[2] - 0.02, tip[2] + 0.05, 0.075, 0.065, 6, 0, [103, 232, 249], {
+      emissive: 0.72,
+      spec: 0.65
+    });
+  }
+
+  function buildQuantumArrayModel(m, time, phase, pxScale) {
+    // Deep-indigo containment base
+    m.addPrism(0, 0, 0.0, 0.11, 0.62, 0.56, 6, 0, [49, 46, 129], { spec: 0.35 });
+    m.addPrism(0, 0, 0.11, 0.14, 0.32, 0.28, 6, 0, [56, 189, 248], { emissive: 0.65 });
+
+    // Twin emitter pylons
+    m.addPrism(-0.34, 0, 0.11, 0.76, 0.09, 0.05, 6, 0, [203, 213, 225], { spec: 0.45 });
+    m.addPrism(0.34, 0, 0.11, 0.76, 0.09, 0.05, 6, 0, [203, 213, 225], { spec: 0.45 });
+    m.addPrism(-0.34, 0, 0.76, 0.85, 0.06, 0.025, 6, 0, [56, 189, 248], { emissive: 0.78 });
+    m.addPrism(0.34, 0, 0.76, 0.85, 0.06, 0.025, 6, 0, [244, 114, 182], { emissive: 0.78 });
+
+    // Hovering pulsing quantum core
+    const hoverZ = 0.52 + 0.05 * Math.sin(time * 0.004 + phase);
+    m.addDome(0, 0, hoverZ - 0.10, 0.17, 0.17, 0.22, 3, 8, [236, 72, 153], {
+      emissive: 0.75,
+      spec: 0.7
+    });
+
+    // Dual counter-rotating quantum rings
+    const lw = Math.max(1.2, pxScale * 0.042);
+    const spinA = time * 0.003 + phase;
+    const spinB = -time * 0.0024 + phase;
+    for (let k = 0; k < 6; k++) {
+      const a0 = spinA + (Math.PI * 2 * k) / 6;
+      const a1 = spinA + (Math.PI * 2 * (k + 1)) / 6;
+      m.addLine(
+        [Math.cos(a0) * 0.30, Math.sin(a0) * 0.30, hoverZ + Math.cos(a0) * 0.14],
+        [Math.cos(a1) * 0.30, Math.sin(a1) * 0.30, hoverZ + Math.cos(a1) * 0.14],
+        "#38bdf8",
+        lw,
+        0.008
+      );
+      const b0 = spinB + (Math.PI * 2 * k) / 6;
+      const b1 = spinB + (Math.PI * 2 * (k + 1)) / 6;
+      m.addLine(
+        [Math.cos(b0) * 0.30, Math.sin(b0) * 0.30, hoverZ - Math.sin(b0) * 0.14],
+        [Math.cos(b1) * 0.30, Math.sin(b1) * 0.30, hoverZ - Math.sin(b1) * 0.14],
+        "#f472b6",
+        lw,
+        0.008
+      );
+    }
   }
 
   function buildSmallHouseModel(m, time, phase, pxScale) {
@@ -2364,8 +2626,14 @@
       buildDeepMineModel(collector, time, phase, pxScale);
     } else if (buildingId === "mega_quarry") {
       buildMegaQuarryModel(collector, time, phase, pxScale);
+    } else if (buildingId === "research_center") {
+      buildResearchCenterModel(collector, time, phase, pxScale);
     } else if (buildingId === "research_lab") {
       buildResearchLabModel(collector, time, phase, pxScale);
+    } else if (buildingId === "observatory") {
+      buildObservatoryModel(collector, time, phase, pxScale);
+    } else if (buildingId === "quantum_array") {
+      buildQuantumArrayModel(collector, time, phase, pxScale);
     } else if (buildingId === "small_house" || buildingId === "house") {
       buildSmallHouseModel(collector, time, phase, pxScale);
     } else if (buildingId === "big_house") {
@@ -2757,7 +3025,10 @@
       mine: 0.60,
       deep_mine: 0.72,
       mega_quarry: 0.84,
+      research_center: 0.78,
       research_lab: 0.38,
+      observatory: 0.64,
+      quantum_array: 0.86,
       small_house: 0.36,
       house: 0.36,
       big_house: 0.54,
@@ -2984,6 +3255,7 @@
     canBuildOnBiome: canBuildOnBiome,
     canAffordBuilding: canAffordBuilding,
     formatProductionRate: formatProductionRate,
+    showErrorToast: showBuildErrorToast,
     setHandlers: setHandlers,
     openForTile: openForTile,
     updateCurrentBuilding: updateCurrentBuilding,

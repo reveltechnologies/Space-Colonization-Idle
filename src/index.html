@@ -116,6 +116,12 @@
   <!-- Global Toast / Error Banner -->
   <div id="game-toast-container" class="game-toast-container" aria-live="assertive" aria-atomic="true"></div>
 
+  <!-- Floating World-Anchored Tile Action Button (Research Center) -->
+  <button id="btn-tile-research-tree" class="tile-action-btn tile-action-btn--research is-hidden" type="button" aria-label="Open Research Tree" data-i18n-aria-label="aria.open_research_tree">
+    <img class="tile-action-icon" src="./assets/ui/icon-research.svg" alt="" draggable="false" />
+    <span class="tile-action-label" data-i18n="research.open_tree">Research Tree</span>
+  </button>
+
   <!-- Planet navigation -->
   <button id="btn-prev-planet" class="planet-nav planet-nav-prev is-hidden" type="button" aria-label="Previous Planet" data-i18n-aria-label="aria.prev_planet">
     <img class="nav-arrow-icon nav-arrow-icon--flip" src="./assets/ui/icon-arrow.svg" alt="" draggable="false" />
@@ -212,9 +218,47 @@
     </div>
   </aside>
 
+  <!-- Research Tree Modal -->
+  <div id="research-modal" class="research-modal is-hidden" role="dialog" aria-modal="true" aria-label="Research Tree" data-i18n-aria-label="aria.research_tree_modal" aria-hidden="true">
+    <div class="research-modal-backdrop"></div>
+    <div class="research-modal-panel">
+      <div class="research-modal-header">
+        <div class="research-title-stack">
+          <span class="research-header-badge">
+            <img class="research-header-icon" src="./assets/ui/icon-research.svg" alt="" draggable="false" />
+          </span>
+          <div class="research-title-meta">
+            <h2 class="research-modal-title" data-i18n="research.title">Research Tree</h2>
+            <div id="research-terminal-pill" class="research-terminal-pill"></div>
+          </div>
+        </div>
+
+        <div class="research-header-right">
+          <div id="research-rp-bar" class="research-rp-bar">
+            <img class="research-rp-icon" src="./assets/ui/icon-research.svg" alt="" draggable="false" />
+            <div class="research-rp-stats">
+              <span class="research-rp-val-row">
+                <span id="val-research-points" class="research-rp-val">0</span>
+                <span class="research-rp-unit" data-i18n="research.rp_unit">RP</span>
+              </span>
+              <span id="rate-research-points" class="research-rp-rate"></span>
+            </div>
+          </div>
+          <button id="btn-close-research" class="build-close-btn" type="button" aria-label="Close Research Tree" data-i18n-aria-label="aria.close_research_tree">
+            <img class="btn-icon-md" src="./assets/ui/icon-close.svg" alt="" draggable="false" />
+          </button>
+        </div>
+      </div>
+
+      <div id="research-tree-body" class="research-tree-body"></div>
+      <div id="research-detail-panel" class="research-detail-panel is-hidden" aria-live="polite"></div>
+    </div>
+  </div>
+
   <script src="./lang/en_us.js"></script>
   <script src="./js/main.js"></script>
   <script src="./js/currencies.js"></script>
+  <script src="./js/research.js"></script>
   <script src="./js/buildings.js"></script>
   <script src="./js/planets.js"></script>
 </body>

@@ -30,7 +30,10 @@
       scroll_buildings_right: "Scroll Buildings Right",
       confirm_building_construction: "Confirm Building Construction",
       cancel_construction: "Cancel Construction",
-      confirm_construction: "Confirm Construction"
+      confirm_construction: "Confirm Construction",
+      open_research_tree: "Open Research Tree",
+      research_tree_modal: "Research Tree",
+      close_research_tree: "Close Research Tree"
     },
     currencies: {
       credits: "Credits",
@@ -107,10 +110,21 @@
         name: "Mega Quarry",
         description: "Colossal industrial strip-quarry and thermal sintering complex engineered to mass-produce Construction Bricks around the clock."
       },
+      research_center: {
+        name: "Research Center",
+        description: "Planetary science headquarters (limit 1 per planet). Generates Research Points and provides terminal access to the Research Tree from this world."
+      },
       research_lab: {
         name: "Research Lab",
-        specialty: "Tech Research",
-        description: "Pressurized orbital science facility equipped with quantum telemetry arrays to study planetary anomalies and advance colony technology."
+        description: "Pressurized orbital laboratory equipped with automated analyzers that steadily generate Research Points for your colony."
+      },
+      observatory: {
+        name: "Observatory",
+        description: "High-altitude deep-space telescope mounted on rugged peaks to scan cosmic phenomena and produce high Research Point yields."
+      },
+      quantum_array: {
+        name: "Quantum Array",
+        description: "Entangled subatomic processor lattice that solves hyper-dimensional equations to generate massive Research Point output."
       },
       small_house: {
         name: "Small House",
@@ -154,6 +168,8 @@
       cancel: "Cancel",
       confirm_build: "Confirm Build",
       built_badge: "BUILT",
+      max_per_planet: "Max {limit} / Planet",
+      requires_research_chip: "Locked: {research}",
       citizen_gain_one: "+{count} Citizen",
       citizen_gain_many: "+{count} Citizens",
       energy_gain: "+{count} Energy",
@@ -164,7 +180,79 @@
       cannot_build_unbuildable: "Cannot build {building} on {biome} terrain.",
       cannot_build_terrain: "Cannot build {building} on {biome} — requires {terrain} terrain.",
       cannot_afford: "Cannot afford {building} — need {missing} more.",
-      missing_joiner: " and "
+      missing_joiner: " and ",
+      planet_limit_reached: "Cannot build {building} — limit of {limit} per planet reached.",
+      research_required: "Unlock {building} by researching {research} in the Research Tree.",
+      research_need_rp: "Need {missing} more Research Points to research {research}.",
+      research_wrong_planet: "{research} must be researched from a Research Center on {planet}.",
+      research_need_prereq: "Research {prereq} first to unlock {research}."
+    },
+    research: {
+      title: "Research Tree",
+      open_tree: "Research Tree",
+      rp_unit: "RP",
+      terminal_from: "Terminal: {planet} ({type})",
+      total_generation: "Generation",
+      close_details: "Close Details",
+      categories: {
+        construction: "Construction",
+        colony: "Colony",
+        science: "Science"
+      },
+      any_planet: "Any Planet",
+      requires_planet: "Requires {planet} ({type})",
+      requires_prereq: "Requires: {prereq}",
+      btn_research: "Research",
+      btn_researched: "Researched",
+      btn_locked: "Locked",
+      btn_wrong_planet: "Visit {planet}",
+      nodes: {
+        reinforced_masonry: {
+          name: "Reinforced Masonry",
+          effect: "+25% Mine Bricks",
+          description: "Upgrades quarry compression dies to boost Construction Brick output from all Mines across every planet."
+        },
+        cryo_drilling: {
+          name: "Cryo-Core Drilling",
+          effect: "+35% Mine Bricks",
+          description: "Analyzes frozen bedrock fractures on the Rocky world to further accelerate Brick excavation."
+        },
+        thermal_sintering: {
+          name: "Magma Sintering",
+          effect: "+50% Deep & Mega Bricks",
+          description: "Harnesses volcanic heat profiles to super-bake Construction Bricks in Deep Mines and Mega Quarries."
+        },
+        habitat_insulation: {
+          name: "Habitat Insulation",
+          effect: "+20% Citizen Capacity",
+          description: "Multi-layer thermal shielding for residential domes, increasing Citizen capacity across all planets."
+        },
+        hydro_grid: {
+          name: "Oceanic Power Grid",
+          effect: "+25% Energy Capacity",
+          description: "Applies fluid-cooled superconducting conduits discovered on the Oceanic world to boost all Power buildings."
+        },
+        arcology_habitats: {
+          name: "Arcology Habitats",
+          effect: "+25% Citizen Capacity",
+          description: "Engineered pressurized vertical housing blueprints increasing Citizen capacity for all residential structures."
+        },
+        orbital_telemetry: {
+          name: "Orbital Telemetry",
+          effect: "+25% Research Points",
+          description: "Links planetary research uplinks into a shared network, increasing Research Point generation everywhere."
+        },
+        stellar_optics: {
+          name: "Deep-Space Optics",
+          effect: "+35% Research Points",
+          description: "High-precision volcanic glass lenses calibrated on the Volcanic world to boost Research Point generation."
+        },
+        quantum_computing: {
+          name: "Quantum Computing",
+          effect: "Unlocks Quantum Array",
+          description: "Decodes wave-function resonance on the Oceanic world, unlocking the high-output Quantum Array in the Build Menu."
+        }
+      }
     }
   };
 

@@ -93,7 +93,9 @@ img {
 .build-cat-btn,
 .build-card-action,
 .build-shelf-nav,
-.build-confirm-btn {
+.build-confirm-btn,
+.tile-action-btn,
+.research-node-btn {
   background: var(--b, var(--green));
   border: 3px solid var(--ink);
   border-radius: 16px;
@@ -105,7 +107,8 @@ img {
 .build-close-btn:active,
 .build-remove-btn:active,
 .build-cat-btn:active,
-.build-confirm-btn:active {
+.build-confirm-btn:active,
+.research-node-btn:active {
   transform: translateY(4px);
   box-shadow: var(--chunk-shadow-down);
 }
@@ -1243,6 +1246,51 @@ img {
   font-variant-numeric: tabular-nums;
 }
 
+.build-research-chip,
+.build-limit-chip,
+.build-lock-chip {
+  max-width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 3px 9px 3px 5px;
+  border-radius: 999px;
+}
+
+.build-research-chip {
+  border: 2px solid #6d28d9;
+  background: #efe6ff;
+  color: #3b0764;
+}
+
+.build-limit-chip {
+  border: 2px solid #b45309;
+  background: #fef3c7;
+  color: #78350f;
+}
+
+.build-lock-chip {
+  border: 2px solid #9d174d;
+  background: #fce7f3;
+  color: #701a3c;
+}
+
+.build-research-icon {
+  flex-shrink: 0;
+  width: 17px;
+  height: 17px;
+  display: block;
+  object-fit: contain;
+}
+
+.build-research-label {
+  font-size: 11.5px;
+  line-height: 1.05;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
 .build-card-action {
   --b: linear-gradient(180deg, #7ae437 0%, #58c01c 100%);
   margin-top: auto;
@@ -1299,8 +1347,30 @@ img {
 }
 
 .build-card.is-terrain-blocked,
-.build-card.is-unaffordable {
+.build-card.is-unaffordable,
+.build-card.is-limit-blocked,
+.build-card.is-research-locked {
   cursor: not-allowed;
+}
+
+.build-card.is-limit-blocked,
+.build-card.is-research-locked {
+  background: #d5d0df;
+  border-color: #554e66;
+  box-shadow: inset 0 -5px 0 rgba(40, 35, 55, 0.2), 0 4px 0 #3a3248;
+  opacity: 0.86;
+}
+
+.build-card.is-limit-blocked .build-card-stage,
+.build-card.is-research-locked .build-card-stage {
+  filter: grayscale(0.45);
+}
+
+.build-card.is-limit-blocked .build-card-action,
+.build-card.is-research-locked .build-card-action {
+  --b: linear-gradient(180deg, #5c566c 0%, #464054 100%);
+  border-color: #383244;
+  color: #d4cfe0;
 }
 
 .build-card.is-unaffordable .build-card-action {
@@ -1589,16 +1659,18 @@ img {
   .build-remove-btn:hover,
   .build-cat-btn:hover:not(.active),
   .build-shelf-nav:hover,
-  .build-confirm-btn:hover {
+  .build-confirm-btn:hover,
+  .tile-action-btn:hover,
+  .research-node-btn:hover {
     filter: brightness(1.1);
   }
 
-  .build-card:hover:not(.is-built):not(.is-terrain-blocked):not(.is-unaffordable) {
+  .build-card:hover:not(.is-built):not(.is-terrain-blocked):not(.is-unaffordable):not(.is-limit-blocked):not(.is-research-locked) {
     transform: translateY(-3px);
     box-shadow: inset 0 -5px 0 rgba(120, 80, 40, 0.16), 0 8px 0 var(--ink);
   }
 
-  .build-card:hover:not(.is-built):not(.is-terrain-blocked):not(.is-unaffordable) .build-card-action {
+  .build-card:hover:not(.is-built):not(.is-terrain-blocked):not(.is-unaffordable):not(.is-limit-blocked):not(.is-research-locked) .build-card-action {
     filter: brightness(1.07);
   }
 }
@@ -2026,7 +2098,10 @@ body.build-menu-open .planet-dots {
   .build-terrain-chip,
   .build-citizen-chip,
   .build-energy-chip,
-  .build-bricks-chip {
+  .build-bricks-chip,
+  .build-research-chip,
+  .build-limit-chip,
+  .build-lock-chip {
     padding: 2px 6px 2px 4px;
     gap: 3px;
   }
@@ -2034,7 +2109,8 @@ body.build-menu-open .planet-dots {
   .build-terrain-icon,
   .build-citizen-icon,
   .build-energy-icon,
-  .build-bricks-icon {
+  .build-bricks-icon,
+  .build-research-icon {
     width: 13px;
     height: 13px;
   }
@@ -2042,7 +2118,8 @@ body.build-menu-open .planet-dots {
   .build-terrain-label,
   .build-citizen-label,
   .build-energy-label,
-  .build-bricks-label {
+  .build-bricks-label,
+  .build-research-label {
     font-size: 10px;
   }
 
@@ -2575,11 +2652,9 @@ body.build-menu-open .planet-dots {
 
 .game-toast {
   pointer-events: none;
+  width: fit-content;
   max-width: 100%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
+  display: inline-block;
   padding: 3px 6px;
   background: transparent;
   border: none;
@@ -2588,7 +2663,7 @@ body.build-menu-open .planet-dots {
   color: #ff6259;
   font-size: 15.5px;
   font-weight: 900;
-  line-height: 1.25;
+  line-height: 1.3;
   text-align: center;
   text-shadow:
     0 -2px 0 var(--ink), 0 2px 0 var(--ink), 2px 0 0 var(--ink), -2px 0 0 var(--ink),
@@ -2614,9 +2689,9 @@ body.build-menu-open .planet-dots {
 .game-toast-icon {
   width: 22px;
   height: 22px;
-  flex-shrink: 0;
   display: inline-block;
-  vertical-align: middle;
+  vertical-align: -5px;
+  margin-right: 6px;
   object-fit: contain;
   filter: drop-shadow(0 2px 0 var(--ink));
 }
@@ -2667,12 +2742,13 @@ body.build-menu-open .planet-dots {
 
   .game-toast {
     font-size: 13px;
-    gap: 5px;
   }
 
   .game-toast-icon {
     width: 18px;
     height: 18px;
+    vertical-align: -4px;
+    margin-right: 5px;
   }
 
   .game-toast-pill {
@@ -2683,5 +2759,766 @@ body.build-menu-open .planet-dots {
   .game-toast-pill-icon {
     width: 15px;
     height: 15px;
+  }
+}
+
+/* ---------- World-Anchored Floating Tile Action Button (Research Tree) ---------- */
+.tile-action-btn {
+  --b: linear-gradient(180deg, #8b5cf6 0%, #5b21b6 100%);
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 4;
+  height: 44px;
+  padding: 0 14px 0 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 999px;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 900;
+  white-space: nowrap;
+  text-shadow: 0 -1.5px 0 var(--ink), 0 1.5px 0 var(--ink), 1.5px 0 0 var(--ink), -1.5px 0 0 var(--ink), 0 2.5px 0 var(--ink);
+  will-change: transform;
+}
+
+.tile-action-btn::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -9px;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 9px solid var(--ink);
+}
+
+.tile-action-btn:active {
+  margin-top: 3px;
+  box-shadow: var(--chunk-shadow-down);
+}
+
+.tile-action-btn.is-hidden,
+body.research-modal-open .tile-action-btn {
+  display: none;
+}
+
+.tile-action-icon {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  display: block;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 0 rgba(27, 17, 71, 0.65));
+}
+
+.tile-action-label {
+  line-height: 1;
+}
+
+/* ---------- Research Tree Modal ---------- */
+.research-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(env(safe-area-inset-top, 12px) + 12px)
+    calc(env(safe-area-inset-right, 12px) + 12px)
+    calc(env(safe-area-inset-bottom, 12px) + 12px)
+    calc(env(safe-area-inset-left, 12px) + 12px);
+}
+
+.research-modal.is-hidden {
+  display: none;
+}
+
+.research-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(6, 9, 20, 0.72);
+  backdrop-filter: blur(5px);
+}
+
+.research-modal-panel {
+  position: relative;
+  z-index: 1;
+  width: min(600px, 100%);
+  max-height: min(640px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px 14px;
+  background: linear-gradient(180deg, #5640c4 0%, #3d2899 100%);
+  border: 4px solid var(--ink);
+  border-radius: 22px;
+  box-shadow:
+    inset 0 5px 0 rgba(255, 255, 255, 0.28),
+    inset 0 -6px 0 rgba(18, 8, 55, 0.36),
+    0 8px 0 var(--ink),
+    0 20px 44px rgba(0, 0, 0, 0.68);
+  animation: confirm-scene-in 0.2s cubic-bezier(0.22, 1.2, 0.36, 1);
+}
+
+.research-modal-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  flex-shrink: 0;
+}
+
+.research-title-stack {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.research-header-badge {
+  flex-shrink: 0;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 35% 30%, #4c1d95 0%, #1e1b4b 100%);
+  border: 3px solid var(--ink);
+  box-shadow: inset 0 0 0 2px #38bdf8, 0 3px 0 var(--ink);
+}
+
+.research-header-icon {
+  width: 76%;
+  height: 76%;
+  display: block;
+  object-fit: contain;
+}
+
+.research-title-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.research-modal-title {
+  font-size: 19px;
+  font-weight: 900;
+  color: #ffffff;
+  line-height: 1.05;
+  text-shadow: var(--outline);
+}
+
+.research-terminal-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  align-self: flex-start;
+  padding: 2px 9px 2px 4px;
+  border-radius: 999px;
+  background: var(--purple-deep);
+  border: 2px solid var(--terminal-accent, #38bdf8);
+  color: #e2f5ff;
+  font-size: 11px;
+  line-height: 1.1;
+}
+
+.research-terminal-icon {
+  width: 15px;
+  height: 15px;
+  display: block;
+  object-fit: contain;
+}
+
+.research-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.research-rp-bar {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 11px 4px 8px;
+  background: var(--purple-deep);
+  border: 3px solid var(--ink);
+  border-radius: 999px;
+  box-shadow: inset 0 4px 0 rgba(0, 0, 0, 0.36);
+}
+
+.research-rp-icon {
+  width: 24px;
+  height: 24px;
+  display: block;
+  object-fit: contain;
+}
+
+.research-rp-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.research-rp-val-row {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  line-height: 1;
+}
+
+.research-rp-val {
+  font-size: 16px;
+  color: #ffffff;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 2px 0 var(--ink);
+}
+
+.research-rp-unit {
+  font-size: 11.5px;
+  color: #67e8f9;
+}
+
+.research-rp-rate {
+  font-size: 10.5px;
+  line-height: 1;
+  color: #c4b5fd;
+  font-variant-numeric: tabular-nums;
+}
+
+.research-rp-rate:empty {
+  display: none;
+}
+
+.research-tree-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  background: var(--purple-deep);
+  border: 3px solid var(--ink);
+  border-radius: 16px;
+  box-shadow: inset 0 6px 0 rgba(0, 0, 0, 0.4);
+  scrollbar-width: none;
+}
+
+.research-tree-body::-webkit-scrollbar {
+  display: none;
+}
+
+.research-category-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 12px;
+  background: rgba(15, 10, 42, 0.42);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+}
+
+.research-category-tag {
+  flex: 0 0 124px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.research-category-icon {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  display: block;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 0 var(--ink));
+}
+
+.research-category-label {
+  font-size: 13px;
+  font-weight: 900;
+  color: #ffffff;
+  line-height: 1.1;
+  text-shadow: 0 1.5px 0 var(--ink);
+}
+
+.research-chain {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 4px;
+  min-width: 0;
+}
+
+.research-connector {
+  position: relative;
+  flex: 1 1 18px;
+  min-width: 14px;
+  max-width: 44px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+  margin-bottom: 14px;
+}
+
+.research-connector::after {
+  content: "";
+  position: absolute;
+  right: -2px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-left: 7px solid rgba(255, 255, 255, 0.34);
+}
+
+.research-connector.is-unlocked {
+  background: #ffd75e;
+  box-shadow: 0 0 6px rgba(255, 215, 94, 0.55);
+}
+
+.research-connector.is-unlocked::after {
+  border-left-color: #ffd75e;
+}
+
+.research-icon-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 2px;
+  background: transparent;
+  border: none;
+  flex-shrink: 0;
+  transition: transform 0.1s ease;
+}
+
+.research-icon-node:active {
+  transform: translateY(2px);
+}
+
+.research-icon-box {
+  position: relative;
+  width: 54px;
+  height: 54px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--node-accent, #38bdf8) 25%, #ffffff) 0%, #fffdf8 100%);
+  border: 3px solid var(--ink);
+  box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.12), 0 3px 0 var(--ink);
+  transition: box-shadow 0.12s ease, transform 0.12s ease, filter 0.12s ease;
+}
+
+.research-icon-node.is-selected .research-icon-box {
+  border-color: #ffffff;
+  box-shadow: 0 0 0 3px #38bdf8, inset 0 -4px 0 rgba(0, 0, 0, 0.12), 0 4px 0 var(--ink);
+  transform: translateY(-2px);
+}
+
+.research-icon-node.is-researched .research-icon-box {
+  background: linear-gradient(180deg, #fff3a3 0%, #ffc83a 100%);
+  box-shadow: inset 0 0 0 2px #fff9d6, 0 3px 0 var(--ink);
+}
+
+.research-icon-node.is-prereq-locked .research-icon-box {
+  background: #8a839c;
+  filter: grayscale(0.7);
+  opacity: 0.72;
+}
+
+.research-icon-node.is-wrong-planet .research-icon-box {
+  background: #f5dfce;
+}
+
+.research-icon-img {
+  width: 36px;
+  height: 36px;
+  display: block;
+  object-fit: contain;
+}
+
+.research-mini-planet {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 21px;
+  height: 21px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #1e1b4b;
+  border: 2px solid var(--ink);
+  box-shadow: 0 2px 0 var(--ink);
+}
+
+.research-mini-planet.is-met {
+  border-color: #58c01c;
+}
+
+.research-mini-planet.is-required {
+  border-color: #f97316;
+}
+
+.research-mini-planet img {
+  width: 15px;
+  height: 15px;
+  display: block;
+  object-fit: contain;
+}
+
+.research-mini-status {
+  position: absolute;
+  bottom: -5px;
+  right: -5px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  line-height: 1;
+  border: 2px solid var(--ink);
+}
+
+.research-mini-status.is-done {
+  background: #58c01c;
+  color: #ffffff;
+}
+
+.research-mini-status.is-locked {
+  background: #3b354d;
+  color: #ffffff;
+  font-size: 9px;
+}
+
+.research-icon-cost {
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(15, 10, 42, 0.75);
+  border: 1.5px solid rgba(255, 255, 255, 0.16);
+  color: #67e8f9;
+  font-size: 10.5px;
+  line-height: 1.15;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.research-icon-cost.is-short {
+  color: #ff8e88;
+}
+
+.research-icon-node.is-researched .research-icon-cost {
+  background: #ffd75e;
+  color: var(--ink);
+  border-color: var(--ink);
+}
+
+/* ---------- Research Detail Inspector (shown on icon click) ---------- */
+.research-detail-panel {
+  flex-shrink: 0;
+  animation: confirm-scene-in 0.16s cubic-bezier(0.22, 1.2, 0.36, 1);
+}
+
+.research-detail-panel.is-hidden {
+  display: none;
+}
+
+.research-detail-card {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 10px 12px;
+  background: #fff7e8;
+  border: 3px solid var(--ink);
+  border-radius: 16px;
+  box-shadow: inset 0 -4px 0 rgba(120, 80, 40, 0.15), 0 4px 0 var(--ink);
+}
+
+.research-detail-card.is-researched {
+  background: linear-gradient(180deg, #fff9d6 0%, #ffeba3 100%);
+}
+
+.research-detail-card.is-prereq-locked {
+  background: #dcd8e6;
+}
+
+.research-detail-card.is-wrong-planet {
+  background: #fdf0e6;
+}
+
+.research-detail-card.is-shake {
+  animation: build-card-shake 0.24s ease;
+}
+
+.research-detail-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.research-detail-stage {
+  flex-shrink: 0;
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--node-accent, #38bdf8) 25%, #ffffff) 0%, #fffdf8 100%);
+  border: 2.5px solid var(--ink);
+}
+
+.research-detail-icon {
+  width: 38px;
+  height: 38px;
+  display: block;
+  object-fit: contain;
+}
+
+.research-detail-meta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.research-detail-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px 8px;
+}
+
+.research-detail-name {
+  font-size: 15px;
+  font-weight: 900;
+  color: var(--ink);
+  line-height: 1.1;
+}
+
+.research-detail-desc {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.32;
+  color: #3a2e5c;
+}
+
+.research-detail-close {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--red);
+  border: 2px solid var(--ink);
+  box-shadow: 0 2px 0 var(--ink);
+}
+
+.research-detail-close img {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+
+.research-effect-chip {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #e0f2fe;
+  border: 2px solid #0284c7;
+  color: #0c4a6e;
+  font-size: 11px;
+  line-height: 1.1;
+}
+
+.research-node-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.research-planet-badge,
+.research-prereq-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 1.1;
+}
+
+.research-planet-badge.is-any {
+  background: #ede9fe;
+  border: 2px solid #7c3aed;
+  color: #4c1d95;
+}
+
+.research-planet-badge.is-met {
+  background: #dffad0;
+  border: 2px solid #22801a;
+  color: #144210;
+}
+
+.research-planet-badge.is-required {
+  background: #ffedd5;
+  border: 2px solid #ea580c;
+  color: #7c2d12;
+}
+
+.research-prereq-badge.is-met {
+  background: #e0f2fe;
+  border: 2px solid #0284c7;
+  color: #0c4a6e;
+}
+
+.research-prereq-badge.is-missing {
+  background: #ffe0dc;
+  border: 2px solid #cf2626;
+  color: #961212;
+}
+
+.research-badge-icon {
+  width: 14px;
+  height: 14px;
+  display: block;
+  object-fit: contain;
+}
+
+.research-node-btn {
+  --b: linear-gradient(180deg, #7ae437 0%, #58c01c 100%);
+  width: 100%;
+  min-height: 40px;
+  padding: 5px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-radius: 12px;
+  font-size: 13.5px;
+  color: #ffffff;
+  text-shadow: 0 -1.5px 0 var(--ink), 0 1.5px 0 var(--ink), 1.5px 0 0 var(--ink), -1.5px 0 0 var(--ink), 0 2px 0 var(--ink);
+}
+
+.research-detail-card.is-researched .research-node-btn {
+  --b: linear-gradient(180deg, #ffd859 0%, #ffb71c 100%);
+  justify-content: center;
+  color: var(--ink);
+  text-shadow: none;
+  cursor: default;
+}
+
+.research-detail-card.is-unaffordable .research-node-btn {
+  --b: linear-gradient(180deg, #35276b 0%, #241950 100%);
+  cursor: not-allowed;
+}
+
+.research-detail-card.is-wrong-planet .research-node-btn {
+  --b: linear-gradient(180deg, #f97316 0%, #c2410c 100%);
+  cursor: not-allowed;
+}
+
+.research-detail-card.is-prereq-locked .research-node-btn {
+  --b: linear-gradient(180deg, #5c566c 0%, #464054 100%);
+  color: #d4cfe0;
+  cursor: not-allowed;
+}
+
+.research-node-cost {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(18, 8, 55, 0.28);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.research-node-cost.is-short {
+  color: #ff8e88;
+}
+
+.research-cost-icon {
+  width: 15px;
+  height: 15px;
+  display: block;
+  object-fit: contain;
+}
+
+@media (max-width: 520px) {
+  .research-modal-panel {
+    padding: 10px 10px 12px;
+    border-radius: 18px;
+    gap: 8px;
+  }
+
+  .research-modal-title {
+    font-size: 16.5px;
+  }
+
+  .research-header-badge {
+    width: 36px;
+    height: 36px;
+  }
+
+  .research-category-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 7px;
+    padding: 8px 9px;
+  }
+
+  .research-category-tag {
+    flex: none;
+  }
+
+  .research-chain {
+    justify-content: space-between;
+  }
+
+  .research-icon-box {
+    width: 46px;
+    height: 46px;
+    border-radius: 12px;
+  }
+
+  .research-icon-img {
+    width: 30px;
+    height: 30px;
+  }
+
+  .tile-action-btn {
+    height: 38px;
+    padding: 0 11px 0 8px;
+    font-size: 12.5px;
+    gap: 6px;
+  }
+
+  .tile-action-icon {
+    width: 20px;
+    height: 20px;
   }
 }

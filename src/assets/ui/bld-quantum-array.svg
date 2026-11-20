@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" stroke-linejoin="round" stroke-linecap="round">
+  <ellipse cx="50" cy="91" rx="44" ry="5.5" fill="#1b1147" opacity="0.28"/>
+  <!-- Suspended quantum containment core & rings -->
+  <ellipse cx="50" cy="40" rx="30" ry="12" transform="rotate(24 50 40)" fill="none" stroke="#1b1147" stroke-width="7"/>
+  <ellipse cx="50" cy="40" rx="30" ry="12" transform="rotate(-24 50 40)" fill="none" stroke="#1b1147" stroke-width="7"/>
+  <ellipse cx="50" cy="40" rx="30" ry="12" transform="rotate(24 50 40)" fill="none" stroke="#38bdf8" stroke-width="3.5"/>
+  <ellipse cx="50" cy="40" rx="30" ry="12" transform="rotate(-24 50 40)" fill="none" stroke="#f472b6" stroke-width="3.5"/>
+
+  <circle cx="50" cy="40" r="14" fill="#ec4899" stroke="#1b1147" stroke-width="4.5"/>
+  <circle cx="50" cy="40" r="7.5" fill="#67e8f9"/>
+  <circle cx="46" cy="36" r="2.8" fill="#ffffff"/>
+
+  <!-- Twin emitter pylons -->
+  <path d="M13 85 L20 26 L31 29 L27 85 Z" fill="#cbd5e1" stroke="#1b1147" stroke-width="4.5"/>
+  <path d="M87 85 L80 26 L69 29 L73 85 Z" fill="#cbd5e1" stroke="#1b1147" stroke-width="4.5"/>
+  <circle cx="25" cy="27" r="6" fill="#38bdf8" stroke="#1b1147" stroke-width="3.5"/>
+  <circle cx="75" cy="27" r="6" fill="#f472b6" stroke="#1b1147" stroke-width="3.5"/>
+
+  <!-- Heavy containment base deck -->
+  <rect x="10" y="74" width="80" height="15" rx="6" fill="#312e81" stroke="#1b1147" stroke-width="5"/>
+  <rect x="34" y="77" width="32" height="8" rx="4" fill="#38bdf8" stroke="#1b1147" stroke-width="3"/>
+</svg>

@@ -59,6 +59,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - **Tier 1 - Mine** (`mine`): 100 SC, **+12/min** Bricks (`0.2/s`).
     - **Tier 2 - Deep Mine** (`deep_mine`): 230 SC, 40 Ore, **+48/min** Bricks (`0.8/s`).
     - **Tier 3 - Mega Quarry** (`mega_quarry`): 460 SC, 90 Ore, **+2.5/s** Bricks.
+- **Research Points, Research Center & Planet-Specific Research Tree**:
+  - Added global **Research Points (`RP`)** generation system (`src/js/research.js`, `window.GameResearch`) accumulating continuously every frame from placed Science structures across all planets.
+  - Added the once-per-planet **Research Center** (`research_center`, limit 1 per planet, **+15/min RP**) with custom cel-shaded SVG (`bld-research-center.svg`) and animated 3D orbital dome model (`buildResearchCenterModel`).
+  - Added a world-projected floating **Research Tree** action button (`#btn-tile-research-tree`) anchored above the selected **Research Center** tile on the 3D planet.
+  - Built an interactive **Research Tree Modal** (`#research-modal`) displaying live `RP` balance, generation rate, terminal planet badge, and compact categorized upgrade chains (**Construction**, **Colony**, **Science**) with sequential progression connectors, click-to-inspect detail panel (`#research-detail-panel`), and planet-specific unlocks (Rocky, Oceanic, Volcanic) that boost Brick/Energy/Citizen/Research yields or unlock new structures.
+  - Expanded the Science category with additional RP-generating structures (`icon-research.svg`, `bld-observatory.svg`, `bld-quantum-array.svg`):
+    - **Research Center** (`research_center`): 150 SC, 20 Ore, max 1 per planet, **+15/min RP**.
+    - **Research Lab** (`research_lab`): 200 SC, 35 Ore, **+30/min RP**.
+    - **Observatory** (`observatory`, Mountainous): 340 SC, 60 Ore, **+1.2/s RP**.
+    - **Quantum Array** (`quantum_array`, unlocked via *Quantum Computing*): 450 SC, 85 Ore, **+3.5/s RP**.
 
 ### Removed
 - **Cannot Build on Fluid Error Message in Build Menu**:
@@ -70,6 +80,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Background parallax remains cleanly linked only to full planet carousel navigation swipe transitions (`dScroll`).
 
 ### Fixed
+- **Top-Center Toast Leading Icon Alignment**:
+  - Fixed an issue where wrapped floating error notices caused the leading icon (`game-toast-icon`, such as the energy bolt or upgrade icon) to float far to the left of the centered text. Switched `.game-toast` to `inline-block` (`width: fit-content`) with the leading icon nested inline inside the message span.
 - **Real-Time Background Parallax During Planet Swapping**:
   - Fixed an issue where the background starfield remained frozen while dragging between planets and jumped abruptly only after releasing the drag.
   - Replaced the render-local scroll snapshot with persistent cross-frame tracking (`lastRenderScrollPos`), delivering continuous, fluid real-time parallax to `window.SpaceBackground` both during active pointer dragging and throughout inertial snap deceleration.

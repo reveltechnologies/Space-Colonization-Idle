@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" stroke-linejoin="round" stroke-linecap="round">
+  <!-- Outer tilted cyan-violet orbital rings -->
+  <ellipse cx="50" cy="50" rx="41" ry="17" transform="rotate(32 50 50)" fill="none" stroke="#1b1147" stroke-width="10"/>
+  <ellipse cx="50" cy="50" rx="41" ry="17" transform="rotate(-32 50 50)" fill="none" stroke="#1b1147" stroke-width="10"/>
+  <ellipse cx="50" cy="50" rx="41" ry="17" transform="rotate(32 50 50)" fill="none" stroke="#38bdf8" stroke-width="5.5"/>
+  <ellipse cx="50" cy="50" rx="41" ry="17" transform="rotate(-32 50 50)" fill="none" stroke="#c084fc" stroke-width="5.5"/>
+
+  <!-- Glowing central research core -->
+  <circle cx="50" cy="50" r="17" fill="#7c3aed" stroke="#1b1147" stroke-width="6"/>
+  <circle cx="50" cy="50" r="10.5" fill="#38bdf8"/>
+  <ellipse cx="45" cy="45" rx="4.5" ry="2.8" transform="rotate(-25 45 45)" fill="#e0f7ff"/>
+  <circle cx="50" cy="50" r="17" fill="none" stroke="#1b1147" stroke-width="6"/>
+
+  <!-- Orbiting electron nodes -->
+  <circle cx="83" cy="30" r="6.5" fill="#fde047" stroke="#1b1147" stroke-width="4"/>
+  <circle cx="17" cy="70" r="6.5" fill="#67e8f9" stroke="#1b1147" stroke-width="4"/>
+</svg>

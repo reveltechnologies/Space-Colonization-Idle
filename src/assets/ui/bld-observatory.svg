@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" stroke-linejoin="round" stroke-linecap="round">
+  <ellipse cx="50" cy="91" rx="42" ry="5.5" fill="#1b1147" opacity="0.28"/>
+  <!-- Star glints -->
+  <circle cx="84" cy="18" r="3.8" fill="#fde047" stroke="#1b1147" stroke-width="2.5"/>
+  <circle cx="18" cy="24" r="3" fill="#67e8f9" stroke="#1b1147" stroke-width="2.2"/>
+
+  <!-- Angled telescope barrel pointing skyward -->
+  <path d="M52 46 L77 18 L86 27 L61 55 Z" fill="#6366f1" stroke="#1b1147" stroke-width="5"/>
+  <ellipse cx="81.5" cy="22.5" rx="7.5" ry="4" transform="rotate(44 81.5 22.5)" fill="#67e8f9" stroke="#1b1147" stroke-width="3.5"/>
+
+  <!-- Observatory dome -->
+  <path d="M21 64 A29 29 0 0 1 79 64 Z" fill="#e2e8f0" stroke="#1b1147" stroke-width="5"/>
+  <path d="M29 56 A21 21 0 0 1 44 41" stroke="#ffffff" stroke-width="4.5" fill="none"/>
+  <path d="M46 37 Q58 41 64 56" fill="none" stroke="#312e81" stroke-width="5"/>
+
+  <!-- Rugged stone plinth & terrace -->
+  <path d="M12 88 L19 63 H81 L88 88 Z" fill="#818cf8" stroke="#1b1147" stroke-width="5"/>
+  <rect x="22" y="63" width="56" height="8" rx="3" fill="#c7d2fe" stroke="#1b1147" stroke-width="3.5"/>
+  <rect x="42" y="74" width="16" height="14" rx="3" fill="#312e81" stroke="#1b1147" stroke-width="3.5"/>
+</svg>

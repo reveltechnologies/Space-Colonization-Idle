@@ -34,6 +34,7 @@
   const bricksValEl = document.getElementById("val-bricks");
   const bricksRateEl = document.getElementById("rate-bricks");
   const bricksStatBar = document.getElementById("planet-stat-bricks");
+  const tileResearchBtn = document.getElementById("btn-tile-research-tree");
 
   const PLANET_COUNT = 3;
   const PLANET_NAMES_STORAGE_KEY = "sci_planet_names_v1";
@@ -545,6 +546,7 @@
   const citizensHudState = { planet: -1, max: -1, curr: -1, bumpTimer: 0 };
   const energyHudState = { planet: -1, max: -1, curr: -1, bumpTimer: 0 };
   const bricksHudState = { planet: -1, amount: -1, rateText: "", bumpTimer: 0 };
+  const researchButtonAnchor = { visible: false, x: 0, y: 0, planetId: -1 };
   let lastHeaderPlanet = -1;
   let emblemPopTimer = 0;
   let isRenamingPlanet = false;
@@ -736,8 +738,27 @@
     }
   }
 
+  function countBuildingOnPlanet(planetIdx, buildingId) {
+    const buildings = buildingsByPlanet[planetIdx];
+    if (!buildings) return 0;
+    let count = 0;
+    const keys = Object.keys(buildings);
+    for (let i = 0; i < keys.length; i++) {
+      const bInfo = buildings[keys[i]];
+      if (bInfo && bInfo.id === buildingId) {
+        count++;
+      }
+    }
+    return count;
+  }
+
   function calculatePlanetCitizenCapacity(planetIdx) {
-    return calculatePlanetStatCapacity(planetIdx, "citizenSlots");
+    const base = calculatePlanetStatCapacity(planetIdx, "citizenSlots");
+    const mult =
+      window.GameResearch && typeof window.GameResearch.getCitizenMultiplier === "function"
+        ? window.GameResearch.getCitizenMultiplier()
+        : 1;
+    return Math.round(base * mult);
   }
 
   function getPlanetCitizenCount(planetIdx) {
@@ -759,7 +780,12 @@
   }
 
   function calculatePlanetEnergyCapacity(planetIdx) {
-    return calculatePlanetStatCapacity(planetIdx, "energySlots");
+    const base = calculatePlanetStatCapacity(planetIdx, "energySlots");
+    const mult =
+      window.GameResearch && typeof window.GameResearch.getEnergyMultiplier === "function"
+        ? window.GameResearch.getEnergyMultiplier()
+        : 1;
+    return Math.round(base * mult);
   }
 
   function getPlanetEnergyCount(planetIdx) {
@@ -781,7 +807,40 @@
   }
 
   function calculatePlanetBrickRate(planetIdx) {
-    return calculatePlanetStatCapacity(planetIdx, "bricksPerSec");
+    const buildings = buildingsByPlanet[planetIdx];
+    if (!buildings || !window.GameBuildings) return 0;
+    let rate = 0;
+    const keys = Object.keys(buildings);
+    for (let i = 0; i < keys.length; i++) {
+      const bInfo = buildings[keys[i]];
+      if (!bInfo || !bInfo.id) continue;
+      const bDef = window.GameBuildings.getBuilding(bInfo.id);
+      if (bDef && bDef.bricksPerSec) {
+        const mult =
+          window.GameResearch && typeof window.GameResearch.getBrickMultiplier === "function"
+            ? window.GameResearch.getBrickMultiplier(bDef.id)
+            : 1;
+        rate += bDef.bricksPerSec * mult;
+      }
+    }
+    return rate;
+  }
+
+  function calculatePlanetResearchRate(planetIdx) {
+    const base = calculatePlanetStatCapacity(planetIdx, "researchPerSec");
+    const mult =
+      window.GameResearch && typeof window.GameResearch.getResearchMultiplier === "function"
+        ? window.GameResearch.getResearchMultiplier()
+        : 1;
+    return base * mult;
+  }
+
+  function calculateTotalResearchRate() {
+    let total = 0;
+    for (let i = 0; i < PLANET_COUNT; i++) {
+      total += calculatePlanetResearchRate(i);
+    }
+    return total;
   }
 
   function formatPlanetBrickRate(ratePerSec) {
@@ -1456,6 +1515,21 @@
         if (eff && typeof window.GameBuildings.renderTileEffect === "function") {
           window.GameBuildings.renderTileEffect(ctx, eff, buildingFrame, time);
         }
+
+        if (
+          isFocused &&
+          isSelected &&
+          entry.placed &&
+          entry.placed.id === "research_center" &&
+          (!eff || eff.type !== "demolish")
+        ) {
+          const anchorWorld = add(entry.elevPlaneCenter, scale(rotNormal, tile.hexScale * elev * 1.08));
+          const anchorPt = project(anchorWorld, cx, cy, focalLength);
+          researchButtonAnchor.visible = true;
+          researchButtonAnchor.planetId = planet.id;
+          researchButtonAnchor.x = clamp(anchorPt.x, 76, Math.max(76, width - 76));
+          researchButtonAnchor.y = clamp(anchorPt.y, 72, Math.max(72, height - 24));
+        }
       }
     }
 
@@ -1554,6 +1628,12 @@
       }
     }
     updatePlanetBricksHud(false);
+
+    if (window.GameResearch && typeof window.GameResearch.tick === "function") {
+      window.GameResearch.tick(dtSec, calculateTotalResearchRate());
+    }
+
+    researchButtonAnchor.visible = false;
 
     let targetShiftX = 0;
     let targetShiftY = 0;
@@ -1694,6 +1774,17 @@
       }
       const transform = getPlanetTransform(planets[i], i);
       drawPlanet(planets[i], transform, time, dtSec);
+    }
+
+    if (tileResearchBtn) {
+      const modalActive = window.GameResearch && typeof window.GameResearch.isOpen === "function" && window.GameResearch.isOpen();
+      if (researchButtonAnchor.visible && !modalActive) {
+        tileResearchBtn.classList.remove("is-hidden");
+        tileResearchBtn.style.transform =
+          "translate3d(" + researchButtonAnchor.x.toFixed(1) + "px, " + researchButtonAnchor.y.toFixed(1) + "px, 0) translate(-50%, -100%)";
+      } else {
+        tileResearchBtn.classList.add("is-hidden");
+      }
     }
 
     window.requestAnimationFrame(render);
@@ -1991,6 +2082,12 @@
   }
 
   function onKeyDown(e) {
+    if (window.GameResearch && typeof window.GameResearch.isOpen === "function" && window.GameResearch.isOpen()) {
+      if (e.key === "Escape") {
+        window.GameResearch.close();
+      }
+      return;
+    }
     const activeTag = document.activeElement && document.activeElement.tagName;
     if (
       isRenamingPlanet ||
@@ -2070,6 +2167,14 @@
         adjustZoom(-ZOOM_STEP);
       });
     }
+    if (tileResearchBtn) {
+      tileResearchBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        if (window.GameResearch && typeof window.GameResearch.open === "function") {
+          window.GameResearch.open(planets[activeDotIndex]);
+        }
+      });
+    }
 
     if (renamePlanetBtn) {
       renamePlanetBtn.addEventListener("pointerdown", function (e) {
@@ -2115,8 +2220,22 @@
   function init() {
     if (!canvas || !ctx) return;
 
+    if (window.GameResearch) {
+      if (typeof window.GameResearch.setPlanetProvider === "function") {
+        window.GameResearch.setPlanetProvider(function () {
+          return planets;
+        });
+      }
+      if (typeof window.GameResearch.onChange === "function") {
+        window.GameResearch.onChange(function () {
+          updatePlanetStatsHud(true);
+        });
+      }
+    }
+
     if (window.GameBuildings) {
       window.GameBuildings.setHandlers({
+        getBuildingCountOnPlanet: countBuildingOnPlanet,
         onPlace: function (buildingId) {
           const tileId = selectedHexByPlanet[targetIndex];
           if (!tileId) return;
@@ -2127,6 +2246,17 @@
           const tile = planet && planet.tileById[tileId];
           const bld = window.GameBuildings.getBuilding(buildingId);
           if (!bld || !tile) return;
+          if (
+            bld.requiredResearch &&
+            window.GameResearch &&
+            typeof window.GameResearch.isResearched === "function" &&
+            !window.GameResearch.isResearched(bld.requiredResearch)
+          ) {
+            return;
+          }
+          if (bld.maxPerPlanet && countBuildingOnPlanet(targetIndex, buildingId) >= bld.maxPerPlanet) {
+            return;
+          }
           if (!window.GameBuildings.canBuildOnBiome(buildingId, tile.biome)) return;
           if (bld.cost && window.GameCurrencies && !window.GameCurrencies.spend(bld.cost)) {
             return;
