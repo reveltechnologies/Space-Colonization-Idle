@@ -1386,6 +1386,37 @@ img {
   font-variant-numeric: tabular-nums;
 }
 
+.build-card-citizen-req {
+  position: absolute;
+  left: 5px;
+  bottom: 5px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 3.5px;
+  padding: 3px 8px 3px 5px;
+  border-radius: 999px;
+  background: #ffffff;
+  border: 2px solid var(--ink);
+  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.1), 0 2px 0 var(--ink);
+}
+
+.build-card-citizen-req-icon {
+  width: 16px;
+  height: 16px;
+  display: block;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 0 rgba(27, 17, 71, 0.35));
+}
+
+.build-card-citizen-req-label {
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
 .build-card-info {
   display: flex;
   flex-direction: column;
@@ -1449,6 +1480,12 @@ img {
   border-radius: 999px;
   background: #d8f4ff;
   color: #113866;
+}
+
+.build-citizen-chip.is-req {
+  border-color: #9333ea;
+  background: #f3e8ff;
+  color: #4c1d95;
 }
 
 .build-citizen-icon {
@@ -1536,6 +1573,7 @@ img {
 }
 
 .build-research-chip,
+.build-ore-chip,
 .build-limit-chip,
 .build-lock-chip {
   max-width: 100%;
@@ -1553,6 +1591,12 @@ img {
   color: #3b0764;
 }
 
+.build-ore-chip {
+  border: 2px solid #0284c7;
+  background: #e0f7ff;
+  color: #0c4a6e;
+}
+
 .build-limit-chip {
   border: 2px solid #b45309;
   background: #fef3c7;
@@ -1565,7 +1609,8 @@ img {
   color: #701a3c;
 }
 
-.build-research-icon {
+.build-research-icon,
+.build-ore-icon {
   flex-shrink: 0;
   width: 17px;
   height: 17px;
@@ -1573,7 +1618,8 @@ img {
   object-fit: contain;
 }
 
-.build-research-label {
+.build-research-label,
+.build-ore-label {
   font-size: 11.5px;
   line-height: 1.05;
   white-space: nowrap;
@@ -1588,9 +1634,11 @@ img {
   padding: 6px 8px;
   display: flex;
   flex-direction: row;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  row-gap: 4px;
+  column-gap: 8px;
   border-radius: 12px;
   font-size: 15px;
   color: #ffffff;
@@ -1944,8 +1992,11 @@ img {
 
 .build-confirm-costs {
   display: inline-flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
+  justify-content: center;
+  row-gap: 4px;
+  column-gap: 10px;
   padding: 3px 9px;
   background: rgba(18, 8, 55, 0.28);
   border-radius: 999px;
@@ -2398,6 +2449,23 @@ body.build-menu-open .planet-dots {
     font-size: 10px;
   }
 
+  .build-card-energy-req,
+  .build-card-citizen-req {
+    gap: 2.5px;
+    padding: 2px 6px 2px 4px;
+  }
+
+  .build-card-energy-req-icon,
+  .build-card-citizen-req-icon {
+    width: 13px;
+    height: 13px;
+  }
+
+  .build-card-energy-req-label,
+  .build-card-citizen-req-label {
+    font-size: 10.5px;
+  }
+
   .build-card-name {
     font-size: 12.5px;
   }
@@ -2407,6 +2475,7 @@ body.build-menu-open .planet-dots {
   .build-energy-chip,
   .build-bricks-chip,
   .build-research-chip,
+  .build-ore-chip,
   .build-limit-chip,
   .build-lock-chip {
     padding: 2px 6px 2px 4px;
@@ -2417,7 +2486,8 @@ body.build-menu-open .planet-dots {
   .build-citizen-icon,
   .build-energy-icon,
   .build-bricks-icon,
-  .build-research-icon {
+  .build-research-icon,
+  .build-ore-icon {
     width: 13px;
     height: 13px;
   }
@@ -2426,7 +2496,8 @@ body.build-menu-open .planet-dots {
   .build-citizen-label,
   .build-energy-label,
   .build-bricks-label,
-  .build-research-label {
+  .build-research-label,
+  .build-ore-label {
     font-size: 10px;
   }
 
@@ -2668,6 +2739,32 @@ body.build-menu-open .planet-dots {
     right: 3px;
   }
 
+  .build-card-energy-req,
+  .build-card-citizen-req {
+    bottom: 3px;
+    padding: 1.5px 5px 1.5px 3.5px;
+    gap: 2px;
+  }
+
+  .build-card-energy-req {
+    right: 3px;
+  }
+
+  .build-card-citizen-req {
+    left: 3px;
+  }
+
+  .build-card-energy-req-icon,
+  .build-card-citizen-req-icon {
+    width: 11px;
+    height: 11px;
+  }
+
+  .build-card-energy-req-label,
+  .build-card-citizen-req-label {
+    font-size: 9.5px;
+  }
+
   .build-card-name {
     font-size: 12px;
   }
@@ -2675,7 +2772,8 @@ body.build-menu-open .planet-dots {
   .build-terrain-chip,
   .build-citizen-chip,
   .build-energy-chip,
-  .build-bricks-chip {
+  .build-bricks-chip,
+  .build-ore-chip {
     padding: 1.5px 5px 1.5px 3px;
   }
 
@@ -3601,7 +3699,9 @@ body.rocket-cargo-open .follow-rocket-btn {
 
 .research-tree-body {
   min-height: 158px;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
   display: flex;
   align-items: center;
   padding: 22px 28px;
@@ -3612,13 +3712,17 @@ body.rocket-cargo-open .follow-rocket-btn {
   flex-shrink: 0;
 }
 
+.research-tree-body::-webkit-scrollbar {
+  display: none;
+}
+
 .research-chain-track {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
-  width: 100%;
-  min-width: 0;
+  width: max-content;
+  min-width: 100%;
   margin: 0 auto;
 }
 
@@ -4095,6 +4199,15 @@ body.rocket-cargo-open .follow-rocket-btn {
   .research-tree-body {
     min-height: 88px;
     padding: 10px 8px;
+  }
+
+  .research-chain-track {
+    gap: 4px;
+  }
+
+  .research-connector {
+    flex: 1 1 14px;
+    min-width: 10px;
   }
 
   .research-icon-img {

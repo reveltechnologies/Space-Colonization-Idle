@@ -5,6 +5,33 @@ All notable changes to **Space Colonization: Idle** will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.0-alpha.16] - 2026-11-20
+
+### Changed
+- **Trade Rocket Visual Polish**:
+  - Removed the rising floating gain text (`+{credits} SC (-{bricks})`) when Trade Rockets complete a trade cycle in [src/js/planets.js](file:///c:/Users/harun/OneDrive/Masaüstü/Yigit/GitRepo/Space-Colonization-Idle/src/js/planets.js), keeping the screen clean while preserving the full 3D rocket takeoff/landing animations, smoke effects, brick deduction, and Space Credit reward payouts.
+
+## [0.1.0-alpha.15] - 2026-11-20
+
+### Added
+- **Building Citizen Requirements & Permanent Pioneer**:
+  - Added ongoing `citizensRequired` staffing demands in [src/economy/economy.js](file:///c:/Users/harun/OneDrive/Masaüstü/Yigit/GitRepo/Space-Colonization-Idle/src/economy/economy.js) and [src/js/buildings.js](file:///c:/Users/harun/OneDrive/Masaüstü/Yigit/GitRepo/Space-Colonization-Idle/src/js/buildings.js) for Mining (`1`–`4`), Automated Trade Rockets (`1`–`4`), and Science facilities (`1`–`8`), leaving Housing, Power, and Space Rockets free of ongoing staffing costs.
+  - Added **Available / Max** citizen allocation (`getPlanetCitizenStatus` and `citizenBlockedTiles`) in [src/js/planets.js](file:///c:/Users/harun/OneDrive/Masaüstü/Yigit/GitRepo/Space-Colonization-Idle/src/js/planets.js), skipping unstaffed buildings in Brick/Research/Ore/Trade production, updating citizen HUD/tooltip counters (`Available / Max` with `Used` and `Pop` details), and rendering overhead blocked Citizen badges alongside Energy and Bricks.
+  - Guaranteed that Planet 1 always starts with and retains **1 permanent Citizen** (`baseCitizens: [1, 0, 0]`, `startingCitizens: [1, 0, 0]`) representing the player pioneer so players can immediately staff their first building and never drop below 1 Citizen on Planet 1.
+  - Added `.build-card-citizen-req` bottom-left card badges, `.build-citizen-chip.is-req` confirm badges, and initial `1/1` citizen HUD defaults in [src/index.html](file:///c:/Users/harun/OneDrive/Masaüstü/Yigit/GitRepo/Space-Colonization-Idle/src/index.html) and [src/css/style.css](file:///c:/Users/harun/OneDrive/Masaüstü/Yigit/GitRepo/Space-Colonization-Idle/src/css/style.css).
+
+## [0.1.0-alpha.14] - 2026-11-20
+
+### Added
+- **Ore Research Station & Space Ore Synthesis**:
+  - Added the **Ore Research Station** (`ore_research_station`) science facility in [src/economy/economy.js](file:///c:/Users/harun/OneDrive/Masaüstü/Yigit/GitRepo/Space-Colonization-Idle/src/economy/economy.js) and [src/js/buildings.js](file:///c:/Users/harun/OneDrive/Masaüstü/Yigit/GitRepo/Space-Colonization-Idle/src/js/buildings.js):
+    - Requires the high-tier **Space Ore Synthesis** (`ore_synthesis`, 280 RP on volcanic planet after Neural Archivists) technology in [src/js/research.js](file:///c:/Users/harun/OneDrive/Masaüstü/Yigit/GitRepo/Space-Colonization-Idle/src/js/research.js) before it can be built.
+    - Slowly synthesizes **+5 Space Ore/day** per powered station (consumes 15 Energy and stops generating if unpowered).
+    - **Dynamic Exponential Cost Scaling & Conditional Ore Requirement**: First station costs `2,500 Credits + 400 Bricks` (**0 Space Ore required**). Every additional station scales in Credits (`×1.8`), Bricks (`×1.6`), and introduces an escalating **Space Ore cost** (`15 × 1.75^(owned-1)`).
+  - Created custom cel-shaded SVG icon [bld-ore-research-station.svg](file:///c:/Users/harun/OneDrive/Masaüstü/Yigit/GitRepo/Space-Colonization-Idle/src/assets/ui/bld-ore-research-station.svg), procedural 3D rotating Space Ore crystal synthesizer model `buildOreResearchStationModel`, demolish impact height, and `.build-ore-chip` UI badges.
+  - Updated [src/js/currencies.js](file:///c:/Users/harun/OneDrive/Masaüstü/Yigit/GitRepo/Space-Colonization-Idle/src/js/currencies.js) `formatRate` to format slow sub-per-second currency incomes across `/min`, `/hr`, and `/day` intervals (displaying `+5/day` on the Space Ore HUD counter).
+  - Connected global building counts (`getBuildingCountGlobal`) and Ore rate syncing (`syncOreProductionRate`) across all planets in [src/js/planets.js](file:///c:/Users/harun/OneDrive/Masaüstü/Yigit/GitRepo/Space-Colonization-Idle/src/js/planets.js).
+
 ## [0.1.0-alpha.13] - 2026-11-20
 
 ### Changed

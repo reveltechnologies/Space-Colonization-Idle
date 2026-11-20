@@ -201,6 +201,17 @@
       iconSrc: "./assets/ui/bld-research-center.svg",
       accent: "#a855f7"
     },
+    {
+      id: "ore_synthesis",
+      category: "science",
+      order: 5,
+      cost: 280,
+      requiredPlanetType: "volcanic",
+      prereq: "neural_archivists",
+      iconSrc: "./assets/ui/bld-ore-research-station.svg",
+      accent: "#22d3ee",
+      unlocksBuilding: "ore_research_station"
+    },
 
     // Planetary
     {

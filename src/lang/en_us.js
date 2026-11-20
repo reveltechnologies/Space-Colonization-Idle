@@ -56,7 +56,7 @@
       save_name: "Save Planet Name",
       name_label: "Planet Name",
       name_placeholder: "Planet name",
-      citizens_tooltip: "Citizens on this planet (Current / Max Capacity)",
+      citizens_tooltip: "Citizens on this planet (Available / Max Capacity)",
       energy_tooltip: "Energy on this planet (Current / Max Capacity)",
       bricks_tooltip: "Construction Bricks on this planet (Obtained by Mines)",
       zoom_format: "{zoom}×",
@@ -133,6 +133,10 @@
       quantum_array: {
         name: "Quantum Array",
         description: "Entangled subatomic processor lattice that solves hyper-dimensional equations to generate massive Research Point output."
+      },
+      ore_research_station: {
+        name: "Ore Research Station",
+        description: "Ultra-expensive crystalline synthesis observatory that slowly condenses rare Space Ore (+5/day). Each station increases construction cost; your first station requires no Ore, while additional stations require Space Ore."
       },
       small_house: {
         name: "Small House",
@@ -235,12 +239,16 @@
       confirm_build: "Confirm Build",
       built_badge: "BUILT",
       max_per_planet: "Max {limit} / Planet",
+      owned_scaling_chip: "Owned: {count} (Scales)",
       requires_research_chip: "To Be Researched",
       citizen_gain_one: "+{count} Citizen",
       citizen_gain_many: "+{count} Citizens",
       energy_gain: "+{count} Energy",
       energy_req: "-{count} Energy",
       energy_req_short: "-{count}",
+      citizen_req_one: "-{count} Citizen",
+      citizen_req_many: "-{count} Citizens",
+      citizen_req_short: "-{count}",
       replace_notice: "Replaces existing {building} on this tile.",
       replace_fallback_building: "building"
     },
@@ -360,6 +368,11 @@
           effect: "+50% Research Points",
           description: "Synchronizes colony AI synthesis clusters on {planet_1} to accelerate scientific discovery."
         },
+        ore_synthesis: {
+          name: "Space Ore Synthesis",
+          effect: "Unlocks Ore Research Station",
+          description: "Masters high-energy crystalline synthesis from {planet_3} core isotopes, unlocking the Ore Research Station in the Build Menu."
+        },
         surface_surveying: {
           name: "Surface Surveying",
           effect: "+15% Bricks & Research",
@@ -403,6 +416,8 @@
       current_label: "Current: {val}",
       capacity_label: "Capacity: {curr} / {max}",
       energy_avail_label: "Available: {avail} / {max} (Used: {used})",
+      citizens_avail_label: "Available: {avail} / {max} (Used: {used})",
+      citizens_regen_label: "Available: {avail} (Pop: {pop} / {max}, Used: {used})",
       rate_suffix: " ({rate})",
       credits: {
         title: "Space Credits",
@@ -410,11 +425,11 @@
       },
       ore: {
         title: "Space Ore",
-        description: "Rare crystalline space gem shared across all planets. Required alongside Space Credits to construct and upgrade advanced colony structures and rockets."
+        description: "Rare crystalline space gem shared across all planets. Slowly synthesized by Ore Research Stations (+5/day) and required to build additional Ore Research Stations beyond your first."
       },
       citizens: {
         title: "Citizens",
-        description: "Colony pioneers living on this planet. Houses and landed Space Rockets provide housing capacity; Citizens regenerate automatically up to max capacity and crew interplanetary Space Rocket launches."
+        description: "Colony pioneers living on this planet (Planet 1 always has 1 permanent pioneer — you!). Houses and landed Space Rockets expand capacity; Citizens staff Mines, Science facilities, Trade Rockets, and crew Space Rocket launches."
       },
       energy: {
         title: "Energy",

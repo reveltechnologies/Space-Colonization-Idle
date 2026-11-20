@@ -101,19 +101,38 @@
     return str + SUFFIXES[tier];
   }
 
+  function formatRateNum(val) {
+    if (val >= 1000) {
+      return formatNumber(val);
+    }
+    if (val >= 100) {
+      return String(Math.round(val));
+    }
+    const rounded = Math.round(val * 10) / 10;
+    return rounded % 1 === 0 ? String(rounded | 0) : rounded.toFixed(1);
+  }
+
   function formatRate(rate) {
     const r = Math.max(0, Number(rate) || 0);
     if (r <= 0) {
       return "";
     }
-    const perSec = t("currencies.per_second");
-    if (r < 10) {
-      return "+" + r.toFixed(1).replace(/\.0$/, "") + perSec;
+    if (r >= 10) {
+      return t("rates.per_second", { rate: r < 1000 ? String(Math.floor(r)) : formatNumber(r) });
     }
-    if (r < 1000) {
-      return "+" + Math.floor(r) + perSec;
+    if (r >= 1) {
+      return t("rates.per_second", { rate: formatRateNum(r) });
     }
-    return "+" + formatNumber(r) + perSec;
+    const perMin = r * 60;
+    if (perMin >= 1) {
+      return t("rates.per_minute", { rate: formatRateNum(perMin) });
+    }
+    const perHour = r * 3600;
+    if (perHour >= 1) {
+      return t("rates.per_hour", { rate: formatRateNum(perHour) });
+    }
+    const perDay = Math.max(0.1, r * 86400);
+    return t("rates.per_day", { rate: formatRateNum(perDay) });
   }
 
   function renderCurrency(key) {

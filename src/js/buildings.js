@@ -26,6 +26,11 @@
     return t("build.energy_req", { count: formatCostValue(count) });
   }
 
+  function formatCitizenReq(count) {
+    const formatted = formatCostValue(count);
+    return t(count === 1 ? "build.citizen_req_one" : "build.citizen_req_many", { count: formatted });
+  }
+
   const CATEGORIES = [
     { id: "all",     label: t("categories.all"),     iconSrc: "./assets/ui/cat-all.svg",     accent: "#ffc83a", badgeBg: "#fff6cc" },
     { id: "power",   label: t("categories.power"),   iconSrc: "./assets/ui/cat-power.svg",   accent: "#ffc83a", badgeBg: "#fff6cc" },
@@ -62,7 +67,8 @@
     citizens: "./assets/ui/icon-citizen.svg",
     energy: "./assets/ui/icon-energy.svg",
     bricks: "./assets/ui/icon-bricks.svg",
-    research: "./assets/ui/icon-research.svg"
+    research: "./assets/ui/icon-research.svg",
+    ore: "./assets/ui/icon-ore.svg"
   };
 
   const BUILDINGS = [
@@ -75,6 +81,7 @@
       nextVariantId: "deep_mine",
       bricksPerSec: 0.2,
       energyRequired: 1,
+      citizensRequired: 1,
       description: t("buildings.mine.description"),
       cost: { credits: 100 },
       accent: "#ffb13b",
@@ -89,6 +96,7 @@
       nextVariantId: "mega_quarry",
       bricksPerSec: 0.8,
       energyRequired: 3,
+      citizensRequired: 2,
       description: t("buildings.deep_mine.description"),
       cost: { credits: 230, ore: 40 },
       accent: "#f97316",
@@ -103,6 +111,7 @@
       nextVariantId: null,
       bricksPerSec: 2.5,
       energyRequired: 8,
+      citizensRequired: 4,
       description: t("buildings.mega_quarry.description"),
       cost: { credits: 460, ore: 90 },
       accent: "#ef4444",
@@ -121,6 +130,7 @@
       tradeIntervalSec: 6.0,
       tradeSpeedMult: 1.0,
       energyRequired: 2,
+      citizensRequired: 1,
       specialtyLabel: t("buildings.trade_rocket_1.specialty"),
       specialtyIconSrc: "./assets/ui/bld-trade-rocket-1.svg",
       description: t("buildings.trade_rocket_1.description"),
@@ -141,6 +151,7 @@
       tradeIntervalSec: 4.0,
       tradeSpeedMult: 1.35,
       energyRequired: 5,
+      citizensRequired: 2,
       specialtyLabel: t("buildings.trade_rocket_2.specialty"),
       specialtyIconSrc: "./assets/ui/bld-trade-rocket-2.svg",
       description: t("buildings.trade_rocket_2.description"),
@@ -161,6 +172,7 @@
       tradeIntervalSec: 2.5,
       tradeSpeedMult: 1.75,
       energyRequired: 10,
+      citizensRequired: 4,
       specialtyLabel: t("buildings.trade_rocket_3.specialty"),
       specialtyIconSrc: "./assets/ui/bld-trade-rocket-3.svg",
       description: t("buildings.trade_rocket_3.description"),
@@ -178,6 +190,7 @@
       nextVariantId: null,
       researchPerSec: 0.25,
       energyRequired: 1,
+      citizensRequired: 1,
       description: t("buildings.research_center.description"),
       cost: { credits: 150, ore: 20 },
       accent: "#a855f7",
@@ -192,6 +205,7 @@
       nextVariantId: "observatory",
       researchPerSec: 0.5,
       energyRequired: 2,
+      citizensRequired: 2,
       description: t("buildings.research_lab.description"),
       cost: { credits: 200, ore: 35 },
       accent: "#37a8ff",
@@ -206,6 +220,7 @@
       nextVariantId: "quantum_array",
       researchPerSec: 1.2,
       energyRequired: 5,
+      citizensRequired: 3,
       description: t("buildings.observatory.description"),
       cost: { credits: 340, ore: 60 },
       accent: "#6366f1",
@@ -220,11 +235,34 @@
       nextVariantId: null,
       researchPerSec: 3.5,
       energyRequired: 12,
+      citizensRequired: 5,
       requiredResearch: "quantum_computing",
       description: t("buildings.quantum_array.description"),
       cost: { credits: 450, ore: 85 },
       accent: "#ec4899",
       iconSrc: "./assets/ui/bld-quantum-array.svg"
+    },
+    {
+      id: "ore_research_station",
+      name: t("buildings.ore_research_station.name"),
+      category: "science",
+      tag: t("categories.science"),
+      terrain: "solid",
+      nextVariantId: null,
+      orePerDay: 5,
+      energyRequired: 15,
+      citizensRequired: 8,
+      requiredResearch: "ore_synthesis",
+      description: t("buildings.ore_research_station.description"),
+      cost: { credits: 2500, bricks: 400 },
+      costScaling: {
+        creditsMult: 1.8,
+        bricksMult: 1.6,
+        oreBaseAfterFirst: 15,
+        oreMult: 1.75
+      },
+      accent: "#22d3ee",
+      iconSrc: "./assets/ui/bld-ore-research-station.svg"
     },
     {
       id: "small_house",
@@ -390,6 +428,8 @@
         if (Object.prototype.hasOwnProperty.call(econ, prop)) {
           if (prop === "cost" && econ.cost && typeof econ.cost === "object") {
             b.cost = Object.assign({}, econ.cost);
+          } else if (prop === "costScaling" && econ.costScaling && typeof econ.costScaling === "object") {
+            b.costScaling = Object.assign({}, econ.costScaling);
           } else {
             b[prop] = econ[prop];
           }
@@ -457,12 +497,49 @@
     return (window.GameCurrencies && typeof window.GameCurrencies.get === "function" ? window.GameCurrencies.get(key) : 0) || 0;
   }
 
-  function canAffordBuilding(buildingId, planetId) {
+  function getBuildingOrePerSec(b) {
+    if (!b) return 0;
+    if (b.orePerSec && b.orePerSec > 0) return b.orePerSec;
+    if (b.orePerDay && b.orePerDay > 0) return b.orePerDay / 86400;
+    return 0;
+  }
+
+  function getOwnedBuildingCount(buildingId) {
+    if (typeof callbacks.getBuildingCountGlobal === "function") {
+      return Math.max(0, Math.floor(callbacks.getBuildingCountGlobal(buildingId) || 0));
+    }
+    return 0;
+  }
+
+  function getBuildingCost(buildingId) {
     const b = getBuilding(buildingId);
-    if (!b || !b.cost) return true;
+    if (!b || !b.cost) return null;
+    if (!b.costScaling) {
+      return b.cost;
+    }
+    const owned = getOwnedBuildingCount(b.id);
+    const s = b.costScaling;
+    const cost = {};
+    if (b.cost.credits > 0) {
+      cost.credits = Math.round(b.cost.credits * Math.pow(s.creditsMult || 1, owned));
+    }
+    if (b.cost.bricks > 0) {
+      cost.bricks = Math.round(b.cost.bricks * Math.pow(s.bricksMult || 1, owned));
+    }
+    if (owned >= 1 && s.oreBaseAfterFirst > 0) {
+      cost.ore = Math.round(s.oreBaseAfterFirst * Math.pow(s.oreMult || 1, owned - 1));
+    } else if (b.cost.ore > 0) {
+      cost.ore = Math.round(b.cost.ore * Math.pow(s.oreMult || 1, owned));
+    }
+    return cost;
+  }
+
+  function canAffordBuilding(buildingId, planetId) {
+    const cost = getBuildingCost(buildingId);
+    if (!cost) return true;
     const pId = planetId !== undefined && planetId !== null ? planetId : currentPlanetId;
-    if (b.cost.bricks) {
-      const bricksReq = Math.max(0, Number(b.cost.bricks) || 0);
+    if (cost.bricks) {
+      const bricksReq = Math.max(0, Number(cost.bricks) || 0);
       if (bricksReq > 0) {
         const currentBricks = getAvailableCurrencyAmount("bricks", pId);
         if (currentBricks < bricksReq) {
@@ -474,9 +551,9 @@
       return true;
     }
     const globalCosts = {};
-    for (const key in b.cost) {
-      if (key !== "bricks" && Object.prototype.hasOwnProperty.call(b.cost, key)) {
-        globalCosts[key] = b.cost[key];
+    for (const key in cost) {
+      if (key !== "bricks" && Object.prototype.hasOwnProperty.call(cost, key)) {
+        globalCosts[key] = cost[key];
       }
     }
     return window.GameCurrencies.canAfford(globalCosts);
@@ -550,8 +627,32 @@
     if (perHour >= 1) {
       return t("rates.per_hour", { rate: formatRateNumber(perHour) });
     }
-    const perDay = Math.max(1, r * 86400);
+    const perDay = Math.max(0.1, r * 86400);
     return t("rates.per_day", { rate: formatRateNumber(perDay) });
+  }
+
+  function renderCostItems(containerEl, cost, planetId) {
+    if (!containerEl) return;
+    const costOrder = ["credits", "bricks", "ore"];
+    for (let c = 0; c < costOrder.length; c++) {
+      const key = costOrder[c];
+      const req = cost && cost[key];
+      if (!req || req <= 0) continue;
+      const hasEnough = getAvailableCurrencyAmount(key, planetId) >= req;
+      const item = document.createElement("span");
+      item.className = "build-cost-item" + (hasEnough ? "" : " is-short");
+      const cIcon = document.createElement("img");
+      cIcon.className = "build-cost-icon";
+      cIcon.src = CURRENCY_ICONS[key];
+      cIcon.alt = "";
+      cIcon.draggable = false;
+      const cVal = document.createElement("span");
+      cVal.className = "build-cost-val";
+      cVal.textContent = formatCostValue(req);
+      item.appendChild(cIcon);
+      item.appendChild(cVal);
+      containerEl.appendChild(item);
+    }
   }
 
   // --- Drawer UI References & State ---
@@ -839,10 +940,11 @@
       const bldImg = '<img class="game-toast-icon" src="' + b.iconSrc + '" alt="" draggable="false" />';
       const bldStrong = '<strong class="game-toast-strong">' + b.name + "</strong>";
       const missing = [];
+      const bCost = getBuildingCost(b.id);
       const costOrder = ["credits", "bricks", "ore"];
       for (let c = 0; c < costOrder.length; c++) {
         const key = costOrder[c];
-        const req = b.cost && b.cost[key];
+        const req = bCost && bCost[key];
         if (!req || req <= 0) continue;
         const has = getAvailableCurrencyAmount(key, pId);
         if (has < req) {
@@ -983,6 +1085,18 @@
         stage.appendChild(reqBadge);
       }
 
+      if (b.citizensRequired && b.citizensRequired > 0) {
+        const citReqBadge = createCardInfoChip(
+          "build-card-citizen-req",
+          "build-card-citizen-req-icon",
+          STAT_ICONS.citizens,
+          "build-card-citizen-req-label",
+          t("build.citizen_req_short", { count: formatCostValue(b.citizensRequired) })
+        );
+        citReqBadge.title = formatCitizenReq(b.citizensRequired);
+        stage.appendChild(citReqBadge);
+      }
+
       const info = document.createElement("span");
       info.className = "build-card-info";
 
@@ -1060,6 +1174,19 @@
             b.researchPerSec
           )
         );
+      } else if (!showInvalidTerrain && getBuildingOrePerSec(b) > 0) {
+        const orePerSec = getBuildingOrePerSec(b);
+        info.appendChild(
+          createCardInfoChip(
+            "build-ore-chip",
+            "build-ore-icon",
+            STAT_ICONS.ore,
+            "build-ore-label",
+            formatProductionRate(orePerSec),
+            "data-ore-rate",
+            orePerSec
+          )
+        );
       } else if (!showInvalidTerrain && b.rocketTier) {
         info.appendChild(
           createCardInfoChip(
@@ -1104,26 +1231,7 @@
         builtLbl.textContent = t("build.built_badge");
         actionBtn.appendChild(builtLbl);
       } else {
-        const costOrder = ["credits", "bricks", "ore"];
-        for (let c = 0; c < costOrder.length; c++) {
-          const key = costOrder[c];
-          const req = b.cost && b.cost[key];
-          if (!req || req <= 0) continue;
-          const hasEnough = getAvailableCurrencyAmount(key, currentPlanetId) >= req;
-          const item = document.createElement("span");
-          item.className = "build-cost-item" + (hasEnough ? "" : " is-short");
-          const cIcon = document.createElement("img");
-          cIcon.className = "build-cost-icon";
-          cIcon.src = CURRENCY_ICONS[key];
-          cIcon.alt = "";
-          cIcon.draggable = false;
-          const cVal = document.createElement("span");
-          cVal.className = "build-cost-val";
-          cVal.textContent = formatCostValue(req);
-          item.appendChild(cIcon);
-          item.appendChild(cVal);
-          actionBtn.appendChild(item);
-        }
+        renderCostItems(actionBtn, getBuildingCost(b.id), currentPlanetId);
       }
 
       card.appendChild(stage);
@@ -1158,6 +1266,24 @@
   function syncRemoveButton() {
     if (removeBtn) {
       removeBtn.classList.toggle("is-hidden", !currentPlacedId);
+    }
+  }
+
+  function syncConfirmState() {
+    const b = pendingConfirmBuildingId ? getBuilding(pendingConfirmBuildingId) : null;
+    if (!b) return;
+    if (confirmCostsEl) {
+      confirmCostsEl.innerHTML = "";
+      renderCostItems(confirmCostsEl, getBuildingCost(b.id), currentPlanetId);
+      confirmCostsEl.classList.toggle("is-hidden", confirmCostsEl.childNodes.length === 0);
+    }
+    if (confirmBuildBtn) {
+      const canConfirm =
+        !isBuildingResearchLocked(b.id) &&
+        !isBuildingPlanetLimitReached(b.id, currentPlanetId, currentPlacedId) &&
+        canBuildOnBiome(b.id, currentBiomeId) &&
+        canAffordBuilding(b.id, currentPlanetId);
+      confirmBuildBtn.classList.toggle("is-disabled", !canConfirm);
     }
   }
 
@@ -1259,6 +1385,19 @@
             b.researchPerSec
           )
         );
+      } else if (getBuildingOrePerSec(b) > 0) {
+        const orePerSec = getBuildingOrePerSec(b);
+        confirmBadgesEl.appendChild(
+          createCardInfoChip(
+            "build-ore-chip",
+            "build-ore-icon",
+            STAT_ICONS.ore,
+            "build-ore-label",
+            formatProductionRate(orePerSec),
+            "data-ore-rate",
+            orePerSec
+          )
+        );
       } else if (b.specialtyLabel && b.specialtyIconSrc) {
         confirmBadgesEl.appendChild(
           createCardInfoChip(
@@ -1329,6 +1468,17 @@
           )
         );
       }
+      if (b.costScaling) {
+        confirmBadgesEl.appendChild(
+          createCardInfoChip(
+            "build-limit-chip",
+            "build-ore-icon",
+            STAT_ICONS.ore,
+            "build-research-label",
+            t("build.owned_scaling_chip", { count: getOwnedBuildingCount(b.id) })
+          )
+        );
+      }
       if (b.energyRequired && b.energyRequired > 0) {
         confirmBadgesEl.appendChild(
           createCardInfoChip(
@@ -1339,6 +1489,19 @@
             formatEnergyReq(b.energyRequired),
             "data-energy-req",
             b.energyRequired
+          )
+        );
+      }
+      if (b.citizensRequired && b.citizensRequired > 0) {
+        confirmBadgesEl.appendChild(
+          createCardInfoChip(
+            "build-citizen-chip is-req",
+            "build-citizen-icon",
+            STAT_ICONS.citizens,
+            "build-citizen-label",
+            formatCitizenReq(b.citizensRequired),
+            "data-citizen-req",
+            b.citizensRequired
           )
         );
       }
@@ -1361,39 +1524,7 @@
       }
     }
 
-    if (confirmCostsEl) {
-      confirmCostsEl.innerHTML = "";
-      const costOrder = ["credits", "bricks", "ore"];
-      for (let c = 0; c < costOrder.length; c++) {
-        const key = costOrder[c];
-        const req = b.cost && b.cost[key];
-        if (!req || req <= 0) continue;
-        const hasEnough = getAvailableCurrencyAmount(key, currentPlanetId) >= req;
-        const item = document.createElement("span");
-        item.className = "build-cost-item" + (hasEnough ? "" : " is-short");
-        const cIcon = document.createElement("img");
-        cIcon.className = "build-cost-icon";
-        cIcon.src = CURRENCY_ICONS[key];
-        cIcon.alt = "";
-        cIcon.draggable = false;
-        const cVal = document.createElement("span");
-        cVal.className = "build-cost-val";
-        cVal.textContent = formatCostValue(req);
-        item.appendChild(cIcon);
-        item.appendChild(cVal);
-        confirmCostsEl.appendChild(item);
-      }
-      confirmCostsEl.classList.toggle("is-hidden", confirmCostsEl.childNodes.length === 0);
-    }
-
-    if (confirmBuildBtn) {
-      const canConfirm =
-        !isBuildingResearchLocked(b.id) &&
-        !isBuildingPlanetLimitReached(b.id, currentPlanetId, currentPlacedId) &&
-        canBuildOnBiome(b.id, currentBiomeId) &&
-        canAffordBuilding(b.id);
-      confirmBuildBtn.classList.toggle("is-disabled", !canConfirm);
-    }
+    syncConfirmState();
 
     if (drawerEl) {
       drawerEl.classList.add("is-confirming");
@@ -1934,6 +2065,9 @@
     window.GameCurrencies.onChange(function () {
       if (menuOpen) {
         renderBuildingCards();
+        if (pendingConfirmBuildingId) {
+          syncConfirmState();
+        }
       }
     });
   }
@@ -2477,6 +2611,58 @@
         [Math.cos(b0) * 0.30, Math.sin(b0) * 0.30, hoverZ - Math.sin(b0) * 0.14],
         [Math.cos(b1) * 0.30, Math.sin(b1) * 0.30, hoverZ - Math.sin(b1) * 0.14],
         "#f472b6",
+        lw,
+        0.008
+      );
+    }
+  }
+
+  function buildOreResearchStationModel(m, time, phase, pxScale) {
+    // Tiered deep-indigo octagonal containment plinth + glowing cyan conduit ring
+    m.addPrism(0, 0, 0.0, 0.11, 0.66, 0.60, 8, Math.PI / 8, [49, 46, 129], { spec: 0.36 });
+    m.addPrism(0, 0, 0.11, 0.145, 0.36, 0.31, 8, Math.PI / 8, [56, 189, 248], { emissive: 0.62 });
+
+    // Three radial titanium emitter pylons at 120-deg intervals + converging synthesis beams
+    const pylonR = 0.42;
+    const beamLW = Math.max(1.2, pxScale * 0.04);
+    const hoverZ = 0.56 + 0.045 * Math.sin(time * 0.0035 + phase);
+    for (let k = 0; k < 3; k++) {
+      const a = (Math.PI * 2 * k) / 3 + 0.35;
+      const px = Math.cos(a) * pylonR;
+      const py = Math.sin(a) * pylonR;
+      m.addPrism(px, py, 0.11, 0.72, 0.075, 0.042, 6, 0, [203, 213, 225], { spec: 0.45 });
+      const emitterCol = k === 1 ? [255, 200, 58] : [56, 189, 248];
+      m.addPrism(px, py, 0.72, 0.80, 0.052, 0.022, 6, 0, emitterCol, { emissive: 0.78 });
+      m.addLine(
+        [px * 0.82, py * 0.82, 0.75],
+        [0, 0, hoverZ],
+        k === 1 ? "#ffc83a" : "#38bdf8",
+        beamLW,
+        0.006
+      );
+    }
+
+    // Hovering, slowly spinning 3D faceted cyan Space Ore crystal (two opposing hexagonal pyramids)
+    const spin = time * 0.0018 + phase;
+    m.addPrism(0, 0, hoverZ - 0.22, hoverZ, 0.022, 0.17, 6, spin, [34, 164, 230], {
+      emissive: 0.32,
+      spec: 0.65
+    });
+    m.addPrism(0, 0, hoverZ, hoverZ + 0.28, 0.17, 0.022, 6, spin, [103, 232, 249], {
+      emissive: 0.52,
+      spec: 0.82
+    });
+
+    // Angled counter-rotating golden-cyan orbital ring
+    const ringSpin = -time * 0.0022 + phase;
+    const lw = Math.max(1.2, pxScale * 0.042);
+    for (let k = 0; k < 6; k++) {
+      const a0 = ringSpin + (Math.PI * 2 * k) / 6;
+      const a1 = ringSpin + (Math.PI * 2 * (k + 1)) / 6;
+      m.addLine(
+        [Math.cos(a0) * 0.28, Math.sin(a0) * 0.28, hoverZ + Math.sin(a0) * 0.11],
+        [Math.cos(a1) * 0.28, Math.sin(a1) * 0.28, hoverZ + Math.sin(a1) * 0.11],
+        k % 2 === 0 ? "#ffc83a" : "#38bdf8",
         lw,
         0.008
       );
@@ -3331,6 +3517,8 @@
       buildObservatoryModel(collector, time, phase, pxScale);
     } else if (buildingId === "quantum_array") {
       buildQuantumArrayModel(collector, time, phase, pxScale);
+    } else if (buildingId === "ore_research_station") {
+      buildOreResearchStationModel(collector, time, phase, pxScale);
     } else if (buildingId === "small_house" || buildingId === "house") {
       buildSmallHouseModel(collector, time, phase, pxScale);
     } else if (buildingId === "big_house") {
@@ -3736,6 +3924,7 @@
       research_lab: 0.38,
       observatory: 0.64,
       quantum_array: 0.86,
+      ore_research_station: 0.90,
       small_house: 0.36,
       house: 0.36,
       big_house: 0.54,
@@ -3964,6 +4153,8 @@
     getBuilding: getBuilding,
     getTerrainGroup: getTerrainGroup,
     getCategory: getCategory,
+    getBuildingCost: getBuildingCost,
+    getBuildingOrePerSec: getBuildingOrePerSec,
     canBuildOnBiome: canBuildOnBiome,
     canAffordBuilding: canAffordBuilding,
     isBuildingResearchLocked: isBuildingResearchLocked,

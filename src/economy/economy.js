@@ -21,7 +21,8 @@
     planets: {
       citizenRegenPerSec: 0.08,
       startingBricks: [0, 0, 0],
-      startingCitizens: [0, 0, 0],
+      baseCitizens: [1, 0, 0],
+      startingCitizens: [1, 0, 0],
       startingResearchPoints: 0,
       tradeFlightBaseMs: 1400
     },
@@ -31,17 +32,20 @@
       mine: {
         cost: { credits: 80 },
         bricksPerSec: 0.25,
-        energyRequired: 1
+        energyRequired: 1,
+        citizensRequired: 1
       },
       deep_mine: {
         cost: { credits: 180, bricks: 25 },
         bricksPerSec: 0.85,
-        energyRequired: 3
+        energyRequired: 3,
+        citizensRequired: 2
       },
       mega_quarry: {
         cost: { credits: 420, bricks: 70 },
         bricksPerSec: 2.4,
-        energyRequired: 7
+        energyRequired: 7,
+        citizensRequired: 4
       },
 
       // Automated Trade Rockets
@@ -51,7 +55,8 @@
         creditsPerBrick: 4,
         tradeIntervalSec: 6.0,
         tradeSpeedMult: 1.0,
-        energyRequired: 2
+        energyRequired: 2,
+        citizensRequired: 1
       },
       trade_rocket_2: {
         cost: { credits: 260, bricks: 45 },
@@ -59,7 +64,8 @@
         creditsPerBrick: 5,
         tradeIntervalSec: 4.0,
         tradeSpeedMult: 1.35,
-        energyRequired: 5
+        energyRequired: 5,
+        citizensRequired: 2
       },
       trade_rocket_3: {
         cost: { credits: 450, bricks: 100 },
@@ -67,7 +73,8 @@
         creditsPerBrick: 6,
         tradeIntervalSec: 2.5,
         tradeSpeedMult: 1.75,
-        energyRequired: 9
+        energyRequired: 9,
+        citizensRequired: 4
       },
 
       // Science
@@ -75,22 +82,38 @@
         cost: { credits: 140, bricks: 20 },
         researchPerSec: 0.3,
         maxPerPlanet: 1,
-        energyRequired: 1
+        energyRequired: 1,
+        citizensRequired: 1
       },
       research_lab: {
         cost: { credits: 220, bricks: 40 },
         researchPerSec: 0.7,
-        energyRequired: 2
+        energyRequired: 2,
+        citizensRequired: 2
       },
       observatory: {
         cost: { credits: 380, bricks: 75 },
         researchPerSec: 1.6,
-        energyRequired: 5
+        energyRequired: 5,
+        citizensRequired: 3
       },
       quantum_array: {
         cost: { credits: 550, bricks: 120 },
         researchPerSec: 3.8,
-        energyRequired: 10
+        energyRequired: 10,
+        citizensRequired: 5
+      },
+      ore_research_station: {
+        cost: { credits: 2500, bricks: 400 },
+        costScaling: {
+          creditsMult: 1.8,
+          bricksMult: 1.6,
+          oreBaseAfterFirst: 15,
+          oreMult: 1.75
+        },
+        orePerDay: 5,
+        energyRequired: 15,
+        citizensRequired: 8
       },
 
       // Colony Housing
@@ -172,6 +195,7 @@
       stellar_optics: { cost: 45, researchBonus: 0.35 },
       quantum_computing: { cost: 70 },
       neural_archivists: { cost: 110, researchBonus: 0.50 },
+      ore_synthesis: { cost: 280 },
 
       // Planetary
       surface_surveying: { cost: 25, bricksBonus: 0.15, researchBonus: 0.15 },
