@@ -47,6 +47,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Full keyboard input isolation so typing planet names does not trigger camera/hotkey shortcuts.
     - Persisted player custom names in `localStorage` under `sci_planet_names_v1` across page reloads.
 
+### Removed
+- **Cannot Build on Fluid Error Message in Build Menu**:
+  - Removed the unbuildable warning banner from appearing inside the build drawer when selecting fluid tiles (such as Ocean and Lava), creating a cleaner building menu interface while maintaining contextual card state.
+
 ### Changed
 - **Isolated Planet Orbit Drag**:
   - Prevented the background starfield from shifting or panning when a player rotates or inspects a planet in 3D (`gestureMode === "orbit"`).

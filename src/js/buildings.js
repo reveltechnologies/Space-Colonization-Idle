@@ -322,15 +322,7 @@
 
   function syncUnbuildableBanner(biome) {
     if (!unbuildableBannerEl) return;
-    const terrains = biome && biome.terrains ? biome.terrains : [];
-    if (terrains.length === 0) {
-      unbuildableBannerEl.textContent =
-        (biome && biome.unbuildableHint) ||
-        ("Cannot build on " + (biome ? biome.name : "this") + " tiles");
-      unbuildableBannerEl.classList.remove("is-hidden");
-    } else {
-      unbuildableBannerEl.classList.add("is-hidden");
-    }
+    unbuildableBannerEl.classList.add("is-hidden");
   }
 
   let lastOverflowX = null;
