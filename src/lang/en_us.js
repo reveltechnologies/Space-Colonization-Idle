@@ -41,7 +41,13 @@
       follow_rocket: "Follow Rocket",
       rocket_bricks_slider: "Construction Bricks to Load",
       trade_toggle: "Toggle Trade Rocket",
-      trade_upgrade: "Upgrade Trade Rocket"
+      trade_upgrade: "Upgrade Trade Rocket",
+      intro_cinematic: "Opening Story",
+      player_name_input: "Pioneer Name",
+      continue_intro: "Continue Story",
+      secret_reset_modal: "Reset Progress Confirmation",
+      secret_reset_confirm: "Confirm Reset",
+      secret_reset_cancel: "Cancel Reset"
     },
     currencies: {
       credits: "Credits",
@@ -106,6 +112,11 @@
       ashlands: { name: "Ashlands" }
     },
     buildings: {
+      crash_base: {
+        name: "Crash Base",
+        specialty: "Permanent Pioneer Shelter",
+        description: "The wreckage of your escape craft, repurposed into an emergency shelter. Supplies 1 permanent Citizen (you), 1 emergency Energy, and slowly salvages +1 Construction Brick/min. Cannot be destroyed or replaced."
+      },
       mine: {
         name: "Mine",
         description: "Automated shaft drill anchored into rocky ridges that extracts dense stone and presses it into sturdy Construction Bricks."
@@ -238,6 +249,8 @@
       cancel: "Cancel",
       confirm_build: "Confirm Build",
       built_badge: "BUILT",
+      permanent_badge: "PERMANENT",
+      protected_base_banner: "Permanent Crash Base — Provides +1 Citizen, +1 Energy & +1 Brick/min. Cannot be destroyed or replaced.",
       max_per_planet: "Max {limit} / Planet",
       owned_scaling_chip: "Owned: {count} (Scales)",
       requires_research_chip: "To Be Researched",
@@ -273,7 +286,9 @@
       trade_started: "{building} started selling Construction Bricks on {planet}.",
       trade_stopped: "{building} stopped trading on {planet}.",
       trade_auto_stopped: "{building} on {planet} auto-stopped — no Construction Bricks left!",
-      trade_no_bricks_to_start: "Cannot start {building} — no Construction Bricks left on {planet}!"
+      trade_no_bricks_to_start: "Cannot start {building} — no Construction Bricks left on {planet}!",
+      cannot_demolish_protected: "{building} is your permanent shelter and cannot be destroyed.",
+      cannot_replace_protected: "{building} is permanent and cannot be replaced."
     },
     research: {
       title: "Research Tree",
@@ -442,6 +457,7 @@
     },
     save: {
       offline_welcome: "Welcome back ({duration})! Earned {gains}",
+      offline_welcome_named: "Welcome back, {name} ({duration})! Earned {gains}",
       offline_landed: "{count} Space Rocket(s) landed while you were away!",
       gain_credits: "+{val} SC",
       gain_ore: "+{val} Ore",
@@ -452,6 +468,71 @@
       duration_hr: "{h}h",
       duration_hr_min: "{h}h {m}m",
       gain_sep: ", "
+    },
+    intro: {
+      step_counter: "{curr} / {total}",
+      tap_to_finish: "Tap to complete text",
+      tap_to_continue: "Tap to continue",
+      default_pioneer: "Pioneer",
+      name_placeholder: "Enter your name...",
+      name_required_error: "Enter your name to unlock ignition!",
+      hint_enter_name: "Enter your name above to launch",
+      hint_ready_launch: "Press Launch to lift off!",
+      salvage_citizen: "+1 Citizen",
+      salvage_energy: "+1 Energy",
+      salvage_bricks: "+1/m Bricks",
+      steps: [
+        {
+          speaker: "Archives",
+          caption: "For centuries, Homeworld Nova-7 shone as humanity's greatest golden metropolis...",
+          btn: "Next"
+        },
+        {
+          speaker: "Nova-7 Alert",
+          caption: "CRITICAL WARNING! Planetary core destabilizing — total collapse imminent!",
+          btn: "Sprint to Ship!"
+        },
+        {
+          speaker: "V.E.G.A. AI",
+          caption: "Emergency launch controls locked! Enter your name to register as pilot and unlock the thrusters!",
+          btn: "Ignite & Launch!"
+        },
+        {
+          speaker: "{name}",
+          caption: "Full throttle! We barely cleared the shockwave... Homeworld Nova-7 is gone.",
+          btn: "Check Systems"
+        },
+        {
+          speaker: "V.E.G.A. AI",
+          caption: "Warning, {name}! Main fuel tanks completely dry! Thrusters offline — we've lost all steering!",
+          btn: "Drift Onward"
+        },
+        {
+          speaker: "{name}",
+          caption: "Floating silently in the dark... Wait — is that a rocky planet ahead?!",
+          btn: "Scan Planet"
+        },
+        {
+          speaker: "V.E.G.A. AI",
+          caption: "Hold on, {name}! Gravity capture confirmed — entering atmosphere with zero braking fuel!",
+          btn: "Brace for Impact!"
+        },
+        {
+          speaker_pre: "V.E.G.A. AI",
+          speaker: "{name}",
+          caption_pre: "Brace for touchdown, {name}! Atmospheric heat peaking!",
+          caption: "I survived! The crashed hull gives me shelter, power, and salvage — time to rebuild!",
+          btn: "Start Colony!"
+        }
+      ]
+    },
+    reset_modal: {
+      badge: "SECRET CHEAT",
+      title: "Reset All Progress?",
+      question: "Would you like to reset your progress?",
+      warning: "This will wipe all planets, buildings, currencies, research, and saved files completely. You will restart as a fresh player from the opening story cinematic.",
+      btn_cancel: "Cancel",
+      btn_confirm: "Yes, Reset Everything"
     }
   };
 

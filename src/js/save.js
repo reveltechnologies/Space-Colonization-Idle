@@ -29,6 +29,7 @@
     trade_toggle: true,
     cargo_change: true,
     research_purchase: true,
+    intro_complete: true,
     import_string: true,
     reset: true
   };
@@ -51,6 +52,22 @@
   let pendingAsyncPair = null;
 
   let bestSyncEnvelope = null;
+  let bootDecisionEmitted = false;
+  let onSaveLoadedCb = null;
+  let onNoSaveFoundCb = null;
+
+  function emitBootDecision(found, env) {
+    if (bootDecisionEmitted) return;
+    bootDecisionEmitted = true;
+    const cb = found ? onSaveLoadedCb : onNoSaveFoundCb;
+    onSaveLoadedCb = null;
+    onNoSaveFoundCb = null;
+    if (typeof cb === "function") {
+      try {
+        cb(env || null);
+      } catch (_) { }
+    }
+  }
 
   function readConfigNumber(path, fallback) {
     if (window.GameEconomy && typeof window.GameEconomy.get === "function") {
@@ -835,8 +852,21 @@
     };
   }
 
+  function canPersistCurrentState(reason) {
+    if (window.GamePlanets && typeof window.GamePlanets.hasCrashBaseOnPlanet1 === "function") {
+      if (!window.GamePlanets.hasCrashBaseOnPlanet1()) {
+        return false;
+      }
+    }
+    const introPlaying = window.GameIntro && typeof window.GameIntro.isPlaying === "function" && window.GameIntro.isPlaying();
+    if (introPlaying && reason !== "intro_complete") {
+      return false;
+    }
+    return true;
+  }
+
   function hydrateFromEnvelope(env, applyOffline) {
-    if (!env || !env.data) return;
+    if (!env || !env.data) return { missingCrashBase: false };
     isHydrating = true;
     try {
       currentRevision = Math.max(currentRevision, Number(env.revision) || 0);
@@ -852,16 +882,25 @@
       }
 
       let landedCount = 0;
+      let missingCrashBase = false;
       if (window.GamePlanets && typeof window.GamePlanets.importState === "function") {
         const res = window.GamePlanets.importState(env.data.planets, elapsedMs);
+        if (res && res.missingCrashBase) {
+          missingCrashBase = true;
+        }
         if (res && res.landedCount > 0) {
           landedCount = res.landedCount;
         }
       }
 
+      if (missingCrashBase) {
+        return { missingCrashBase: true };
+      }
+
       if (applyOffline && window.GamePlanets && typeof window.GamePlanets.applyOfflineProgress === "function") {
         window.GamePlanets.applyOfflineProgress(elapsedMs / 1000, landedCount);
       }
+      return { missingCrashBase: false };
     } finally {
       isHydrating = false;
     }
@@ -869,6 +908,7 @@
 
   function saveNow(reason, forceImmediateWrite) {
     if (isHydrating) return false;
+    if (!canPersistCurrentState(reason)) return false;
     if (debounceTimer) {
       window.clearTimeout(debounceTimer);
       debounceTimer = 0;
@@ -898,6 +938,7 @@
 
   function requestSave(reason, immediate) {
     if (!booted || isHydrating) return;
+    if (!canPersistCurrentState(reason)) return;
     if (reason && MUTATING_REASONS[reason]) {
       hasUserMutatedSinceBoot = true;
     }
@@ -924,6 +965,8 @@
 
   function onAppBackground() {
     if (!booted || isHydrating) return;
+    const introPlaying = window.GameIntro && typeof window.GameIntro.isPlaying === "function" && window.GameIntro.isPlaying();
+    if (introPlaying) return;
     if (!hiddenAt) {
       hiddenAt = Date.now();
     }
@@ -985,7 +1028,8 @@
     document.addEventListener("resume", onAppForeground);
     document.addEventListener("pause", onAppBackground);
     window.addEventListener("blur", function () {
-      if (booted && !isHydrating) {
+      const introPlaying = window.GameIntro && typeof window.GameIntro.isPlaying === "function" && window.GameIntro.isPlaying();
+      if (booted && !isHydrating && !introPlaying) {
         saveNow("window_blur", true);
       }
     });
@@ -1023,17 +1067,31 @@
         asyncReady = true;
 
         if (!hasUserMutatedSinceBoot && !dirtyWhileBooting && isNewerEnvelope(bestAsyncEnv, bestSyncEnvelope)) {
-          hydrateFromEnvelope(bestAsyncEnv, true);
+          const asyncHyd = hydrateFromEnvelope(bestAsyncEnv, true);
+          if (asyncHyd && asyncHyd.missingCrashBase) {
+            resetProgress();
+            emitBootDecision(false, null);
+            return;
+          }
           bestSyncEnvelope = bestAsyncEnv;
           const mirrorStr = JSON.stringify(bestAsyncEnv);
           writeSyncBackends(mirrorStr, mirrorStr);
           enqueueAsyncWrite(mirrorStr, mirrorStr);
+          emitBootDecision(true, bestAsyncEnv);
           return;
+        }
+
+        if (bestSyncEnvelope || bestAsyncEnv) {
+          emitBootDecision(true, bestSyncEnvelope || bestAsyncEnv);
+        } else {
+          emitBootDecision(false, null);
         }
 
         if (dirtyWhileBooting || hasUserMutatedSinceBoot) {
           dirtyWhileBooting = false;
-          saveNow("post_boot_flush", true);
+          if (canPersistCurrentState("post_boot_flush")) {
+            saveNow("post_boot_flush", true);
+          }
           return;
         }
 
@@ -1045,23 +1103,40 @@
       })
       .catch(function () {
         asyncReady = true;
+        if (bestSyncEnvelope) {
+          emitBootDecision(true, bestSyncEnvelope);
+        } else {
+          emitBootDecision(false, null);
+        }
         if (dirtyWhileBooting) {
           dirtyWhileBooting = false;
-          saveNow("post_boot_flush", true);
+          if (canPersistCurrentState("post_boot_flush")) {
+            saveNow("post_boot_flush", true);
+          }
         }
       });
   }
 
-  function boot() {
+  function boot(options) {
     if (booted) return;
     booted = true;
+
+    const opts = options || {};
+    onSaveLoadedCb = typeof opts.onSaveLoaded === "function" ? opts.onSaveLoaded : null;
+    onNoSaveFoundCb = typeof opts.onNoSaveFound === "function" ? opts.onNoSaveFound : null;
 
     requestPersistentStorage();
     bindLifecycleListeners();
 
     bestSyncEnvelope = readAllSyncCandidates();
     if (bestSyncEnvelope) {
-      hydrateFromEnvelope(bestSyncEnvelope, true);
+      const syncHyd = hydrateFromEnvelope(bestSyncEnvelope, true);
+      if (syncHyd && syncHyd.missingCrashBase) {
+        resetProgress();
+        emitBootDecision(false, null);
+      } else {
+        emitBootDecision(true, bestSyncEnvelope);
+      }
     }
 
     const autosaveMs = readConfigNumber("save.autosaveIntervalMs", 10000);
@@ -1069,7 +1144,8 @@
       window.clearInterval(autosaveTimer);
     }
     autosaveTimer = window.setInterval(function () {
-      if (booted && !isHydrating && document.visibilityState !== "hidden") {
+      const introPlaying = window.GameIntro && typeof window.GameIntro.isPlaying === "function" && window.GameIntro.isPlaying();
+      if (booted && !isHydrating && !introPlaying && document.visibilityState !== "hidden") {
         saveNow("autosave", true);
       }
     }, autosaveMs);
@@ -1101,7 +1177,14 @@
     env.revision = Math.max(currentRevision + 1, env.revision);
     env.savedAt = Date.now();
     hasUserMutatedSinceBoot = true;
-    hydrateFromEnvelope(env, false);
+    const importHyd = hydrateFromEnvelope(env, false);
+    if (importHyd && importHyd.missingCrashBase) {
+      resetProgress();
+      if (window.GamePlanets && typeof window.GamePlanets.startNewGameIntro === "function") {
+        window.GamePlanets.startNewGameIntro();
+      }
+      return false;
+    }
     saveNow("import_string", true);
     return true;
   }
@@ -1177,6 +1260,9 @@
     importSaveString: importSaveString,
     resetProgress: resetProgress,
     getStatus: getStatus,
+    hasSavedProgress: function () {
+      return Boolean(bestSyncEnvelope || currentRevision > 0);
+    },
     getLastSavedAt: function () {
       return lastSavedAt;
     }

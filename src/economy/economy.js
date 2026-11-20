@@ -21,8 +21,8 @@
     planets: {
       citizenRegenPerSec: 0.08,
       startingBricks: [0, 0, 0],
-      baseCitizens: [1, 0, 0],
-      startingCitizens: [1, 0, 0],
+      baseCitizens: [0, 0, 0],
+      startingCitizens: [0, 0, 0],
       startingResearchPoints: 0,
       tradeFlightBaseMs: 1400
     },
@@ -36,6 +36,17 @@
     },
 
     buildings: {
+      // Permanent Crash Landing Base (Planet 1 Starter HQ)
+      crash_base: {
+        bricksPerSec: 1 / 60,
+        energySlots: 1,
+        citizenSlots: 1,
+        fixedCitizens: true,
+        indestructible: true,
+        unreplaceable: true,
+        hiddenFromBuildMenu: true
+      },
+
       // Mining
       mine: {
         cost: { credits: 80 },
@@ -58,7 +69,7 @@
 
       // Automated Trade Rockets
       trade_rocket_1: {
-        cost: { credits: 120, bricks: 15 },
+        cost: { bricks: 25 },
         bricksPerLaunch: 5,
         creditsPerBrick: 4,
         tradeIntervalSec: 6.0,

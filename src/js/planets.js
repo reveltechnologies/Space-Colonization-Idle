@@ -671,6 +671,12 @@
   let nextFlightId = 1;
   let nextBuildingOrder = 1;
   let lastBackgroundPerfMs = 0;
+  let introCompleted = false;
+  const MAX_PLAYER_NAME_LEN = 20;
+  let playerName = "";
+  let crashShakeStart = 0;
+  let crashShakeDur = 0;
+  const CRASH_VFX_MS = 1350;
   let followingFlightId = null;
 
   function notifySave(reason, immediate) {
@@ -712,6 +718,32 @@
   function sanitizePlanetName(raw, fallback) {
     const cleaned = String(raw || "").replace(/\s+/g, " ").trim().slice(0, MAX_PLANET_NAME_LEN);
     return cleaned || fallback;
+  }
+
+  function sanitizePlayerName(raw) {
+    return String(raw || "").replace(/\s+/g, " ").trim().slice(0, MAX_PLAYER_NAME_LEN);
+  }
+
+  function escapeHtml(str) {
+    return String(str || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function setPlayerName(raw) {
+    playerName = sanitizePlayerName(raw);
+    return playerName;
+  }
+
+  function getPlayerName() {
+    return playerName;
+  }
+
+  function hasCrashBaseOnPlanet1() {
+    return countBuildingOnPlanet(0, "crash_base") > 0;
   }
 
   function getPlanetName(planet, fallbackIdx) {
@@ -865,10 +897,27 @@
       if (!bInfo || !bInfo.id) continue;
       const bDef = window.GameBuildings.getBuilding(bInfo.id);
       if (bDef && bDef[slotKey]) {
+        if (slotKey === "citizenSlots" && bDef.fixedCitizens) continue;
         cap += bDef[slotKey];
       }
     }
     return cap;
+  }
+
+  function calculateFixedBuildingCitizens(planetIdx) {
+    const buildings = buildingsByPlanet[planetIdx];
+    if (!buildings || !window.GameBuildings) return 0;
+    let fixed = 0;
+    const keys = Object.keys(buildings);
+    for (let i = 0; i < keys.length; i++) {
+      const bInfo = buildings[keys[i]];
+      if (!bInfo || !bInfo.id) continue;
+      const bDef = window.GameBuildings.getBuilding(bInfo.id);
+      if (bDef && bDef.fixedCitizens && bDef.citizenSlots > 0) {
+        fixed += bDef.citizenSlots;
+      }
+    }
+    return fixed;
   }
 
   /** Sync a top-right planet HUD stat cell, progress meter, and bump animation. */
@@ -948,7 +997,7 @@
   }
 
   function getPlanetBaseCitizenCount(planetIdx) {
-    return Math.max(0, Math.floor(baseCitizensByPlanet[planetIdx] || 0));
+    return Math.max(0, Math.floor(baseCitizensByPlanet[planetIdx] || 0)) + calculateFixedBuildingCitizens(planetIdx);
   }
 
   function calculatePlanetCitizenCapacity(planetIdx) {
@@ -2097,6 +2146,12 @@
               const stretch = Math.sin(k * Math.PI) * 0.18;
               const buildOpts = Object.assign({ scaleXY: 1 - stretch * 0.45, scaleZ: 1 + stretch }, bOpts || {});
               window.GameBuildings.renderBuilding3D(ctx, entry.placed.id, buildingFrame, time, pop, buildOpts);
+            }
+          } else if (eff && eff.type === "crash") {
+            const cp = clamp((time - eff.startTime) / eff.duration, 0, 1);
+            if (cp >= 0.08) {
+              const settleK = clamp((cp - 0.08) / 0.28, 0, 1);
+              window.GameBuildings.renderBuilding3D(ctx, entry.placed.id, buildingFrame, time, easeOutBack(settleK), bOpts);
             }
           } else {
             const buildElapsed = time - entry.placed.placedAt;
@@ -3873,6 +3928,16 @@
   function render(time) {
     if (!ctx || !canvas) return;
 
+    if (
+      window.GameIntro &&
+      typeof window.GameIntro.coversStage === "function" &&
+      window.GameIntro.coversStage()
+    ) {
+      lastFrameTime = time;
+      window.requestAnimationFrame(render);
+      return;
+    }
+
     const dtMs = Math.min(time - lastFrameTime, 60);
     const dtSec = dtMs / 1000;
     lastFrameTime = time;
@@ -4022,14 +4087,17 @@
         }
 
         const isActivePlanet = i === targetIndex;
+        const introActive =
+          window.GameIntro && typeof window.GameIntro.isPlaying === "function" && window.GameIntro.isPlaying();
         const shouldAutoSpin =
-          !isActivePlanet ||
-          (!isDragging &&
-            !isHoveringPlanet &&
-            p.targetZoom <= 1.04 &&
-            selectedHexByPlanet[i] === null &&
-            Math.abs(p.spinVelY) <= 0.02 &&
-            time - lastInteractionTime >= IDLE_SPIN_DELAY_MS);
+          !introActive &&
+          (!isActivePlanet ||
+            (!isDragging &&
+              !isHoveringPlanet &&
+              p.targetZoom <= 1.04 &&
+              selectedHexByPlanet[i] === null &&
+              Math.abs(p.spinVelY) <= 0.02 &&
+              time - lastInteractionTime >= IDLE_SPIN_DELAY_MS));
 
         const targetBlend = shouldAutoSpin ? 1 : 0;
         p.autoSpinBlend += (targetBlend - p.autoSpinBlend) * autoBlendLerp;
@@ -4049,6 +4117,16 @@
 
     ctx.clearRect(0, 0, width, height);
 
+    const isCrashShaking = crashShakeDur > 0 && time - crashShakeStart < crashShakeDur;
+    if (isCrashShaking) {
+      const shakeP = clamp01((time - crashShakeStart) / crashShakeDur);
+      const amp = (1 - shakeP) * (1 - shakeP) * 11;
+      const sx = Math.sin(time * 0.085) * amp;
+      const sy = Math.cos(time * 0.115) * amp * 0.85;
+      ctx.save();
+      ctx.translate(sx, sy);
+    }
+
     if (Math.abs(Math.round(clamp(scrollPos, 0, PLANET_COUNT - 1)) - scrollPos) >= 0.15) {
       focusedHitPolys = [];
     }
@@ -4065,6 +4143,10 @@
 
     updateAndDrawActiveFlights(time);
     updateAndDrawTradeFlights(time);
+
+    if (isCrashShaking) {
+      ctx.restore();
+    }
 
     if (tileResearchBtn) {
       const modalActive =
@@ -4424,7 +4506,100 @@
     wheelCooldownUntil = now + 260;
   }
 
+  // Secret Reset Cheat Sequence Tracker: K 5 times then O 5 times within 8.0s
+  const SECRET_RESET_SEQUENCE = ["k", "k", "k", "k", "k", "o", "o", "o", "o", "o"];
+  const SECRET_RESET_TIMEOUT_MS = 8000;
+  const SECRET_RESET_KEY_IDLE_MS = 2500;
+  let secretResetBuffer = [];
+  let secretResetFirstKeyTime = 0;
+  let secretResetLastKeyTime = 0;
+  let secretResetModalOpen = false;
+
+  function openSecretResetModal() {
+    const modal = document.getElementById("secret-reset-modal");
+    if (!modal) return;
+    secretResetModalOpen = true;
+    modal.classList.remove("is-hidden");
+    modal.setAttribute("aria-hidden", "false");
+    const confirmBtn = document.getElementById("btn-secret-reset-confirm");
+    if (confirmBtn) {
+      confirmBtn.focus();
+    }
+  }
+
+  function closeSecretResetModal() {
+    const modal = document.getElementById("secret-reset-modal");
+    if (!modal) return;
+    secretResetModalOpen = false;
+    modal.classList.add("is-hidden");
+    modal.setAttribute("aria-hidden", "true");
+  }
+
+  function executeSecretReset() {
+    closeSecretResetModal();
+    if (window.GameSave && typeof window.GameSave.resetProgress === "function") {
+      window.GameSave.resetProgress();
+    } else {
+      resetState();
+      if (window.GameCurrencies && typeof window.GameCurrencies.reset === "function") {
+        window.GameCurrencies.reset();
+      }
+      if (window.GameResearch && typeof window.GameResearch.resetState === "function") {
+        window.GameResearch.resetState();
+      }
+    }
+    startNewGameIntro();
+  }
+
+  function handleSecretResetKeyPress(key) {
+    if (secretResetModalOpen) return;
+    const lowerKey = (key || "").toLowerCase();
+    if (lowerKey !== "k" && lowerKey !== "o") {
+      secretResetBuffer.length = 0;
+      return;
+    }
+
+    const now = performance.now();
+    if (secretResetBuffer.length > 0) {
+      if (now - secretResetFirstKeyTime > SECRET_RESET_TIMEOUT_MS || now - secretResetLastKeyTime > SECRET_RESET_KEY_IDLE_MS) {
+        secretResetBuffer.length = 0;
+      }
+    }
+
+    const nextExpected = SECRET_RESET_SEQUENCE[secretResetBuffer.length];
+    if (lowerKey === nextExpected) {
+      if (secretResetBuffer.length === 0) {
+        secretResetFirstKeyTime = now;
+      }
+      secretResetLastKeyTime = now;
+      secretResetBuffer.push(lowerKey);
+
+      if (secretResetBuffer.length === SECRET_RESET_SEQUENCE.length) {
+        secretResetBuffer.length = 0;
+        openSecretResetModal();
+      }
+    } else {
+      if (lowerKey === SECRET_RESET_SEQUENCE[0]) {
+        secretResetBuffer = [lowerKey];
+        secretResetFirstKeyTime = now;
+        secretResetLastKeyTime = now;
+      } else {
+        secretResetBuffer.length = 0;
+      }
+    }
+  }
+
   function onKeyDown(e) {
+    if (secretResetModalOpen) {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        closeSecretResetModal();
+      }
+      return;
+    }
+    if (window.GameIntro && typeof window.GameIntro.isPlaying === "function" && window.GameIntro.isPlaying()) {
+      return;
+    }
     if (window.GameResearch && typeof window.GameResearch.isOpen === "function" && window.GameResearch.isOpen()) {
       if (e.key === "Escape") {
         window.GameResearch.close();
@@ -4446,6 +4621,9 @@
     ) {
       return;
     }
+
+    handleSecretResetKeyPress(e.key);
+
     if (e.key === "ArrowRight") {
       goToPlanet(targetIndex + 1);
     } else if (e.key === "ArrowLeft") {
@@ -4768,6 +4946,20 @@
       }
       closeResourceTooltip();
     });
+
+    const resetCancelBtn = document.getElementById("btn-secret-reset-cancel");
+    const resetConfirmBtn = document.getElementById("btn-secret-reset-confirm");
+    const resetBackdrop = document.getElementById("secret-reset-backdrop");
+
+    if (resetCancelBtn) {
+      resetCancelBtn.addEventListener("click", closeSecretResetModal);
+    }
+    if (resetBackdrop) {
+      resetBackdrop.addEventListener("click", closeSecretResetModal);
+    }
+    if (resetConfirmBtn) {
+      resetConfirmBtn.addEventListener("click", executeSecretReset);
+    }
   }
 
   function init() {
@@ -4806,10 +4998,15 @@
           if (!planet || !planet.unlocked) return;
           const existing = buildingsByPlanet[targetIndex][tileId];
           if (existing && existing.id === buildingId) return;
+          const existingDefCheck =
+            existing && existing.id && window.GameBuildings
+              ? window.GameBuildings.getBuilding(existing.id)
+              : null;
+          if (existingDefCheck && existingDefCheck.unreplaceable) return;
 
           const tile = planet.tileById[tileId];
           const bld = window.GameBuildings.getBuilding(buildingId);
-          if (!bld || !tile) return;
+          if (!bld || !tile || bld.hiddenFromBuildMenu) return;
           if (
             bld.requiredResearch &&
             window.GameResearch &&
@@ -4916,6 +5113,8 @@
           if (!tileId) return;
           const removed = buildingsByPlanet[targetIndex][tileId];
           if (!removed) return;
+          const removedDef = window.GameBuildings ? window.GameBuildings.getBuilding(removed.id) : null;
+          if (removedDef && removedDef.indestructible) return;
 
           if (removed.loadedBricks > 0) {
             bricksByPlanet[targetIndex] = (bricksByPlanet[targetIndex] || 0) + removed.loadedBricks;
@@ -4958,15 +5157,272 @@
     }
 
     loadSavedPlanetNames();
-    if (window.GameSave && typeof window.GameSave.boot === "function") {
-      window.GameSave.boot();
-    }
-    syncOreProductionRate(true);
     resizeCanvas();
     updateIndicatorDots();
     updateControlStates();
     bindEvents();
+
+    document.body.classList.add("intro-pending");
+    if (window.GameSave && typeof window.GameSave.boot === "function") {
+      window.GameSave.boot({
+        onSaveLoaded: function () {
+          document.body.classList.remove("intro-pending");
+          if (!hasCrashBaseOnPlanet1()) {
+            if (typeof window.GameSave.resetProgress === "function") {
+              window.GameSave.resetProgress();
+            } else {
+              resetState();
+            }
+            startNewGameIntro();
+          }
+        },
+        onNoSaveFound: function () {
+          document.body.classList.remove("intro-pending");
+          startNewGameIntro();
+        }
+      });
+    } else {
+      document.body.classList.remove("intro-pending");
+      resetState();
+      startNewGameIntro();
+    }
+
+    syncOreProductionRate(true);
     window.requestAnimationFrame(render);
+  }
+
+  function getDefaultCrashTile(planetIdx) {
+    const idx = clamp(Math.round(planetIdx || 0), 0, PLANET_COUNT - 1);
+    const planet = planets[idx];
+    if (!planet || !Array.isArray(planet.tiles)) return null;
+
+    const buckets = [[], [], []];
+    for (let i = 0; i < planet.tiles.length; i++) {
+      const tile = planet.tiles[i];
+      if (buildingsByPlanet[idx][tile.id]) continue;
+      if (window.GameBuildings && !window.GameBuildings.canBuildOnBiome("crash_base", tile.biome)) {
+        continue;
+      }
+      if (tile.biome === "highlands") {
+        buckets[0].push(tile);
+      } else if (tile.biome !== "mountains" && tile.biome !== "crater") {
+        buckets[1].push(tile);
+      } else {
+        buckets[2].push(tile);
+      }
+    }
+
+    for (let b = 0; b < buckets.length; b++) {
+      if (buckets[b].length > 0) {
+        buckets[b].sort(function (t1, t2) {
+          const dy = Math.abs(t1.center.y) - Math.abs(t2.center.y);
+          if (Math.abs(dy) > 0.04) return dy;
+          return Number(t1.id) - Number(t2.id);
+        });
+        return buckets[b][0];
+      }
+    }
+    return null;
+  }
+
+  function computeSnapAnglesForTile(planetIdx, tileId) {
+    const idx = clamp(Math.round(planetIdx || 0), 0, PLANET_COUNT - 1);
+    const planet = planets[idx];
+    const tile = planet && planet.tileById ? planet.tileById[String(tileId)] : null;
+    if (!planet || !tile) return null;
+
+    const px = tile.center.x;
+    const py = tile.center.y;
+    const pz = tile.center.z;
+    const rXZ = Math.hypot(px, pz);
+
+    let targetSpinY = planet.spinY;
+    if (rXZ > 0.001) {
+      const rawSpinY = Math.atan2(-px, pz);
+      let deltaY = rawSpinY - planet.spinY;
+      deltaY = ((((deltaY + Math.PI) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2)) - Math.PI;
+      targetSpinY = planet.spinY + deltaY;
+    }
+
+    const rawPitchX = Math.atan2(py, rXZ);
+    const targetPitchOffset = clamp(
+      rawPitchX - planet.basePitch,
+      -MAX_PITCH - planet.basePitch,
+      MAX_PITCH - planet.basePitch
+    );
+    const targetPitchX = clamp(planet.basePitch + targetPitchOffset, -MAX_PITCH, MAX_PITCH);
+
+    return {
+      spinY: targetSpinY,
+      pitchOffset: targetPitchOffset,
+      pitchX: targetPitchX
+    };
+  }
+
+  function snapFocusToTile(planetIdx, tileId) {
+    const idx = clamp(Math.round(planetIdx || 0), 0, PLANET_COUNT - 1);
+    const planet = planets[idx];
+    const snap = computeSnapAnglesForTile(idx, tileId);
+    if (!planet || !snap) return;
+
+    planet.spinY = snap.spinY;
+    planet.pitchOffset = snap.pitchOffset;
+    planet.lookTarget = null;
+    planet.spinVelY = 0;
+    planet.pitchVelX = 0;
+    planet.autoSpinBlend = 0;
+    lastInteractionTime = performance.now();
+  }
+
+  function getTile3DTarget(planetIdx, tileId) {
+    const idx = clamp(Math.round(planetIdx || 0), 0, PLANET_COUNT - 1);
+    const planet = planets[idx];
+    const tile = planet && planet.tileById ? planet.tileById[String(tileId)] : null;
+    if (!planet || !tile) return null;
+    const tr = getPlanetTransform(planet, idx);
+    const r = tr.scaledRadius;
+    const focalLength = r * Math.sqrt(CAM_DIST * CAM_DIST - 1);
+    const pitchX = clamp(planet.basePitch + planet.pitchOffset, -MAX_PITCH, MAX_PITCH);
+    const rotatePoint = createRotator(planet.spinY, pitchX, planet.roll);
+    const rotNormal = rotatePoint(tile.normal);
+    const rotPlaneCenter = rotatePoint(tile.planeCenter);
+    const rotT = rotatePoint(tile.tangentT);
+    const rotB = rotatePoint(tile.tangentB);
+    const elev = tile.currentElev || tile.baseElev || 1.02;
+    const elevCenter = scale(rotPlaneCenter, elev);
+    const tipWorld = add(elevCenter, scale(rotNormal, tile.hexScale * elev * 0.8));
+    const basePt = project(elevCenter, tr.x, tr.y, focalLength);
+    const upPt = project(tipWorld, tr.x, tr.y, focalLength);
+    const dx = upPt.x - basePt.x;
+    const dy = upPt.y - basePt.y;
+    const dLen = Math.hypot(dx, dy) || 1;
+    return {
+      x: basePt.x,
+      y: basePt.y,
+      nx: dx / dLen,
+      ny: dy / dLen,
+      radius: r,
+      cx: tr.x,
+      cy: tr.y,
+      focalLength: focalLength,
+      camDist: CAM_DIST,
+      worldOrigin: elevCenter,
+      rotN: rotNormal,
+      rotT: rotT,
+      rotB: rotB,
+      hexScale: tile.hexScale * elev,
+      spinY: planet.spinY,
+      pitchX: pitchX,
+      roll: planet.roll
+    };
+  }
+
+  function getTileScreenPosition(planetIdx, tileId) {
+    const t3 = getTile3DTarget(planetIdx, tileId);
+    if (!t3) return null;
+    return {
+      x: t3.x,
+      y: t3.y,
+      nx: t3.nx,
+      ny: t3.ny,
+      radius: t3.radius
+    };
+  }
+
+  function placeCrashBaseOnPlanet1(tileId, withImpactVfx) {
+    const chosenTile =
+      tileId && planets[0] && planets[0].tileById && planets[0].tileById[String(tileId)]
+        ? planets[0].tileById[String(tileId)]
+        : getDefaultCrashTile(0);
+    if (!chosenTile) return null;
+
+    const chosenId = chosenTile.id;
+    const now = performance.now();
+
+    buildingsByPlanet[0][chosenId] = {
+      id: "crash_base",
+      placedAt: withImpactVfx ? now : -1000,
+      placedOrder: 0,
+      isLanded: false,
+      loadedBricks: 0,
+      landedCitizens: 0,
+      tradeEnabled: false,
+      tradeTimer: 0
+    };
+
+    const minCit = getPlanetBaseCitizenCount(0);
+    const capCit = calculatePlanetCitizenCapacity(0);
+    citizensByPlanet[0] = clamp(Math.max(citizensByPlanet[0] || 0, minCit, 1), minCit, Math.max(minCit, capCit));
+
+    if (withImpactVfx) {
+      tileEffectsByPlanet[0][chosenId] = {
+        type: "crash",
+        startTime: now,
+        duration: CRASH_VFX_MS,
+        seed: Number(chosenId) * 1.91 + (now % 97) * 0.017
+      };
+      crashShakeStart = now;
+      crashShakeDur = 440;
+    }
+
+    introCompleted = true;
+    lastInteractionTime = now;
+    syncOreProductionRate(true);
+    updatePlanetStatsHud(true);
+
+    if (window.GameSave && typeof window.GameSave.saveNow === "function") {
+      window.GameSave.saveNow("intro_complete");
+    }
+    return chosenId;
+  }
+
+  function startNewGameIntro() {
+    const crashTile = getDefaultCrashTile(0);
+    if (!crashTile) return;
+
+    if (window.GameIntro && typeof window.GameIntro.play === "function") {
+      window.GameIntro.play({
+        onNameSet: function (name) {
+          setPlayerName(name);
+        },
+        onPreparePlanet: function () {
+          targetIndex = 0;
+          scrollPos = 0;
+          lastRenderScrollPos = 0;
+          snapFocusToTile(0, crashTile.id);
+        },
+        getCrashTarget: function () {
+          return getTile3DTarget(0, crashTile.id);
+        },
+        getPlanet1Data: function () {
+          const p0 = planets[0];
+          const snap = computeSnapAnglesForTile(0, crashTile.id);
+          return {
+            tiles: p0.tiles,
+            atmosphere: p0.atmosphere,
+            coreScale: p0.coreScale,
+            roll: p0.roll,
+            basePitch: p0.basePitch,
+            targetSpinY: snap ? snap.spinY : p0.spinY,
+            targetPitchX: snap ? snap.pitchX : clamp(p0.basePitch + p0.pitchOffset, -MAX_PITCH, MAX_PITCH),
+            crashTile: crashTile,
+            getLiveTransform: function () {
+              return getPlanetTransform(p0, 0);
+            }
+          };
+        },
+        onImpact: function (withVfx) {
+          snapFocusToTile(0, crashTile.id);
+          placeCrashBaseOnPlanet1(crashTile.id, withVfx !== false);
+        },
+        onComplete: function () {
+          updatePlanetStatsHud(true);
+        }
+      });
+    } else {
+      snapFocusToTile(0, crashTile.id);
+      placeCrashBaseOnPlanet1(crashTile.id, false);
+    }
   }
 
   function roundDecimals(num, decimals) {
@@ -5100,6 +5556,8 @@
     }
 
     return {
+      introCompleted: Boolean(introCompleted),
+      playerName: playerName,
       activePlanet: clamp(Math.round(targetIndex || 0), 0, PLANET_COUNT - 1),
       nextBuildingOrder: nextBuildingOrder,
       planets: exportedPlanets,
@@ -5108,6 +5566,9 @@
   }
 
   function importState(data, elapsedOfflineMs) {
+    if (window.GameIntro && typeof window.GameIntro.abortAndHide === "function") {
+      window.GameIntro.abortAndHide();
+    }
     activeFlights.length = 0;
     activeTradeFlights.length = 0;
     followingFlightId = null;
@@ -5150,10 +5611,10 @@
         const bDef = window.GameBuildings ? window.GameBuildings.getBuilding(bData.id) : null;
         if (!bDef) continue;
 
-        const ord =
-          Number.isFinite(Number(bData.order)) && Number(bData.order) > 0
-            ? Math.floor(Number(bData.order))
-            : ++maxOrderSeen;
+        const isValidOrder =
+          Number.isFinite(Number(bData.order)) &&
+          (bDef.id === "crash_base" ? Number(bData.order) >= 0 : Number(bData.order) > 0);
+        const ord = isValidOrder ? Math.floor(Number(bData.order)) : ++maxOrderSeen;
         if (ord > maxOrderSeen) maxOrderSeen = ord;
 
         const isLanded = Boolean(bData.isLanded);
@@ -5264,6 +5725,17 @@
     lastFrameTime = nowPerf;
     lastBackgroundPerfMs = 0;
 
+    playerName = data && data.playerName ? sanitizePlayerName(data.playerName) : "";
+    if (!hasCrashBaseOnPlanet1()) {
+      introCompleted = false;
+      return { landedCount: 0, missingCrashBase: true };
+    }
+
+    introCompleted = true;
+    const p0Min = getPlanetBaseCitizenCount(0);
+    const p0Cap = calculatePlanetCitizenCapacity(0);
+    citizensByPlanet[0] = clamp(citizensByPlanet[0] || 0, p0Min, Math.max(p0Min, p0Cap));
+
     savePlanetNames();
     syncOreProductionRate(true);
     updateIndicatorDots();
@@ -5272,7 +5744,7 @@
     updatePlanetStatsHud(true);
     updateFollowRocketButton();
 
-    return { landedCount: landedCount };
+    return { landedCount: landedCount, missingCrashBase: false };
   }
 
   function applyOfflineProgress(elapsedSec, extraLandedCount) {
@@ -5487,15 +5959,17 @@
       }
 
       if (gainParts.length > 0) {
-        showGameToast(
-          "<span>" +
-            t("save.offline_welcome", {
+        const welcomeMsg = playerName
+          ? t("save.offline_welcome_named", {
+              name: escapeHtml(playerName),
               duration: formatOfflineDuration(dtTotal),
               gains: gainParts.join(t("save.gain_sep"))
-            }) +
-            "</span>",
-          "success"
-        );
+            })
+          : t("save.offline_welcome", {
+              duration: formatOfflineDuration(dtTotal),
+              gains: gainParts.join(t("save.gain_sep"))
+            });
+        showGameToast("<span>" + welcomeMsg + "</span>", "success");
       }
     }
 
@@ -5515,6 +5989,10 @@
     followingFlightId = null;
     nextBuildingOrder = 1;
     lastBackgroundPerfMs = 0;
+    introCompleted = false;
+    playerName = "";
+    crashShakeStart = 0;
+    crashShakeDur = 0;
 
     for (let i = 0; i < PLANET_COUNT; i++) {
       const p = planets[i];
@@ -5564,6 +6042,16 @@
     importState: importState,
     resetState: resetState,
     applyOfflineProgress: applyOfflineProgress,
+    startNewGameIntro: startNewGameIntro,
+    getPlayerName: getPlayerName,
+    setPlayerName: setPlayerName,
+    hasCrashBaseOnPlanet1: hasCrashBaseOnPlanet1,
+    openSecretResetModal: openSecretResetModal,
+    closeSecretResetModal: closeSecretResetModal,
+    executeSecretReset: executeSecretReset,
+    buildGoldbergSphere: buildGoldbergSphere,
+    getTileScreenPosition: getTileScreenPosition,
+    snapFocusToTile: snapFocusToTile,
     onBackground: function () {
       lastBackgroundPerfMs = performance.now();
     },

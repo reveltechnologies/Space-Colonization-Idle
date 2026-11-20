@@ -15,6 +15,13 @@ All game code is in `src/`. Open `src/index.html` in a browser or serve it with 
 - **TWA / PWA `.aab`**: Persists in `IndexedDB` (`sci_save_db`) + `localStorage` and automatically requests `navigator.storage.persist()` to prevent eviction.
 - **Custom Android WebView `.aab`**: Exposing a `@JavascriptInterface` named `window.AndroidSave` (or `SpaceColonyStorage` / `AndroidStorage`) with `save(key, json)` and `load(key)` methods is detected automatically for direct native `SharedPreferences` / file persistence.
 
+## Reset Cheat & Testing
+
+To reset your entire game progress as if you are a completely new player (to experience the opening story cinematic and initial crash landing again):
+- On the main game screen, press **`K` 5 times** followed immediately by **`O` 5 times** within 8 seconds (case-insensitive: `K-K-K-K-K-O-O-O-O-O`).
+- A confirmation dialog will pop up asking: *"Would you like to reset your progress?"*.
+- Confirming will wipe all local save slots, reset currencies, research, and buildings, and immediately launch the opening cinematic intro.
+
 ## License
 
 GPLv3 only. See [LICENSE](LICENSE).

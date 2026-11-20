@@ -86,11 +86,11 @@
 
           <span class="planet-tray-divider" aria-hidden="true"></span>
 
-          <div id="planet-stat-energy" class="planet-stat-cell planet-stat-cell--energy is-empty" data-resource-tooltip="energy" role="button" tabindex="0" aria-expanded="false" aria-label="Energy" data-i18n-aria-label="resource_tooltips.energy.title">
+          <div id="planet-stat-energy" class="planet-stat-cell planet-stat-cell--energy" data-resource-tooltip="energy" role="button" tabindex="0" aria-expanded="false" aria-label="Energy" data-i18n-aria-label="resource_tooltips.energy.title">
             <img class="planet-stat-icon" src="./assets/ui/icon-energy.svg" alt="" draggable="false" />
             <div class="planet-stat-info">
               <span class="planet-stat-value">
-                <span id="val-energy-curr" class="planet-stat-curr">0</span><span class="planet-stat-sep">/</span><span id="val-energy-max" class="planet-stat-max">0</span>
+                <span id="val-energy-curr" class="planet-stat-curr">1</span><span class="planet-stat-sep">/</span><span id="val-energy-max" class="planet-stat-max">1</span>
               </span>
               <span class="planet-stat-meter" aria-hidden="true">
                 <span id="meter-energy-fill" class="planet-stat-meter-fill"></span>
@@ -388,6 +388,113 @@
     </div>
   </div>
 
+  <!-- Opening Story Cinematic Overlay (Native Studio Command UI) -->
+  <div id="intro-cinematic" class="intro-cinematic is-hidden" role="dialog" aria-modal="true" aria-label="Opening Story" data-i18n-aria-label="aria.intro_cinematic" aria-hidden="true">
+    <canvas id="intro-canvas" aria-hidden="true"></canvas>
+    <div class="intro-vignette" aria-hidden="true"></div>
+    <div id="intro-alarm-overlay" class="intro-alarm-overlay" aria-hidden="true"></div>
+    <div id="intro-flash-overlay" class="intro-flash-overlay" aria-hidden="true"></div>
+    <div class="intro-letterbox intro-letterbox--top" aria-hidden="true"></div>
+    <div class="intro-letterbox intro-letterbox--bottom" aria-hidden="true"></div>
+
+    <!-- Top-Right Chapter Pill -->
+    <div class="intro-top-right">
+      <span id="intro-chapter-pill" class="intro-chapter-pill">1 / 8</span>
+    </div>
+
+    <!-- Bottom Studio Dialogue Command Deck (matches .build-drawer & .rocket-cargo-panel) -->
+    <div id="intro-dialogue-deck" class="intro-dialogue-deck">
+      <div class="intro-dialogue-main">
+        <div id="intro-portrait-frame" class="intro-portrait-frame">
+          <img id="intro-portrait-icon" class="intro-portrait-icon" src="./assets/ui/intro-nova7.svg" alt="" draggable="false" />
+        </div>
+
+        <div class="intro-dialogue-center">
+          <div class="intro-speaker-row">
+            <span id="intro-speaker-name" class="intro-speaker-name">Archives</span>
+          </div>
+          <div class="intro-dialogue-card">
+            <p id="intro-caption" class="intro-caption"></p>
+            <div id="intro-name-row" class="intro-name-row is-hidden">
+              <div class="intro-name-input-wrap">
+                <img class="intro-name-icon" src="./assets/ui/icon-citizen.svg" alt="" draggable="false" />
+                <input
+                  id="intro-player-name-input"
+                  class="intro-name-input"
+                  type="text"
+                  maxlength="20"
+                  autocomplete="off"
+                  autocorrect="off"
+                  autocapitalize="words"
+                  spellcheck="false"
+                  placeholder="Enter your name..."
+                  aria-label="Pioneer Name"
+                  data-i18n-placeholder="intro.name_placeholder"
+                  data-i18n-aria-label="aria.player_name_input"
+                />
+              </div>
+              <span id="intro-name-error" class="intro-name-error is-hidden" data-i18n="intro.name_required_error">Enter your name to unlock ignition!</span>
+            </div>
+            <div id="intro-salvage-chips" class="intro-salvage-chips is-hidden">
+              <span class="intro-salvage-chip intro-salvage-chip--citizen">
+                <img class="intro-salvage-icon" src="./assets/ui/icon-citizen.svg" alt="" draggable="false" />
+                <span data-i18n="intro.salvage_citizen">+1 Citizen</span>
+              </span>
+              <span class="intro-salvage-chip intro-salvage-chip--energy">
+                <img class="intro-salvage-icon" src="./assets/ui/icon-energy.svg" alt="" draggable="false" />
+                <span data-i18n="intro.salvage_energy">+1 Energy</span>
+              </span>
+              <span class="intro-salvage-chip intro-salvage-chip--bricks">
+                <img class="intro-salvage-icon" src="./assets/ui/icon-bricks.svg" alt="" draggable="false" />
+                <span data-i18n="intro.salvage_bricks">+1/m Bricks</span>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="intro-action-col">
+          <button id="btn-intro-continue" class="intro-continue-btn is-hidden" type="button" aria-label="Continue Story" data-i18n-aria-label="aria.continue_intro">
+            <img id="intro-continue-icon" class="intro-continue-icon is-hidden" src="./assets/ui/bld-space-rocket-2.svg" alt="" draggable="false" />
+            <span id="intro-continue-label">Next</span>
+            <span class="intro-continue-arrow" aria-hidden="true">▸</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="intro-deck-footer">
+        <div id="intro-step-dots" class="intro-step-dots" aria-hidden="true">
+          <span class="intro-step-dot" data-step="0"></span>
+          <span class="intro-step-dot" data-step="1"></span>
+          <span class="intro-step-dot" data-step="2"></span>
+          <span class="intro-step-dot" data-step="3"></span>
+          <span class="intro-step-dot" data-step="4"></span>
+          <span class="intro-step-dot" data-step="5"></span>
+          <span class="intro-step-dot" data-step="6"></span>
+          <span class="intro-step-dot" data-step="7"></span>
+        </div>
+        <span id="intro-tap-hint" class="intro-tap-hint is-hidden" data-i18n="intro.tap_to_continue">Tap to continue</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Secret Reset Progress Modal -->
+  <div id="secret-reset-modal" class="secret-reset-modal is-hidden" role="dialog" aria-modal="true" aria-labelledby="secret-reset-title" aria-describedby="secret-reset-desc" aria-hidden="true">
+    <div id="secret-reset-backdrop" class="secret-reset-backdrop"></div>
+    <div class="secret-reset-card" role="document">
+      <div class="secret-reset-badge" data-i18n="reset_modal.badge">SECRET CHEAT</div>
+      <div class="secret-reset-icon-wrap" aria-hidden="true">
+        <span class="secret-reset-warn-icon">⚠️</span>
+      </div>
+      <h2 id="secret-reset-title" class="secret-reset-title" data-i18n="reset_modal.title">Reset All Progress?</h2>
+      <p id="secret-reset-question" class="secret-reset-question" data-i18n="reset_modal.question">Would you like to reset your progress?</p>
+      <p id="secret-reset-desc" class="secret-reset-desc" data-i18n="reset_modal.warning">This will wipe all planets, buildings, currencies, research, and saved files completely. You will restart as a fresh player from the opening story cinematic.</p>
+      <div class="secret-reset-actions">
+        <button id="btn-secret-reset-cancel" class="secret-reset-btn secret-reset-btn--cancel" type="button" aria-label="Cancel Reset" data-i18n-aria-label="aria.secret_reset_cancel" data-i18n="reset_modal.btn_cancel">Cancel</button>
+        <button id="btn-secret-reset-confirm" class="secret-reset-btn secret-reset-btn--confirm" type="button" aria-label="Confirm Reset" data-i18n-aria-label="aria.secret_reset_confirm" data-i18n="reset_modal.btn_confirm">Yes, Reset Everything</button>
+      </div>
+    </div>
+  </div>
+
   <script src="./lang/en_us.js"></script>
   <script src="./economy/economy.js"></script>
   <script src="./js/main.js"></script>
@@ -395,6 +502,7 @@
   <script src="./js/research.js"></script>
   <script src="./js/buildings.js"></script>
   <script src="./js/save.js"></script>
+  <script src="./js/intro.js"></script>
   <script src="./js/planets.js"></script>
 </body>
 </html>

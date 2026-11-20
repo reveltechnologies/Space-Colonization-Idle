@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" stroke-linejoin="round" stroke-linecap="round">
+  <defs>
+    <radialGradient id="novaGrad" cx="34%" cy="30%" r="72%">
+      <stop offset="0%" stop-color="#e0f7ff"/>
+      <stop offset="45%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#1d4ed8"/>
+    </radialGradient>
+  </defs>
+  <!-- Back Orbital Dyson Ring Arc -->
+  <path d="M12 62 C 8 42, 46 18, 88 38" fill="none" stroke="#1b1147" stroke-width="11"/>
+  <path d="M12 62 C 8 42, 46 18, 88 38" fill="none" stroke="#38bdf8" stroke-width="4.5"/>
+
+  <!-- Golden Planet Core -->
+  <circle cx="50" cy="50" r="30" fill="url(#novaGrad)" stroke="#1b1147" stroke-width="5.5"/>
+
+  <!-- Emerald & Gold Hexagon Continents -->
+  <polygon points="35,34 46,29 53,38 47,49 36,48 30,41" fill="#34d399" stroke="#1b1147" stroke-width="3"/>
+  <polygon points="55,44 68,40 74,51 67,62 56,60 50,51" fill="#fbbf24" stroke="#1b1147" stroke-width="3"/>
+  <polygon points="31,56 44,54 48,66 38,73 27,66" fill="#6ee7b7" stroke="#1b1147" stroke-width="3"/>
+
+  <!-- Miniature Golden Utopia Spires along horizon -->
+  <polygon points="48,22 52,9 56,22" fill="#ffe066" stroke="#1b1147" stroke-width="3"/>
+  <polygon points="62,25 65,14 69,27" fill="#fffbeb" stroke="#1b1147" stroke-width="3"/>
+  <polygon points="34,26 37,16 40,25" fill="#ffe066" stroke="#1b1147" stroke-width="3"/>
+
+  <!-- Front Orbital Golden Dyson Ring -->
+  <path d="M12 62 C 18 76, 84 62, 88 38" fill="none" stroke="#1b1147" stroke-width="11"/>
+  <path d="M12 62 C 18 76, 84 62, 88 38" fill="none" stroke="#ffc83a" stroke-width="5.5"/>
+  <circle cx="72" cy="58" r="5" fill="#ffffff" stroke="#1b1147" stroke-width="3"/>
+</svg>

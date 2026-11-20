@@ -165,6 +165,16 @@
   function render(time) {
     if (!ctx || !canvas) return;
 
+    if (
+      window.GameIntro &&
+      typeof window.GameIntro.coversBackground === "function" &&
+      window.GameIntro.coversBackground()
+    ) {
+      lastTime = time;
+      window.requestAnimationFrame(render);
+      return;
+    }
+
     lastTime = time;
     const frameParallax = parallaxDx;
     parallaxDx = 0;

@@ -5,6 +5,60 @@ All notable changes to **Space Colonization: Idle** will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.0-alpha.22] - 2026-11-21
+
+### Changed
+- **Clean Non-Skippable Intro UI, Story Pilot Name Registration & Mandatory Crash Base Guard**:
+  - **Cleaned Intro UI (`src/index.html`, `src/css/style.css`, `src/js/intro.js`, `src/lang/en_us.js`)**:
+    - Removed the top-left `#intro-telemetry-deck` status panel, all speaker role/timestamp bubble badges (`#intro-speaker-tag` / `Year 2480` / `Emergency` / `Launchpad 01` etc.), and the `#btn-skip-intro` Skip button plus `Escape` key shortcut so the opening story always plays through completely.
+  - **In-Story Pilot Name Registration & Persistence (`src/js/intro.js`, `src/js/planets.js`, `src/js/save.js`, `src/lang/en_us.js`)**:
+    - Added `#intro-name-row` (`#intro-player-name-input`) at Step 3 of the cinematic where `V.E.G.A. AI` asks the player to register their pilot name to unlock launchpad thrusters (with blank-name validation shake + error hint and `Enter` key submission).
+    - Woven the player's chosen name through subsequent dialogue steps (`#intro-speaker-name` and captions), saved `playerName` inside the colony export/local multi-layer save (`window.GameSave`), and personalized returning offline-progress welcome banners (`save.offline_welcome_named`).
+  - **Planet 1 `crash_base` Integrity Guard (`src/js/planets.js`, `src/js/save.js`)**:
+    - Removed silent fallback placement (`ensureCrashBaseOnPlanet1`). If any loaded save, async storage mirror, or imported save string has Planet 1 without `crash_base`, all progress is automatically reset (`resetProgress()`), saving incomplete pre-crash states is blocked (`canPersistCurrentState`), and the opening cinematic launches cleanly from the beginning.
+
+## [0.1.0-alpha.21] - 2026-11-20
+
+### Changed
+- **Opening Story Cinematic 60FPS Performance Overhaul, Native Studio UI & 8-Step Arc**:
+  - **60FPS Optimization (`src/js/intro.js`, `src/js/buildings.js`, `src/js/main.js`, `src/js/planets.js`)**:
+    - Added `GameIntro.coversBackground()` and `GameIntro.coversStage()` so `#starfield` and `#planet-stage` pause rendering completely while occluded during Steps 1–7, freeing full frame budget for the 3D cinematic.
+    - Added ultra-lean low-poly 3D skyline models (`utopia_spire_fast`, `sky_citadel_fast`, `utopia_cluster_fast`) in `src/js/buildings.js` (~12–14 faces each), simplified Nova-7 side fills and single-pass hex borders, reduced twin orbital rings to 18 smooth segments each, cached deep-space nebula canvases across resizes, capped intro DPR at `1.5`, and removed per-frame DOM layout thrashing via cached state & GPU `scaleX()` meter fills.
+  - **Pro Game Studio UI (`src/index.html`, `src/css/style.css`, `src/assets/ui/intro-nova7.svg`, `src/assets/ui/intro-ai.svg`)**:
+    - Redesigned the intro HUD to match the game's signature chunky cartoon purple/cream aesthetic (`--ink`, `--chunk-shadow`, `--outline`, `#5640c4 -> #3d2899` command decks, `#fff7e8` warm dialogue card): Top-left **Telemetry Deck** (`#intro-telemetry-deck`), top-right **Chapter Pill + Skip**, bottom **Dialogue Command Deck** with speaker portrait (`#intro-portrait-frame`), typewriter dialogue reveal (`~50 chars/sec`), starter salvage reward pills (`+1 Citizen`, `+1 Energy`, `+1/m Bricks` upon touchdown), and chunky action CTA buttons.
+  - **Expanded 8-Step Interactive Storyline (`src/lang/en_us.js`, `src/js/intro.js`)**:
+    - Expanded the cinematic from 5 to 8 playable beats: *Golden Age of Nova-7* -> *Core Collapse Crisis* -> *Boarding Launchpad 01* -> *Liftoff & 3D Destruction* (with white-gold flash & 3D hex shatter) -> *Fuel Depleted* -> *Adrift in the Void* (zero-G 3D tumble) -> *Planetary Capture* -> *3D Atmospheric Re-Entry, Crash Landing & Colony Start*.
+
+## [0.1.0-alpha.20] - 2026-11-20
+
+### Changed
+- **True 3D Interactive Opening Story Cinematic (`window.GameIntro`)**:
+  - Upgraded `src/js/intro.js`, `src/js/buildings.js`, `src/js/planets.js`, `src/index.html`, `src/css/style.css`, and `src/lang/en_us.js` into a full 3D interactive 5-scene prologue:
+    - **Utopian 3D Homeworld Nova-7**: Replaced the 2D circle planet with a lush 92-tile `freq = 3` Goldberg geodesic hexagon planet populated with advanced 3D colony structures (`utopia_spire`, `sky_citadel`, `villa`, `quantum_array`, `ore_research_station`, `solar_tower`, `wind_farm`, etc.), twin depth-occluded 3D orbital rings with satellites, glowing magma fault fissures, and a full 3D radial shatter explosion where every hex shard and building tumbles outward through 3D space.
+    - **True 3D Escape Craft (`GameBuildings.renderEscapeCraft3D`)**: Built a faceted 3D escape craft matching `crash_base` (crimson/white fuselage, glowing cyan canopy & visor, thick 3D swept wings with embedded cobalt solar panels and nav beacons, vertical fin with blinking red distress beacon, 3D ion/sputter exhaust plumes, and layered 3D re-entry bow-shock plasma ribbons), featuring 3-axis zero-gravity tumbling after fuel reaches `0% EMPTY!`.
+    - **True 3D Rocky World Approach & Crash Landing**: Scene 4 renders Planet 1's actual `freq = 2` 3D hexagon sphere approaching and smoothly aligning pixel-for-pixel into the live `planet-stage` canvas as the 3D Escape Craft flies along a 3D quadratic Bézier re-entry dive straight onto the target hex tile with a 3D surface-projected impact shockwave.
+    - **Interactive Controls**: Replaced timed passive playback with 5 interactive story scenes controlled via `#btn-intro-continue` (*Launch Escape Craft* / *Continue* / *Drift Onward* / *Brace for Impact!* / *Start Rebuilding!*), 5 chapter step dots (`#intro-step-dots`), tap-anywhere & keyboard (`Space`/`Enter`/`ArrowRight`) advancement, subtle 3D pointer parallax tilt, and preserved `Skip` / `Escape` support.
+    - **Pre-Intro Lifecycle Save Guard**: Prevented `src/js/save.js` from flushing an incomplete pre-crash state if backgrounded mid-cinematic, and ensured `src/js/planets.js` resumes the intro if an incomplete save is loaded without a `crash_base`.
+
+## [0.1.0-alpha.19] - 2026-11-20
+
+### Added
+- **Secret Reset Cheat Sequence (`K-K-K-K-K-O-O-O-O-O`)**:
+  - Added secret keypress sequence listener in `src/js/planets.js` (`SECRET_RESET_SEQUENCE` = 5x `K` then 5x `O` within 8 seconds and max 2.5s between keypresses, ignoring input when typing inside text inputs or during the cinematic).
+  - Added `#secret-reset-modal` confirmation dialog in `src/index.html` with cartoon sci-fi warning theme in `src/css/style.css` and localized text in `src/lang/en_us.js` asking *"Would you like to reset your progress?"*.
+  - When confirmed, wipes all local storage and database save records via `window.GameSave.resetProgress()`, clears in-memory colony and currency state, and immediately launches `startNewGameIntro()` so the player can watch the opening story and experience the crash landing as a new player.
+  - Documented the cheat code in `README.md`.
+
+## [0.1.0-alpha.18] - 2026-11-20
+
+### Added
+- **Opening Story Cinematic (`window.GameIntro`)**:
+  - Created `src/js/intro.js` and `#intro-cinematic` overlay in `src/index.html` and `src/css/style.css` depicting a 4-act animated prologue on a brand-new save: Nova-7 fracturing and exploding as the hero escapes, fuel dropping to `EMPTY!` and engines sputtering out, silent drift into Planet 1's gravity well, and a live 3D re-entry impact onto Planet 1 (with Skip support, localized story captions in `src/lang/en_us.js`, and async save check coordination via `src/js/save.js` so returning players skip straight to their colony).
+- **Permanent Plane Crash Base (`crash_base`)**:
+  - Added the indestructible, unreplaceable `crash_base` starter shelter in `src/economy/economy.js`, `src/js/buildings.js`, `src/js/planets.js`, and custom icon `src/assets/ui/bld-crash-base.svg`.
+  - Features a procedural 3D tilted escape craft wreckage in a scorched impact crater (`buildCrashBaseModel`) with blinking tail distress beacon, solar wing flap, rising smoke, crater impact burst (`renderCrashEffect`), and screen shake.
+  - Supplies `+1 Citizen` (the surviving player pioneer, moved cleanly from Planet 1 static base citizens without double-counting), `+1 Energy`, and passive `+1 Construction Brick/min` salvage, protected from demolition or replacement across UI and game logic (and auto-placed cleanly on older pre-intro saves).
+
 ## [0.1.0-alpha.17] - 2026-11-20
 
 ### Added

@@ -416,6 +416,27 @@
       cost: { credits: 500, ore: 100 },
       accent: "#f59e0b",
       iconSrc: "./assets/ui/bld-space-rocket-2.svg"
+    },
+    {
+      id: "crash_base",
+      name: t("buildings.crash_base.name"),
+      category: "colony",
+      tag: t("categories.colony"),
+      terrain: "solid",
+      nextVariantId: null,
+      specialtyLabel: t("buildings.crash_base.specialty"),
+      specialtyIconSrc: "./assets/ui/bld-crash-base.svg",
+      bricksPerSec: 1 / 60,
+      energySlots: 1,
+      citizenSlots: 1,
+      fixedCitizens: true,
+      indestructible: true,
+      unreplaceable: true,
+      hiddenFromBuildMenu: true,
+      description: t("buildings.crash_base.description"),
+      cost: {},
+      accent: "#ff7a45",
+      iconSrc: "./assets/ui/bld-crash-base.svg"
     }
   ];
 
@@ -464,6 +485,11 @@
       }
     }
     return null;
+  }
+
+  function isProtectedBuilding(buildingId) {
+    const b = getBuilding(buildingId);
+    return Boolean(b && (b.indestructible || b.unreplaceable));
   }
 
   function getTerrainGroup(terrainId) {
@@ -762,6 +788,13 @@
 
   function syncUnbuildableBanner(biome) {
     if (!unbuildableBannerEl) return;
+    if (isProtectedBuilding(currentPlacedId)) {
+      unbuildableBannerEl.textContent = t("build.protected_base_banner");
+      unbuildableBannerEl.classList.add("is-protected");
+      unbuildableBannerEl.classList.remove("is-hidden");
+      return;
+    }
+    unbuildableBannerEl.classList.remove("is-protected");
     unbuildableBannerEl.classList.add("is-hidden");
   }
 
@@ -873,8 +906,24 @@
     return chip;
   }
 
+  function showProtectedToast(buildingId, msgKey) {
+    const b = getBuilding(buildingId);
+    if (!b) return;
+    showBuildErrorToast(
+      "<span>" +
+        '<img class="game-toast-icon" src="' + b.iconSrc + '" alt="" draggable="false" />' +
+        t(msgKey, { building: '<strong class="game-toast-strong">' + b.name + "</strong>" }) +
+        "</span>"
+    );
+  }
+
   function showPurchaseBlockedToast(b, planetId, placedId, biomeId) {
-    if (!b) return true;
+    const plId = placedId !== undefined ? placedId : currentPlacedId;
+    if (isProtectedBuilding(plId)) {
+      showProtectedToast(plId, "toast.cannot_replace_protected");
+      return true;
+    }
+    if (!b || b.hiddenFromBuildMenu) return true;
     const researchLocked = isBuildingResearchLocked(b.id);
     if (researchLocked) {
       const bldImg = '<img class="game-toast-icon" src="' + b.iconSrc + '" alt="" draggable="false" />';
@@ -892,7 +941,6 @@
     }
 
     const pId = planetId !== undefined && planetId !== null ? planetId : currentPlanetId;
-    const plId = placedId !== undefined ? placedId : currentPlacedId;
     if (isBuildingPlanetLimitReached(b.id, pId, plId)) {
       const bldImg = '<img class="game-toast-icon" src="' + b.iconSrc + '" alt="" draggable="false" />';
       const bldStrong = '<strong class="game-toast-strong">' + b.name + "</strong>";
@@ -983,11 +1031,17 @@
     if (!listEl) return;
     listEl.innerHTML = "";
 
+    const tileProtected = isProtectedBuilding(currentPlacedId);
     const entries = [];
     for (let i = 0; i < BUILDINGS.length; i++) {
       const b = BUILDINGS[i];
-      if (activeCategory !== "all" && b.category !== activeCategory) {
-        continue;
+      if (tileProtected) {
+        if (b.id !== currentPlacedId) continue;
+      } else {
+        if (b.hiddenFromBuildMenu) continue;
+        if (activeCategory !== "all" && b.category !== activeCategory) {
+          continue;
+        }
       }
       const isBuilt = currentPlacedId === b.id;
       const researchLocked = isBuildingResearchLocked(b.id);
@@ -1016,18 +1070,20 @@
       const entry = entries[i];
       const b = entry.b;
       const isBuilt = entry.isBuilt;
+      const isProtectedCard = isProtectedBuilding(b.id);
       const researchLocked = entry.researchLocked;
       const limitBlocked = entry.limitBlocked;
       const terrain = getTerrainGroup(b.terrain);
       const terrainOk = entry.terrainOk;
       const affordable = entry.affordable;
-      const canPurchase = !isBuilt && !researchLocked && !limitBlocked && terrainOk && affordable;
+      const canPurchase = !isProtectedCard && !isBuilt && !researchLocked && !limitBlocked && terrainOk && affordable;
 
       const card = document.createElement("button");
       card.type = "button";
       card.className =
         "build-card" +
         (isBuilt ? " is-built" : "") +
+        (isProtectedCard ? " build-card--protected" : "") +
         (!isBuilt && researchLocked ? " is-research-locked" : "") +
         (!isBuilt && !researchLocked && limitBlocked ? " is-limit-blocked" : "") +
         (!isBuilt && !researchLocked && !limitBlocked && !terrainOk ? " is-terrain-blocked" : "") +
@@ -1106,7 +1162,44 @@
       info.appendChild(nameEl);
 
       const showInvalidTerrain = !isBuilt && !terrainOk;
-      if (!isBuilt && researchLocked) {
+      if (isProtectedCard) {
+        const multiWrap = document.createElement("span");
+        multiWrap.className = "build-card-multi-chips";
+        if (b.citizenSlots && b.citizenSlots > 0) {
+          multiWrap.appendChild(
+            createCardInfoChip(
+              "build-citizen-chip",
+              "build-citizen-icon",
+              STAT_ICONS.citizens,
+              "build-citizen-label",
+              formatCitizenGain(b.citizenSlots)
+            )
+          );
+        }
+        if (b.energySlots && b.energySlots > 0) {
+          multiWrap.appendChild(
+            createCardInfoChip(
+              "build-energy-chip",
+              "build-energy-icon",
+              STAT_ICONS.energy,
+              "build-energy-label",
+              formatEnergyGain(b.energySlots)
+            )
+          );
+        }
+        if (b.bricksPerSec && b.bricksPerSec > 0) {
+          multiWrap.appendChild(
+            createCardInfoChip(
+              "build-bricks-chip",
+              "build-bricks-icon",
+              STAT_ICONS.bricks,
+              "build-bricks-label",
+              formatProductionRate(b.bricksPerSec)
+            )
+          );
+        }
+        info.appendChild(multiWrap);
+      } else if (!isBuilt && researchLocked) {
         info.appendChild(
           createCardInfoChip(
             "build-lock-chip",
@@ -1225,7 +1318,12 @@
       const actionBtn = document.createElement("span");
       actionBtn.className = "build-card-action";
 
-      if (isBuilt) {
+      if (isProtectedCard) {
+        const permLbl = document.createElement("span");
+        permLbl.className = "build-built-label";
+        permLbl.textContent = t("build.permanent_badge");
+        actionBtn.appendChild(permLbl);
+      } else if (isBuilt) {
         const builtLbl = document.createElement("span");
         builtLbl.className = "build-built-label";
         builtLbl.textContent = t("build.built_badge");
@@ -1239,7 +1337,15 @@
       card.appendChild(actionBtn);
 
       card.addEventListener("click", function () {
+        if (isProtectedCard) {
+          showProtectedToast(b.id, "toast.cannot_replace_protected");
+          return;
+        }
         if (isBuilt) return;
+        if (isProtectedBuilding(currentPlacedId)) {
+          showProtectedToast(currentPlacedId, "toast.cannot_replace_protected");
+          return;
+        }
         if (!canPurchase) {
           card.classList.remove("is-shake");
           void card.offsetWidth;
@@ -1265,7 +1371,7 @@
 
   function syncRemoveButton() {
     if (removeBtn) {
-      removeBtn.classList.toggle("is-hidden", !currentPlacedId);
+      removeBtn.classList.toggle("is-hidden", !currentPlacedId || isProtectedBuilding(currentPlacedId));
     }
   }
 
@@ -1288,8 +1394,12 @@
   }
 
   function openConfirmScene(buildingId) {
+    if (isProtectedBuilding(currentPlacedId)) {
+      showProtectedToast(currentPlacedId, "toast.cannot_replace_protected");
+      return;
+    }
     const b = getBuilding(buildingId);
-    if (!b) return;
+    if (!b || b.hiddenFromBuildMenu) return;
 
     pendingConfirmBuildingId = b.id;
     if (listDragScroller) listDragScroller.cancel();
@@ -1589,6 +1699,7 @@
     menuOpen = true;
     if (drawerEl) {
       drawerEl.setAttribute("data-biome", biome.id);
+      drawerEl.classList.toggle("is-protected-tile", isProtectedBuilding(currentPlacedId));
       drawerEl.classList.add("is-open");
       drawerEl.setAttribute("aria-hidden", "false");
     }
@@ -1599,6 +1710,10 @@
   }
 
   function requestUpgradeForTile(planetId, tileId, placedBuildingId, biomeId, targetBuildingId) {
+    if (isProtectedBuilding(placedBuildingId)) {
+      showProtectedToast(placedBuildingId, "toast.cannot_replace_protected");
+      return false;
+    }
     const nextDef = targetBuildingId
       ? getBuilding(targetBuildingId)
       : getNextUpgradeBuilding(placedBuildingId, biomeId);
@@ -1675,6 +1790,10 @@
 
   if (removeBtn) {
     removeBtn.addEventListener("click", function () {
+      if (isProtectedBuilding(currentPlacedId)) {
+        showProtectedToast(currentPlacedId, "toast.cannot_demolish_protected");
+        return;
+      }
       if (typeof callbacks.onRemove === "function") {
         callbacks.onRemove();
       }
@@ -1689,10 +1808,17 @@
 
   if (confirmBuildBtn) {
     confirmBuildBtn.addEventListener("click", function () {
+      if (isProtectedBuilding(currentPlacedId)) {
+        showProtectedToast(currentPlacedId, "toast.cannot_replace_protected");
+        closeConfirmScene();
+        return;
+      }
       const bId = pendingConfirmBuildingId;
       if (!bId) return;
       const b = getBuilding(bId);
       if (
+        !b ||
+        b.hiddenFromBuildMenu ||
         isBuildingResearchLocked(bId) ||
         isBuildingPlanetLimitReached(bId, currentPlanetId, currentPlacedId) ||
         !canBuildOnBiome(bId, currentBiomeId)
@@ -3471,6 +3597,360 @@
     }
   }
 
+  function buildCrashBaseModel(m, time, phase, pxScale) {
+    // Scorched impact crater dish & jagged dirt berm mounds
+    m.addPrism(0, 0, 0.0, 0.055, 0.62, 0.56, 8, Math.PI / 8, [52, 58, 72], { spec: 0.14 });
+    m.addBox(0.36, 0.16, 0.085, 0.14, 0.11, 0.055, [100, 112, 130], { spec: 0.12 });
+    m.addBox(0.35, -0.17, 0.08, 0.13, 0.10, 0.05, [86, 98, 118], { spec: 0.12 });
+    m.addBox(-0.40, 0.22, 0.07, 0.10, 0.09, 0.04, [92, 104, 122], { spec: 0.12 });
+
+    // Tilted nose-down escape craft fuselage buried at front (+x) and raised toward rear (-x)
+    const fusRef = m.toWorld(-0.04, 0, 0.22);
+    const hullOpt = { spec: 0.45, refWorld: fusRef };
+    const bellyOpt = { spec: 0.22, refWorld: fusRef };
+    const stripeOpt = { spec: 0.32, refWorld: fusRef };
+
+    // Top fuselage deck
+    m.addQuad([0.30, -0.09, 0.13], [0.30, 0.09, 0.13], [-0.40, 0.11, 0.41], [-0.40, -0.11, 0.41], [238, 243, 249], hullOpt);
+    // Belly plate
+    m.addQuad([0.28, -0.11, 0.04], [-0.40, -0.11, 0.25], [-0.40, 0.11, 0.25], [0.28, 0.11, 0.04], [96, 110, 128], bellyOpt);
+    // Side hull + crimson accent stripe (left & right flanks)
+    m.addQuad([0.30, 0.09, 0.13], [0.28, 0.11, 0.04], [-0.40, 0.11, 0.25], [-0.40, 0.11, 0.41], [220, 228, 238], hullOpt);
+    m.addQuad([0.30, -0.09, 0.13], [-0.40, -0.11, 0.41], [-0.40, -0.11, 0.25], [0.28, -0.11, 0.04], [190, 202, 218], hullOpt);
+    m.addQuad([0.20, 0.102, 0.12], [0.20, 0.106, 0.08], [-0.36, 0.114, 0.29], [-0.36, 0.114, 0.35], [255, 90, 77], stripeOpt);
+    m.addQuad([0.20, -0.102, 0.12], [-0.36, -0.114, 0.35], [-0.36, -0.114, 0.29], [0.20, -0.106, 0.08], [224, 62, 49], stripeOpt);
+    // Buried nose wedge + rear bulkhead
+    m.addQuad([0.38, -0.05, 0.06], [0.38, 0.05, 0.06], [0.30, 0.09, 0.13], [0.30, -0.09, 0.13], [255, 90, 77], hullOpt);
+    m.addQuad([-0.40, -0.11, 0.25], [-0.40, -0.11, 0.41], [-0.40, 0.11, 0.41], [-0.40, 0.11, 0.25], [71, 85, 105], bellyOpt);
+
+    // Glowing cyan cockpit canopy on top forward slope
+    m.addQuad([0.22, -0.075, 0.16], [0.22, 0.075, 0.16], [-0.02, 0.088, 0.31], [-0.02, -0.088, 0.31], [56, 189, 248], {
+      emissive: 0.38,
+      spec: 0.65,
+      refWorld: fusRef
+    });
+
+    // Intact swept left wing (+y) + deployed blue mini solar panel flap
+    m.addQuad([-0.02, 0.11, 0.24], [-0.28, 0.11, 0.33], [-0.36, 0.46, 0.44], [-0.12, 0.42, 0.36], [226, 232, 240], {
+      doubleSided: true,
+      spec: 0.42
+    });
+    m.addQuad([-0.08, 0.16, 0.27], [-0.26, 0.16, 0.34], [-0.32, 0.41, 0.44], [-0.14, 0.38, 0.37], [37, 99, 235], {
+      doubleSided: true,
+      spec: 0.58
+    });
+    const lw = Math.max(1.0, pxScale * 0.032);
+    m.addLine([-0.14, 0.21, 0.30], [-0.22, 0.40, 0.40], "#93c5fd", lw);
+
+    // Snapped right wing stub (-y) + detached broken wing shard resting in dirt
+    m.addQuad([-0.04, -0.11, 0.25], [-0.24, -0.11, 0.33], [-0.26, -0.26, 0.34], [-0.08, -0.25, 0.27], [148, 163, 184], {
+      doubleSided: true,
+      spec: 0.28
+    });
+    m.addQuad([0.06, -0.34, 0.068], [-0.08, -0.48, 0.072], [-0.16, -0.39, 0.066], [0.00, -0.28, 0.065], [203, 213, 225], {
+      doubleSided: true,
+      spec: 0.25
+    });
+
+    // Rear vertical tail fin + blinking red distress beacon
+    m.addQuad([-0.24, 0, 0.35], [-0.40, 0, 0.40], [-0.46, 0, 0.60], [-0.33, 0, 0.56], [255, 90, 77], {
+      doubleSided: true,
+      spec: 0.35
+    });
+    const beaconPulse = 0.5 + 0.5 * Math.sin(time * 0.0055 + phase);
+    m.addDome(-0.42, 0, 0.60, 0.045, 0.045, 0.045, 2, 6, [255, 90, 77], {
+      emissive: 0.25 + 0.75 * beaconPulse
+    });
+
+    // Exhaust nozzle + subtle warm residual ember + rising cel smoke orbs
+    m.addBox(-0.44, 0, 0.32, 0.05, 0.07, 0.07, [71, 85, 105], { spec: 0.32 });
+    m.addBox(-0.49, 0, 0.32, 0.015, 0.045, 0.045, [245, 158, 11], { emissive: 0.55 });
+    for (let k = 0; k < 3; k++) {
+      const sp = (time * 0.0005 + k * 0.333 + phase * 0.1) % 1;
+      const smZ = 0.42 + sp * 0.38;
+      const smX = -0.30 - sp * 0.08 + Math.sin(sp * 5 + phase) * 0.03;
+      const smY = (k - 1) * 0.04;
+      const smR = 0.065 * (1 - sp * 0.45);
+      m.addDome(smX, smY, smZ, smR, smR, smR * 0.85, 2, 6, [186, 198, 214], { spec: 0.08 });
+    }
+
+    // Salvaged orange survivor gear crate & initial brick stack
+    m.addBox(-0.14, -0.34, 0.105, 0.095, 0.075, 0.055, [245, 158, 11], { spec: 0.25 });
+    m.addBox(0.06, -0.32, 0.085, 0.075, 0.055, 0.035, [217, 119, 6], { spec: 0.20 });
+  }
+
+  function buildUtopiaSpireModel(m, time, phase, pxScale) {
+    // Grand hexagonal alabaster-and-gold podium
+    m.addPrism(0, 0, 0.0, 0.10, 0.66, 0.60, 6, 0, [226, 232, 240], { spec: 0.36 });
+    m.addPrism(0, 0, 0.10, 0.13, 0.58, 0.55, 6, 0, [251, 191, 36], { spec: 0.58 });
+    m.addPrism(0, 0, 0.13, 0.15, 0.42, 0.38, 6, 0, [56, 189, 248], { emissive: 0.55 });
+
+    // Tall central futuristic ivory-pearl arcology spire
+    m.addPrism(0, 0, 0.14, 0.54, 0.23, 0.16, 6, 0, [248, 250, 252], { spec: 0.52 });
+    m.addPrism(0, 0, 0.54, 0.58, 0.19, 0.18, 6, 0, [251, 191, 36], { spec: 0.62 });
+    m.addPrism(0, 0, 0.58, 0.94, 0.15, 0.085, 6, Math.PI / 6, [241, 245, 249], { spec: 0.56 });
+    m.addPrism(0, 0, 0.94, 0.98, 0.11, 0.095, 6, Math.PI / 6, [251, 191, 36], { spec: 0.65 });
+    m.addPrism(0, 0, 0.98, 1.24, 0.075, 0.02, 6, 0, [255, 252, 240], { spec: 0.60 });
+
+    // Glowing cyan architectural window strips on spire core
+    const winPulse = 0.68 + 0.20 * Math.sin(time * 0.004 + phase);
+    m.addBox(0, -0.19, 0.35, 0.055, 0.02, 0.14, [56, 189, 248], { emissive: winPulse, depthBias: 0.003 });
+    m.addBox(0, 0.19, 0.35, 0.055, 0.02, 0.14, [56, 189, 248], { emissive: winPulse, depthBias: 0.003 });
+    m.addBox(0, -0.125, 0.74, 0.04, 0.02, 0.11, [103, 232, 249], { emissive: winPulse, depthBias: 0.003 });
+
+    // Twin sleek flanking glass towers
+    m.addPrism(-0.33, 0.12, 0.14, 0.68, 0.13, 0.075, 6, 0, [224, 242, 254], { spec: 0.65, emissive: 0.18 });
+    m.addPrism(-0.33, 0.12, 0.68, 0.78, 0.075, 0.015, 6, 0, [251, 191, 36], { emissive: 0.60 });
+    m.addPrism(0.32, -0.14, 0.14, 0.58, 0.12, 0.068, 6, 0, [224, 242, 254], { spec: 0.65, emissive: 0.18 });
+    m.addPrism(0.32, -0.14, 0.58, 0.67, 0.068, 0.015, 6, 0, [251, 191, 36], { emissive: 0.60 });
+
+    // Pulsing summit beacon + rotating holographic orbital ring
+    const spirePulse = 0.72 + 0.25 * Math.sin(time * 0.006 + phase);
+    m.addPrism(0, 0, 1.24, 1.35, 0.045, 0.01, 6, 0, [103, 232, 249], { emissive: spirePulse });
+    const ringSpin = time * 0.0022 + phase;
+    const lw = Math.max(1.2, pxScale * 0.042);
+    for (let k = 0; k < 6; k++) {
+      const a0 = ringSpin + (Math.PI * 2 * k) / 6;
+      const a1 = ringSpin + (Math.PI * 2 * (k + 1)) / 6;
+      m.addLine(
+        [Math.cos(a0) * 0.28, Math.sin(a0) * 0.28, 0.88 + Math.sin(a0) * 0.05],
+        [Math.cos(a1) * 0.28, Math.sin(a1) * 0.28, 0.88 + Math.sin(a1) * 0.05],
+        k % 2 === 0 ? "#ffc83a" : "#67e8f9",
+        lw,
+        0.008
+      );
+    }
+  }
+
+  function buildSkyCitadelModel(m, time, phase, pxScale) {
+    // Stepped sapphire-gold citadel base + emerald arboretum lawn
+    m.addPrism(0, 0, 0.0, 0.10, 0.68, 0.63, 8, Math.PI / 8, [67, 56, 202], { spec: 0.40 });
+    m.addPrism(0, 0, 0.10, 0.13, 0.60, 0.57, 8, Math.PI / 8, [251, 191, 36], { spec: 0.56 });
+    m.addPrism(0, 0, 0.13, 0.155, 0.52, 0.50, 8, 0, [16, 185, 129], { spec: 0.16 });
+
+    // 4 gleaming marble colonnade pillars supporting central crystal dome
+    const colOffsets = [
+      [-0.30, -0.30],
+      [0.30, -0.30],
+      [0.30, 0.30],
+      [-0.30, 0.30]
+    ];
+    for (let i = 0; i < colOffsets.length; i++) {
+      const cx = colOffsets[i][0];
+      const cy = colOffsets[i][1];
+      m.addPrism(cx, cy, 0.15, 0.56, 0.068, 0.052, 6, 0, [248, 250, 252], { spec: 0.45 });
+      m.addPrism(cx, cy, 0.56, 0.62, 0.06, 0.015, 6, 0, [251, 191, 36], { emissive: 0.55 });
+    }
+
+    // Grand central luminous azure-violet crystal sky-dome
+    const domePulse = 0.30 + 0.14 * Math.sin(time * 0.0032 + phase);
+    m.addDome(0, 0, 0.16, 0.34, 0.34, 0.38, 3, 10, [99, 102, 241], {
+      spec: 0.72,
+      emissive: domePulse,
+      stroke: "rgba(186, 230, 253, 0.65)",
+      lineWidth: Math.max(0.6, pxScale * 0.016)
+    });
+
+    // Hovering spinning golden crystal monument above dome
+    const hoverZ = 0.80 + 0.045 * Math.sin(time * 0.0038 + phase);
+    const spin = time * 0.002 + phase;
+    m.addPrism(0, 0, hoverZ - 0.15, hoverZ, 0.015, 0.14, 6, spin, [245, 158, 11], { emissive: 0.48, spec: 0.70 });
+    m.addPrism(0, 0, hoverZ, hoverZ + 0.22, 0.14, 0.015, 6, spin, [254, 240, 138], { emissive: 0.78, spec: 0.85 });
+  }
+
+  function buildUtopiaSpireFast(m, time, phase) {
+    // Lean ~14-face utopian sky spire for silky 60fps Nova-7 metropolis rendering
+    m.addPrism(0, 0, 0.0, 0.10, 0.62, 0.56, 6, 0, [251, 191, 36], { spec: 0.55 });
+    m.addPrism(0, 0, 0.10, 0.72, 0.24, 0.12, 5, 0, [248, 250, 252], { spec: 0.52 });
+    m.addPrism(0, 0, 0.72, 0.78, 0.16, 0.13, 5, 0, [251, 191, 36], { spec: 0.62 });
+    const glow = 0.68 + 0.22 * Math.sin(time * 0.004 + phase);
+    m.addPrism(0, 0, 0.78, 1.18, 0.09, 0.01, 4, Math.PI / 4, [56, 189, 248], { emissive: glow, spec: 0.7 });
+  }
+
+  function buildSkyCitadelFast(m, time, phase) {
+    // Lean ~12-face azure-gold citadel dome for 60fps Nova-7 metropolis rendering
+    m.addPrism(0, 0, 0.0, 0.11, 0.62, 0.56, 6, 0, [67, 56, 202], { spec: 0.38 });
+    m.addPrism(0, 0, 0.11, 0.44, 0.42, 0.12, 6, Math.PI / 6, [56, 189, 248], { emissive: 0.35, spec: 0.72 });
+    const bob = 0.03 * Math.sin(time * 0.0038 + phase);
+    m.addPrism(0, 0, 0.54 + bob, 0.76 + bob, 0.14, 0.015, 4, time * 0.002 + phase, [254, 240, 138], {
+      emissive: 0.78,
+      spec: 0.85
+    });
+  }
+
+  function buildUtopiaClusterFast(m) {
+    // Trio of staggered low-poly golden-glass arcology towers (~14 faces total)
+    m.addPrism(0, 0, 0.0, 0.09, 0.60, 0.54, 6, 0, [16, 185, 129], { spec: 0.18 });
+    m.addPrism(-0.18, 0.12, 0.09, 0.68, 0.16, 0.09, 4, Math.PI / 4, [241, 245, 249], { spec: 0.52 });
+    m.addPrism(0.20, -0.08, 0.09, 0.54, 0.14, 0.07, 4, 0, [251, 191, 36], { spec: 0.58 });
+    m.addPrism(0.02, -0.22, 0.09, 0.42, 0.13, 0.06, 4, Math.PI / 4, [125, 211, 252], { emissive: 0.35, spec: 0.68 });
+  }
+
+  function buildEscapeCraftModel(m, time, phase, pxScale, opts) {
+    // Coordinates in ship frame: +Z = forward nose, +Y = dorsal top, +X = starboard right wing
+    const o = opts || {};
+    const thr = o.thrust !== undefined ? clamp01(o.thrust) : 0;
+    const reentry = o.reentryGlow !== undefined ? clamp01(o.reentryGlow) : 0;
+    const beacon = o.beacon !== false;
+    const sputter = Boolean(o.sputter);
+
+    // 1. 3D Re-entry Atmospheric Bow-Shock Plasma Cone & Streaming Ribs (when diving into atmosphere)
+    if (reentry > 0.02) {
+      const flick = 0.88 + 0.18 * Math.sin(time * 0.065 + phase);
+      const shockTip = 1.18 + 0.16 * reentry * flick;
+      // Blazing incandescent nose shock cap
+      m.addPrism(0, 0, shockTip - 0.22, shockTip + 0.08, 0.20, 0.02, 6, Math.PI / 6, [255, 252, 224], {
+        emissive: 1.0,
+        spec: 0.2,
+        depthBias: 0.012
+      });
+      // 6 sweeping 3D plasma bow-shock ribbons arcing back past wings & tail
+      for (let k = 0; k < 6; k++) {
+        const ang = (Math.PI * 2 * k) / 6 + time * 0.008;
+        const ca = Math.cos(ang);
+        const sa = Math.sin(ang);
+        const tx = -sa;
+        const ty = ca;
+        const rMid = (k % 2 === 0 ? 0.56 : 0.44) * (0.75 + 0.30 * reentry) * flick;
+        const rBack = rMid * 1.38;
+        const zBack = -0.35 - 0.55 * reentry * flick;
+        const wFront = 0.06;
+        const wBack = 0.14;
+        const pCol = k % 2 === 0 ? [255, 200, 58] : [255, 90, 77];
+
+        m.addQuad(
+          [ca * 0.16 - tx * wFront, sa * 0.16 - ty * wFront, shockTip - 0.14],
+          [ca * 0.16 + tx * wFront, sa * 0.16 + ty * wFront, shockTip - 0.14],
+          [ca * rBack + tx * wBack, sa * rBack + ty * wBack, zBack],
+          [ca * rBack - tx * wBack, sa * rBack - ty * wBack, zBack],
+          pCol,
+          { doubleSided: true, emissive: 0.96, spec: 0.1, depthBias: -0.006 }
+        );
+      }
+    }
+
+    // 2. Layered 3D Exhaust Plumes (when engine thrust > 0)
+    if (thr > 0.02) {
+      const flicker = 0.86 + 0.24 * Math.sin(time * 0.055 + phase);
+      const exLen = (0.48 + 0.72 * thr) * flicker;
+      const spin = time * 0.016 + phase;
+      const zNoz = -0.78;
+      const outerCol = sputter ? [255, 90, 77] : [56, 189, 248];
+      const midCol = sputter ? [251, 146, 60] : [186, 230, 253];
+
+      m.addPrism(0, 0, zNoz - exLen * 0.58, zNoz - exLen, 0.105, 0.002, 5, spin, outerCol, {
+        emissive: 0.92,
+        spec: 0.1
+      });
+      m.addPrism(0, 0, zNoz - exLen * 0.22, zNoz - exLen * 0.72, 0.138, 0.055, 5, -spin, midCol, {
+        emissive: 0.98,
+        spec: 0.1
+      });
+      m.addPrism(0, 0, zNoz, zNoz - exLen * 0.34, 0.125, 0.085, 5, spin * 0.5, [255, 255, 255], {
+        emissive: 1.0,
+        spec: 0.1
+      });
+    }
+
+    // 3. 3D Swept Fuselage (crimson nose cone, forward fuselage, mid-aft hull, dark thermal belly, red flank stripes)
+    m.addPrism(0, 0, 0.56, 1.06, 0.19, 0.022, 6, Math.PI / 6, [255, 90, 77], { spec: 0.48 });
+    m.addPrism(0, 0, 0.14, 0.56, 0.245, 0.19, 6, Math.PI / 6, [248, 250, 252], { spec: 0.52 });
+    m.addPrism(0, 0, -0.58, 0.14, 0.215, 0.245, 6, Math.PI / 6, [232, 238, 248], { spec: 0.46 });
+    m.addPrism(0, 0, -0.64, -0.58, 0.19, 0.215, 6, Math.PI / 6, [71, 85, 105], { spec: 0.30 });
+    m.addBox(0, -0.17, -0.06, 0.145, 0.05, 0.52, [68, 82, 104], { spec: 0.24 });
+
+    // Crimson racing stripes along port & starboard flanks
+    m.addBox(-0.225, 0.01, -0.05, 0.026, 0.052, 0.50, [224, 62, 49], { spec: 0.36 });
+    m.addBox(0.225, 0.01, -0.05, 0.026, 0.052, 0.50, [255, 90, 77], { spec: 0.36 });
+
+    // 4. 3D Cockpit Canopy & Inner Pilot Visor Glow
+    m.addBox(0, 0.19, 0.26, 0.105, 0.072, 0.22, [56, 189, 248], { emissive: 0.48, spec: 0.85 });
+    m.addPrism(0, 0.185, 0.44, 0.62, 0.105, 0.02, 6, 0, [56, 189, 248], { emissive: 0.45, spec: 0.82 });
+    m.addBox(0, 0.23, 0.28, 0.07, 0.04, 0.11, [253, 224, 71], { emissive: 0.72, depthBias: 0.002 });
+
+    // 5. Solid 3D Swept Delta Wings (Starboard +X & Port -X) with Embedded Blue Solar Arrays & Nav Lights
+    const lw = Math.max(0.9, pxScale * 0.025);
+    for (let s = -1; s <= 1; s += 2) {
+      const rx0 = s * 0.19;
+      const rx1 = s * 0.88;
+      const yTop = 0.025;
+      const yBot = -0.045;
+      const wingRef = m.toWorld(s * 0.48, -0.01, -0.24);
+      const wingOpt = { spec: 0.42, refWorld: wingRef };
+      const topCol = s > 0 ? [226, 232, 240] : [206, 216, 230];
+      const sideCol = [148, 163, 184];
+
+      // Top, bottom, leading edge, trailing edge, and tip cap
+      m.addQuad([rx0, yTop, 0.22], [rx0, yTop, -0.48], [rx1, yTop, -0.56], [rx1, yTop, -0.18], topCol, wingOpt);
+      m.addQuad([rx0, yBot, 0.22], [rx1, yBot, -0.18], [rx1, yBot, -0.56], [rx0, yBot, -0.48], sideCol, wingOpt);
+      m.addQuad([rx0, yTop, 0.22], [rx1, yTop, -0.18], [rx1, yBot, -0.18], [rx0, yBot, 0.22], [241, 245, 249], wingOpt);
+      m.addQuad([rx0, yTop, -0.48], [rx0, yBot, -0.48], [rx1, yBot, -0.56], [rx1, yTop, -0.56], sideCol, wingOpt);
+      m.addQuad([rx1, yTop, -0.18], [rx1, yTop, -0.56], [rx1, yBot, -0.56], [rx1, yBot, -0.18], [255, 90, 77], wingOpt);
+
+      // Cobalt solar wing array mounted flush on dorsal surface (matches crash_base solar wing)
+      const sx0 = s * 0.26;
+      const sx1 = s * 0.72;
+      m.addQuad(
+        [sx0, yTop + 0.012, 0.04],
+        [sx0, yTop + 0.012, -0.38],
+        [sx1, yTop + 0.012, -0.47],
+        [sx1, yTop + 0.012, -0.20],
+        [37, 99, 235],
+        { refWorld: wingRef, spec: 0.90, emissive: 0.16, depthBias: 0.003 }
+      );
+      m.addLine(
+        [(sx0 + sx1) * 0.5, yTop + 0.018, -0.08],
+        [(sx0 + sx1) * 0.5, yTop + 0.018, -0.425],
+        "rgba(186, 230, 253, 0.82)",
+        lw,
+        0.002
+      );
+
+      // Wingtip navigation beacon pod (red port, cyan-green starboard)
+      m.addBox(s * 0.89, -0.005, -0.37, 0.038, 0.045, 0.14, s < 0 ? [255, 90, 77] : [52, 211, 153], {
+        emissive: 0.72,
+        spec: 0.5
+      });
+
+      // Twin wing-root auxiliary thruster pods
+      m.addPrism(s * 0.29, -0.025, -0.66, -0.34, 0.058, 0.068, 6, 0, [100, 116, 139], { spec: 0.38 });
+      m.addBox(s * 0.29, -0.025, -0.67, 0.036, 0.036, 0.018, sputter ? [251, 146, 60] : [56, 189, 248], {
+        emissive: thr > 0 ? 0.85 : 0.15
+      });
+    }
+
+    // 6. Solid 3D Vertical Crimson Tail Fin & Blinking Red Distress Beacon
+    const finRef = m.toWorld(0, 0.40, -0.46);
+    const finOpt = { spec: 0.38, refWorld: finRef };
+    m.addQuad([-0.026, 0.18, -0.14], [-0.026, 0.18, -0.62], [-0.026, 0.66, -0.60], [-0.026, 0.60, -0.42], [224, 62, 49], finOpt);
+    m.addQuad([0.026, 0.18, -0.14], [0.026, 0.60, -0.42], [0.026, 0.66, -0.60], [0.026, 0.18, -0.62], [255, 90, 77], finOpt);
+    m.addQuad([-0.026, 0.18, -0.14], [-0.026, 0.60, -0.42], [0.026, 0.60, -0.42], [0.026, 0.18, -0.14], [255, 135, 115], finOpt);
+    m.addQuad([-0.026, 0.18, -0.62], [0.026, 0.18, -0.62], [0.026, 0.66, -0.60], [-0.026, 0.66, -0.60], [190, 48, 38], finOpt);
+    m.addQuad([-0.026, 0.60, -0.42], [-0.026, 0.66, -0.60], [0.026, 0.66, -0.60], [0.026, 0.60, -0.42], [255, 120, 100], finOpt);
+
+    if (beacon) {
+      const pulse = 0.5 + 0.5 * Math.sin(time * 0.009 + phase);
+      m.addDome(0, 0.65, -0.53, 0.055, 0.065, 0.055, 2, 6, pulse > 0.45 ? [255, 90, 77] : [140, 32, 32], {
+        emissive: 0.25 + 0.75 * pulse
+      });
+    }
+
+    // 7. Main Rear Thruster Nozzle Bell + Inner Reactor Glow
+    m.addPrism(0, 0, -0.78, -0.62, 0.155, 0.115, 8, Math.PI / 8, [71, 85, 105], { spec: 0.36 });
+    m.addBox(0, 0, -0.785, 0.09, 0.09, 0.02, sputter ? [251, 146, 60] : [56, 189, 248], {
+      emissive: thr > 0 ? 0.92 : 0.28
+    });
+  }
+
+  function renderEscapeCraft3D(ctx, frame, time, buildScale, opts) {
+    if (!ctx || !frame) return;
+    const collector = createMeshCollector(frame, buildScale, opts);
+    const pxScale = frame.scale * (frame.focalLength / 3.8);
+    const phase = frame.phase || 0;
+    buildEscapeCraftModel(collector, time, phase, pxScale, opts);
+    collector.drawAll(ctx);
+  }
+
   function renderRocketVessel3D(ctx, rocketId, frame, time, buildScale, opts) {
     if (!ctx || !frame) return;
     const collector = createMeshCollector(frame, buildScale, opts);
@@ -3547,6 +4027,18 @@
       buildTradeRocket2Model(collector, time, phase, pxScale, opts);
     } else if (buildingId === "trade_rocket_3") {
       buildTradeRocket3Model(collector, time, phase, pxScale, opts);
+    } else if (buildingId === "crash_base") {
+      buildCrashBaseModel(collector, time, phase, pxScale);
+    } else if (buildingId === "utopia_spire") {
+      buildUtopiaSpireModel(collector, time, phase, pxScale);
+    } else if (buildingId === "sky_citadel") {
+      buildSkyCitadelModel(collector, time, phase, pxScale);
+    } else if (buildingId === "utopia_spire_fast") {
+      buildUtopiaSpireFast(collector, time, phase);
+    } else if (buildingId === "sky_citadel_fast") {
+      buildSkyCitadelFast(collector, time, phase);
+    } else if (buildingId === "utopia_cluster_fast") {
+      buildUtopiaClusterFast(collector);
     }
 
     collector.drawAll(ctx);
@@ -4128,6 +4620,118 @@
     }
   }
 
+  function renderCrashEffect(ctx, effect, frame, p, depthScale) {
+    const seedBase = effect.seed || 7;
+
+    // 1. Expanding dusty shockwave hex ring
+    if (p < 0.72) {
+      const ringT = easeOutCubic(p / 0.72);
+      const rad = 0.28 + 0.74 * ringT;
+      ctx.save();
+      ctx.globalAlpha *= (1 - ringT) * 0.85;
+      ctx.beginPath();
+      for (let k = 0; k < 6; k++) {
+        const a = (Math.PI / 3) * k + 0.25;
+        const pt = projectLocal(frame, Math.cos(a) * rad, Math.sin(a) * rad, 0.03);
+        if (k === 0) ctx.moveTo(pt.x, pt.y);
+        else ctx.lineTo(pt.x, pt.y);
+      }
+      ctx.closePath();
+      ctx.lineWidth = Math.max(2, depthScale * 0.095 * (1 - ringT * 0.4));
+      ctx.strokeStyle = "#ffc83a";
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // 2. Fiery comic starburst flash right at touchdown
+    if (p < 0.28) {
+      const stP = p / 0.28;
+      const strikePt = projectLocal(frame, 0, 0, 0.16);
+      const outerR = depthScale * (0.48 + 0.44 * easeOutCubic(stP));
+      drawImpactStarburst(ctx, strikePt.x, strikePt.y, outerR, outerR * 0.44, 10, stP * 0.45, 1 - stP * 0.75);
+    }
+
+    // 3. 12 billowing charcoal-and-amber impact smoke puffs
+    const expandT = easeOutCubic(Math.min(1, p * 1.1));
+    const smokeSwell = p < 0.22 ? easeOutCubic(p / 0.22) : Math.max(0, 1 - (p - 0.22) / 0.78);
+    const smokeAlpha = p > 0.52 ? Math.max(0, 1 - (p - 0.52) / 0.48) : 1;
+    const smokePuffs = [];
+    for (let i = 0; i < 12; i++) {
+      const r1 = pseudoRand(seedBase + 15 + i * 4.13);
+      const r2 = pseudoRand(seedBase + 35 + i * 6.91);
+      const angle = (Math.PI * 2 * i) / 12 + (r1 - 0.5) * 0.4;
+      const dist = (i < 4 ? 0.08 : 0.16) + (0.42 + r2 * 0.22) * expandT;
+      const lz = 0.08 + (i < 4 ? 0.42 : 0.24) * expandT + r1 * 0.14;
+      const pt = projectLocal(frame, Math.cos(angle) * dist, Math.sin(angle) * dist, lz);
+      const radiusPx = depthScale * (0.24 + r2 * 0.12) * (0.45 + 0.55 * smokeSwell);
+      smokePuffs.push({ x: pt.x, y: pt.y, r: radiusPx });
+    }
+    drawFusedCloud(
+      ctx,
+      smokePuffs,
+      smokeAlpha,
+      "#1b1147",
+      "#574b68",
+      "#8b7e96",
+      "#e2c4a8",
+      Math.max(1.8, depthScale * 0.05)
+    );
+
+    // 4. 10 tumbling debris chunks
+    if (p < 0.92) {
+      const debT = clamp01(p / 0.92);
+      const cols = ["#64748b", "#94a3b8", "#ff5a4d", "#f59e0b"];
+      for (let i = 0; i < 10; i++) {
+        const r1 = pseudoRand(seedBase + 200 + i * 3.9);
+        const r2 = pseudoRand(seedBase + 230 + i * 5.3);
+        const angle = (Math.PI * 2 * i) / 10 + (r1 - 0.5) * 0.55;
+        const spd = 0.55 + r2 * 0.72;
+        const v0z = 1.7 + r1 * 0.95;
+        const lz = Math.max(0.02, 0.10 + v0z * debT - 1.9 * debT * debT);
+        const pt = projectLocal(frame, Math.cos(angle) * spd * debT, Math.sin(angle) * spd * debT, lz);
+        const sz = depthScale * (0.085 + r1 * 0.05) * (1 - debT * 0.25);
+        ctx.save();
+        ctx.globalAlpha *= debT > 0.65 ? Math.max(0, 1 - (debT - 0.65) / 0.35) : 1;
+        ctx.translate(pt.x, pt.y);
+        ctx.rotate(debT * (5.5 + i * 1.6) * (i % 2 === 0 ? 1 : -1));
+        ctx.beginPath();
+        ctx.moveTo(-sz, -sz * 0.5);
+        ctx.lineTo(sz * 0.85, -sz * 0.75);
+        ctx.lineTo(sz, sz * 0.55);
+        ctx.lineTo(-sz * 0.45, sz * 0.8);
+        ctx.closePath();
+        ctx.lineWidth = Math.max(1.5, sz * 0.35);
+        ctx.strokeStyle = "#1b1147";
+        ctx.stroke();
+        ctx.fillStyle = cols[i % cols.length];
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    // 5. 6 hot orange-gold sparks
+    if (p < 0.65) {
+      const emT = p / 0.65;
+      for (let i = 0; i < 6; i++) {
+        const r1 = pseudoRand(seedBase + 320 + i * 7.1);
+        const angle = (Math.PI * 2 * i) / 6 + r1 * 0.6;
+        const lz = 0.16 + (1.35 + r1 * 0.5) * emT - 1.15 * emT * emT;
+        if (lz < 0) continue;
+        const pt = projectLocal(frame, Math.cos(angle) * (0.3 + 0.78 * emT), Math.sin(angle) * (0.3 + 0.78 * emT), lz);
+        drawSparkle4(
+          ctx,
+          pt.x,
+          pt.y,
+          depthScale * 0.12 * (1 - emT * 0.6),
+          emT * 2.8,
+          i % 2 === 0 ? "#ffc83a" : "#ff7a45",
+          "#1b1147",
+          1 - emT
+        );
+      }
+    }
+  }
+
   function renderTileEffect(ctx, effect, frame, time) {
     if (!ctx || !effect || !frame) return;
 
@@ -4141,6 +4745,8 @@
       renderBuildEffect(ctx, effect, frame, p, depthScale);
     } else if (effect.type === "demolish") {
       renderDemolishEffect(ctx, effect, frame, p, depthScale);
+    } else if (effect.type === "crash") {
+      renderCrashEffect(ctx, effect, frame, p, depthScale);
     }
   }
 
@@ -4151,6 +4757,7 @@
     BIOMES: BIOMES,
     getBiome: getBiome,
     getBuilding: getBuilding,
+    isProtectedBuilding: isProtectedBuilding,
     getTerrainGroup: getTerrainGroup,
     getCategory: getCategory,
     getBuildingCost: getBuildingCost,
@@ -4176,6 +4783,7 @@
     getLayoutBounds: getLayoutBounds,
     renderBuilding3D: renderBuilding3D,
     renderRocketVessel3D: renderRocketVessel3D,
+    renderEscapeCraft3D: renderEscapeCraft3D,
     renderTileEffect: renderTileEffect
   };
 })();
