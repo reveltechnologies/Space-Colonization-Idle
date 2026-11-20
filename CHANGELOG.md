@@ -81,6 +81,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Background parallax remains cleanly linked only to full planet carousel navigation swipe transitions (`dScroll`).
 
 ### Fixed
+- **Close Building UI When Changing Planets**:
+  - Added `clearSelectionAndCloseBuildMenu()` and routed carousel swipe/drag planet switches (`finishPointerGesture`) through `goToPlanet(...)` as well as `updateIndicatorDots()`, ensuring `#build-drawer`, `#build-confirm-scene`, and selected hex highlights close cleanly on every planet switch method (swipe/drag, prev/next buttons, planet dots, mouse wheel, and arrow keys).
 - **Top-Center Toast Leading Icon Alignment**:
   - Fixed an issue where wrapped floating error notices caused the leading icon (`game-toast-icon`, such as the energy bolt or upgrade icon) to float far to the left of the centered text. Switched `.game-toast` to `inline-block` (`width: fit-content`) with the leading icon nested inline inside the message span.
 - **Real-Time Background Parallax During Planet Swapping**:

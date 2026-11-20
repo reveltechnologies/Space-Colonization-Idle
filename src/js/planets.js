@@ -940,11 +940,29 @@
     return Math.max(min, Math.min(max, val));
   }
 
+  function clearSelectionAndCloseBuildMenu() {
+    for (let i = 0; i < selectedHexByPlanet.length; i++) {
+      selectedHexByPlanet[i] = null;
+    }
+    selectionPulse = null;
+    researchButtonAnchor.visible = false;
+    if (tileResearchBtn) {
+      tileResearchBtn.classList.add("is-hidden");
+    }
+    if (window.GameBuildings) {
+      window.GameBuildings.close(false);
+    }
+  }
+
   function updateIndicatorDots() {
     const clamped = clamp(scrollPos, 0, PLANET_COUNT - 1);
     const nearest = Math.round(clamped);
-    if (nearest !== activeDotIndex || (dotButtons.length > 0 && !dotButtons[nearest].classList.contains("active"))) {
+    const planetChanged = nearest !== activeDotIndex;
+    if (planetChanged || (dotButtons.length > 0 && !dotButtons[nearest].classList.contains("active"))) {
       activeDotIndex = nearest;
+      if (planetChanged) {
+        clearSelectionAndCloseBuildMenu();
+      }
       for (let i = 0; i < dotButtons.length; i++) {
         const btn = dotButtons[i];
         if (i === activeDotIndex) {
@@ -997,12 +1015,8 @@
       finishPlanetRename(true);
     }
     const nextIdx = clamp(Math.round(index), 0, PLANET_COUNT - 1);
-    if (nextIdx !== targetIndex) {
-      selectedHexByPlanet[targetIndex] = null;
-      selectionPulse = null;
-      if (window.GameBuildings) {
-        window.GameBuildings.close(false);
-      }
+    if (nextIdx !== targetIndex || nextIdx !== activeDotIndex) {
+      clearSelectionAndCloseBuildMenu();
       for (let i = 0; i < planets.length; i++) {
         planets[i].targetZoom = MIN_ZOOM;
         if (i !== nextIdx) {
@@ -2051,13 +2065,15 @@
       return;
     }
 
+    let nextTarget;
     if (pointerVelocity < -0.35) {
-      targetIndex = Math.min(PLANET_COUNT - 1, Math.max(startSnapIndex + 1, Math.round(scrollPos)));
+      nextTarget = Math.min(PLANET_COUNT - 1, Math.max(startSnapIndex + 1, Math.round(scrollPos)));
     } else if (pointerVelocity > 0.35) {
-      targetIndex = Math.max(0, Math.min(startSnapIndex - 1, Math.round(scrollPos)));
+      nextTarget = Math.max(0, Math.min(startSnapIndex - 1, Math.round(scrollPos)));
     } else {
-      targetIndex = clamp(Math.round(scrollPos), 0, PLANET_COUNT - 1);
+      nextTarget = clamp(Math.round(scrollPos), 0, PLANET_COUNT - 1);
     }
+    goToPlanet(nextTarget);
     hoveredHexId = null;
   }
 
