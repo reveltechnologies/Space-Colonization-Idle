@@ -46,6 +46,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Green checkmark confirmation button (`✔`) with auto-save on blur or enter key, and cancel on Escape.
     - Full keyboard input isolation so typing planet names does not trigger camera/hotkey shortcuts.
     - Persisted player custom names in `localStorage` under `sci_planet_names_v1` across page reloads.
+- **Building Description & Construction Confirmation Scene**:
+  - Replaced instant placement upon clicking a buildable card with a dedicated building inspection and confirmation scene (`#build-confirm-scene`) inside the build drawer.
+  - Displays enlarged cel-shaded building artwork, category & terrain compatibility chips, stat/specialty badges (`+Citizens`, `+Energy`, `Ore Extraction`, `Tech Research`), a specialized description for every structure, replacement notices when overwriting an existing building, and explicit **Confirm Build** (with inline resource cost) and **Cancel** (`Escape` supported) controls.
 
 ### Removed
 - **Cannot Build on Fluid Error Message in Build Menu**:

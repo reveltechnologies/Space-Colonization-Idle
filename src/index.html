@@ -159,6 +159,41 @@
         <img class="shelf-nav-icon" src="./assets/ui/icon-arrow.svg" alt="" draggable="false" />
       </button>
     </div>
+
+    <div id="build-confirm-scene" class="build-confirm-scene is-hidden" role="region" aria-label="Confirm Building Construction" aria-hidden="true">
+      <div class="build-confirm-card">
+        <div class="build-confirm-main">
+          <div id="build-confirm-stage" class="build-confirm-stage">
+            <span id="build-confirm-cat-badge" class="build-card-cat-badge">
+              <img id="build-confirm-cat-icon" class="build-card-cat-icon" src="./assets/ui/cat-all.svg" alt="" draggable="false" />
+            </span>
+            <span class="build-confirm-preview">
+              <img id="build-confirm-icon" class="build-confirm-icon" src="./assets/ui/bld-mine.svg" alt="" draggable="false" />
+            </span>
+          </div>
+
+          <div class="build-confirm-details">
+            <div class="build-confirm-head">
+              <h3 id="build-confirm-name" class="build-confirm-name">Mine</h3>
+              <div id="build-confirm-badges" class="build-confirm-badges"></div>
+            </div>
+            <p id="build-confirm-desc" class="build-confirm-desc"></p>
+            <div id="build-confirm-replace" class="build-confirm-replace is-hidden"></div>
+          </div>
+        </div>
+
+        <div class="build-confirm-actions">
+          <button id="btn-confirm-cancel" class="build-confirm-btn build-confirm-btn--cancel" type="button" aria-label="Cancel Construction">
+            <img class="btn-icon-sm" src="./assets/ui/icon-close.svg" alt="" draggable="false" />
+            <span class="build-confirm-btn-label">Cancel</span>
+          </button>
+          <button id="btn-confirm-build" class="build-confirm-btn build-confirm-btn--confirm" type="button" aria-label="Confirm Construction">
+            <span class="build-confirm-btn-label">Confirm Build</span>
+            <span id="build-confirm-costs" class="build-confirm-costs"></span>
+          </button>
+        </div>
+      </div>
+    </div>
   </aside>
 
   <script src="./js/main.js"></script>

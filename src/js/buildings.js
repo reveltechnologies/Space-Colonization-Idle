@@ -49,6 +49,9 @@
       category: "mining",
       tag: "Mining",
       terrain: "mountainous",
+      specialtyLabel: "Ore Extraction",
+      specialtyIconSrc: "./assets/ui/icon-ore.svg",
+      description: "Deep-core automated drill rig anchored into rocky ridges to excavate raw Space Ore veins from the planetary crust.",
       cost: { credits: 100 },
       accent: "#ffb13b",
       iconSrc: "./assets/ui/bld-mine.svg"
@@ -59,6 +62,9 @@
       category: "science",
       tag: "Science",
       terrain: "solid",
+      specialtyLabel: "Tech Research",
+      specialtyIconSrc: "./assets/ui/cat-science.svg",
+      description: "Pressurized orbital science facility equipped with quantum telemetry arrays to study planetary anomalies and advance colony technology.",
       cost: { credits: 250, ore: 50 },
       accent: "#37a8ff",
       iconSrc: "./assets/ui/bld-research-lab.svg"
@@ -70,6 +76,7 @@
       tag: "Colony",
       terrain: "surface",
       citizenSlots: 2,
+      description: "Compact pressurized habitat dome with essential life-support quarters, providing safe frontier housing for early colony pioneers.",
       cost: { credits: 75, ore: 10 },
       accent: "#ff6b5a",
       iconSrc: "./assets/ui/bld-house.svg"
@@ -81,6 +88,7 @@
       tag: "Colony",
       terrain: "surface",
       citizenSlots: 6,
+      description: "Two-story reinforced residential lodge featuring expanded living decks, atmospheric recycling, and observation dormers for a growing workforce.",
       cost: { credits: 200, ore: 35 },
       accent: "#ff8a3d",
       iconSrc: "./assets/ui/bld-big-house.svg"
@@ -92,6 +100,7 @@
       tag: "Colony",
       terrain: "surface",
       citizenSlots: 15,
+      description: "Luxurious grand colony estate with amethyst pavilion wings, climate-controlled biodome terraces, and high-capacity executive suites.",
       cost: { credits: 450, ore: 90 },
       accent: "#a855f7",
       iconSrc: "./assets/ui/bld-villa.svg"
@@ -103,6 +112,7 @@
       tag: "Power",
       terrain: "solid",
       energySlots: 3,
+      description: "High-efficiency photovoltaic collector cells that track local starlight to supply clean baseline power to nearby colony systems.",
       cost: { credits: 50 },
       accent: "#ffc83a",
       iconSrc: "./assets/ui/bld-solar-panel.svg"
@@ -114,6 +124,7 @@
       tag: "Power",
       terrain: "solid",
       energySlots: 8,
+      description: "Dual-mast synchronized solar collector matrix with angled reflector banks for sustained mid-tier power generation.",
       cost: { credits: 160, ore: 25 },
       accent: "#ffad26",
       iconSrc: "./assets/ui/bld-solar-array.svg"
@@ -125,6 +136,7 @@
       tag: "Power",
       terrain: "solid",
       energySlots: 20,
+      description: "Towering thermal heliostat spire that concentrates orbital radiation into a superheated receiver core for massive grid output.",
       cost: { credits: 400, ore: 75 },
       accent: "#ff7b1c",
       iconSrc: "./assets/ui/bld-solar-tower.svg"
@@ -136,6 +148,7 @@
       tag: "Power",
       terrain: "surface",
       energySlots: 6,
+      description: "Rugged aero-rotor generator engineered to harvest surface atmospheric currents and steady planetary trade winds.",
       cost: { credits: 120, ore: 25 },
       accent: "#3fd6c4",
       iconSrc: "./assets/ui/bld-windmill.svg"
@@ -147,6 +160,7 @@
       tag: "Power",
       terrain: "surface",
       energySlots: 16,
+      description: "High-altitude composite tri-blade turbine built with low-friction magnetic bearings to capture fast planetary wind streams.",
       cost: { credits: 280, ore: 55 },
       accent: "#20b9f0",
       iconSrc: "./assets/ui/bld-wind-turbine.svg"
@@ -158,6 +172,7 @@
       tag: "Power",
       terrain: "surface",
       energySlots: 35,
+      description: "Interlinked multi-turbine wind array synchronized across open plains to deliver industrial-scale kinetic power to the colony grid.",
       cost: { credits: 480, ore: 95 },
       accent: "#3888ff",
       iconSrc: "./assets/ui/bld-wind-farm.svg"
@@ -242,12 +257,25 @@
   const closeBtn = document.getElementById("btn-close-build");
   const removeBtn = document.getElementById("btn-remove-building");
   const toastContainerEl = document.getElementById("game-toast-container");
+  const confirmSceneEl = document.getElementById("build-confirm-scene");
+  const confirmStageEl = document.getElementById("build-confirm-stage");
+  const confirmCatBadgeEl = document.getElementById("build-confirm-cat-badge");
+  const confirmCatIconEl = document.getElementById("build-confirm-cat-icon");
+  const confirmIconEl = document.getElementById("build-confirm-icon");
+  const confirmNameEl = document.getElementById("build-confirm-name");
+  const confirmBadgesEl = document.getElementById("build-confirm-badges");
+  const confirmDescEl = document.getElementById("build-confirm-desc");
+  const confirmReplaceEl = document.getElementById("build-confirm-replace");
+  const confirmCostsEl = document.getElementById("build-confirm-costs");
+  const confirmCancelBtn = document.getElementById("btn-confirm-cancel");
+  const confirmBuildBtn = document.getElementById("btn-confirm-build");
 
   let activeCategory = "all";
   let currentPlanetId = 0;
   let currentTileId = null;
   let currentPlacedId = null;
   let currentBiomeId = null;
+  let pendingConfirmBuildingId = null;
   let menuOpen = false;
   let callbacks = {
     onPlace: null,
@@ -682,7 +710,7 @@
           return;
         }
         if (typeof callbacks.onPlace === "function") {
-          callbacks.onPlace(b.id);
+          openConfirmScene(b.id);
         }
       });
 
@@ -699,7 +727,163 @@
     }
   }
 
+  function openConfirmScene(buildingId) {
+    const b = getBuilding(buildingId);
+    if (!b) return;
+
+    pendingConfirmBuildingId = b.id;
+    if (listDragScroller) listDragScroller.cancel();
+    if (catDragScroller) catDragScroller.cancel();
+
+    const cat = getCategory(b.category);
+    const terrain = getTerrainGroup(b.terrain);
+
+    if (confirmStageEl) {
+      confirmStageEl.style.setProperty("--cat-accent", b.accent);
+    }
+    if (confirmCatBadgeEl) {
+      confirmCatBadgeEl.title = cat.label;
+      confirmCatBadgeEl.setAttribute("data-category-badge", cat.id);
+      confirmCatBadgeEl.style.setProperty("--cat-badge-bg", cat.badgeBg);
+      confirmCatBadgeEl.style.setProperty("--cat-badge-accent", cat.accent);
+    }
+    if (confirmCatIconEl) {
+      confirmCatIconEl.src = cat.iconSrc;
+    }
+    if (confirmIconEl) {
+      confirmIconEl.src = b.iconSrc;
+    }
+    if (confirmNameEl) {
+      confirmNameEl.textContent = b.name;
+    }
+
+    if (confirmBadgesEl) {
+      confirmBadgesEl.innerHTML = "";
+      confirmBadgesEl.appendChild(
+        createCardInfoChip(
+          "build-confirm-cat-chip",
+          "build-terrain-icon",
+          cat.iconSrc,
+          "build-terrain-label",
+          cat.label
+        )
+      );
+      confirmBadgesEl.appendChild(
+        createCardInfoChip(
+          "build-terrain-chip is-valid",
+          "build-terrain-icon",
+          terrain.iconSrc,
+          "build-terrain-label",
+          terrain.label
+        )
+      );
+      if (b.citizenSlots && b.citizenSlots > 0) {
+        confirmBadgesEl.appendChild(
+          createCardInfoChip(
+            "build-citizen-chip",
+            "build-citizen-icon",
+            STAT_ICONS.citizens,
+            "build-citizen-label",
+            "+" + formatCostValue(b.citizenSlots) + (b.citizenSlots === 1 ? " Citizen" : " Citizens"),
+            "data-citizen-slots",
+            b.citizenSlots
+          )
+        );
+      } else if (b.energySlots && b.energySlots > 0) {
+        confirmBadgesEl.appendChild(
+          createCardInfoChip(
+            "build-energy-chip",
+            "build-energy-icon",
+            STAT_ICONS.energy,
+            "build-energy-label",
+            "+" + formatCostValue(b.energySlots) + " Energy",
+            "data-energy-slots",
+            b.energySlots
+          )
+        );
+      } else if (b.specialtyLabel && b.specialtyIconSrc) {
+        confirmBadgesEl.appendChild(
+          createCardInfoChip(
+            "build-specialty-chip",
+            "build-terrain-icon",
+            b.specialtyIconSrc,
+            "build-terrain-label",
+            b.specialtyLabel
+          )
+        );
+      }
+    }
+
+    if (confirmDescEl) {
+      confirmDescEl.textContent = b.description || "";
+    }
+
+    if (confirmReplaceEl) {
+      if (currentPlacedId && currentPlacedId !== b.id) {
+        const existing = getBuilding(currentPlacedId);
+        confirmReplaceEl.textContent =
+          "Replaces existing " + (existing ? existing.name : "building") + " on this tile.";
+        confirmReplaceEl.classList.remove("is-hidden");
+      } else {
+        confirmReplaceEl.textContent = "";
+        confirmReplaceEl.classList.add("is-hidden");
+      }
+    }
+
+    if (confirmCostsEl) {
+      confirmCostsEl.innerHTML = "";
+      const costOrder = ["credits", "ore"];
+      for (let c = 0; c < costOrder.length; c++) {
+        const key = costOrder[c];
+        const req = b.cost && b.cost[key];
+        if (!req || req <= 0) continue;
+        const item = document.createElement("span");
+        item.className = "build-cost-item";
+        const cIcon = document.createElement("img");
+        cIcon.className = "build-cost-icon";
+        cIcon.src = CURRENCY_ICONS[key];
+        cIcon.alt = "";
+        cIcon.draggable = false;
+        const cVal = document.createElement("span");
+        cVal.className = "build-cost-val";
+        cVal.textContent = formatCostValue(req);
+        item.appendChild(cIcon);
+        item.appendChild(cVal);
+        confirmCostsEl.appendChild(item);
+      }
+      confirmCostsEl.classList.toggle("is-hidden", confirmCostsEl.childNodes.length === 0);
+    }
+
+    if (drawerEl) {
+      drawerEl.classList.add("is-confirming");
+      drawerEl.setAttribute("data-confirm-building", b.id);
+    }
+    if (confirmSceneEl) {
+      confirmSceneEl.classList.remove("is-hidden");
+      confirmSceneEl.setAttribute("aria-hidden", "false");
+    }
+  }
+
+  function closeConfirmScene() {
+    if (!pendingConfirmBuildingId && (!drawerEl || !drawerEl.classList.contains("is-confirming"))) {
+      return;
+    }
+    pendingConfirmBuildingId = null;
+    if (drawerEl) {
+      drawerEl.classList.remove("is-confirming");
+      drawerEl.removeAttribute("data-confirm-building");
+    }
+    if (confirmSceneEl) {
+      confirmSceneEl.classList.add("is-hidden");
+      confirmSceneEl.setAttribute("aria-hidden", "true");
+    }
+    syncRemoveButton();
+    syncShelfScroll();
+    window.requestAnimationFrame(syncShelfScroll);
+  }
+
   function openForTile(planetId, tileId, placedBuildingId, biomeId) {
+    closeConfirmScene();
     currentPlanetId = planetId;
     currentTileId = tileId;
     currentPlacedId = placedBuildingId || null;
@@ -751,6 +935,7 @@
   }
 
   function close(notifyHandler) {
+    closeConfirmScene();
     if (listDragScroller) listDragScroller.cancel();
     if (catDragScroller) catDragScroller.cancel();
     if (scrollSyncRaf) {
@@ -805,6 +990,28 @@
     removeBtn.addEventListener("click", function () {
       if (typeof callbacks.onRemove === "function") {
         callbacks.onRemove();
+      }
+    });
+  }
+
+  if (confirmCancelBtn) {
+    confirmCancelBtn.addEventListener("click", function () {
+      closeConfirmScene();
+    });
+  }
+
+  if (confirmBuildBtn) {
+    confirmBuildBtn.addEventListener("click", function () {
+      const bId = pendingConfirmBuildingId;
+      if (!bId) return;
+      if (!canBuildOnBiome(bId, currentBiomeId) || !canAffordBuilding(bId)) {
+        closeConfirmScene();
+        renderBuildingCards();
+        return;
+      }
+      closeConfirmScene();
+      if (typeof callbacks.onPlace === "function") {
+        callbacks.onPlace(bId);
       }
     });
   }
@@ -2605,6 +2812,10 @@
     updateCurrentBuilding: updateCurrentBuilding,
     close: close,
     isOpen: isOpen,
+    isConfirming: function () {
+      return Boolean(pendingConfirmBuildingId);
+    },
+    cancelConfirm: closeConfirmScene,
     getLayoutBounds: getLayoutBounds,
     renderBuilding3D: renderBuilding3D,
     renderTileEffect: renderTileEffect

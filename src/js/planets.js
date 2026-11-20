@@ -1933,6 +1933,10 @@
     } else if (e.key === "-" || e.key === "_") {
       adjustZoom(-ZOOM_STEP);
     } else if (e.key === "Escape") {
+      if (window.GameBuildings && typeof window.GameBuildings.isConfirming === "function" && window.GameBuildings.isConfirming()) {
+        window.GameBuildings.cancelConfirm();
+        return;
+      }
       selectedHexByPlanet[targetIndex] = null;
       selectionPulse = null;
       if (window.GameBuildings) {
