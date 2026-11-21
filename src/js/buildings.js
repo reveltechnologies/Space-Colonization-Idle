@@ -32,11 +32,13 @@
   }
 
   const CATEGORIES = [
-    { id: "all",     label: t("categories.all"),     iconSrc: "./assets/ui/cat-all.svg",     accent: "#ffc83a", badgeBg: "#fff6cc" },
-    { id: "power",   label: t("categories.power"),   iconSrc: "./assets/ui/cat-power.svg",   accent: "#ffc83a", badgeBg: "#fff6cc" },
-    { id: "mining",  label: t("categories.mining"),  iconSrc: "./assets/ui/cat-mining.svg",  accent: "#ffb13b", badgeBg: "#ffefd6" },
-    { id: "colony",  label: t("categories.colony"),  iconSrc: "./assets/ui/cat-colony.svg",  accent: "#ff6b5a", badgeBg: "#ffe6e3" },
-    { id: "science", label: t("categories.science"), iconSrc: "./assets/ui/cat-science.svg", accent: "#37a8ff", badgeBg: "#e0f4ff" }
+    { id: "all",          label: t("categories.all"),          iconSrc: "./assets/ui/cat-all.svg",          accent: "#ffc83a", badgeBg: "#fff6cc" },
+    { id: "power",        label: t("categories.power"),        iconSrc: "./assets/ui/cat-power.svg",        accent: "#ffc83a", badgeBg: "#fff6cc" },
+    { id: "mining",       label: t("categories.mining"),       iconSrc: "./assets/ui/cat-mining.svg",       accent: "#ffb13b", badgeBg: "#ffefd6" },
+    { id: "colony",       label: t("categories.colony"),       iconSrc: "./assets/ui/cat-colony.svg",       accent: "#ff6b5a", badgeBg: "#ffe6e3" },
+    { id: "science",      label: t("categories.science"),      iconSrc: "./assets/ui/cat-science.svg",      accent: "#37a8ff", badgeBg: "#e0f4ff" },
+    { id: "decorations",  label: t("categories.decorations"),  iconSrc: "./assets/ui/cat-decorations.svg",  accent: "#ec4899", badgeBg: "#fce7f3" },
+    { id: "terraforming", label: t("categories.terraforming"), iconSrc: "./assets/ui/cat-terraforming.svg", accent: "#14b8a6", badgeBg: "#ccfbf1" }
   ];
 
   const TERRAIN_GROUPS = {
@@ -54,6 +56,11 @@
       id: "mountainous",
       label: t("terrains.mountainous"),
       iconSrc: "./assets/ui/terrain-mountainous.svg"
+    },
+    any: {
+      id: "any",
+      label: t("terrains.any"),
+      iconSrc: "./assets/ui/terrain-any.svg"
     }
   };
 
@@ -304,6 +311,59 @@
       iconSrc: "./assets/ui/bld-villa.svg"
     },
     {
+      id: "solar_cabin",
+      name: t("buildings.solar_cabin.name"),
+      category: "colony",
+      tag: t("categories.colony"),
+      terrain: "surface",
+      nextVariantId: "eco_dome",
+      citizenSlots: 3,
+      energySlots: 2,
+      isSolar: true,
+      specialtyLabel: t("buildings.solar_cabin.specialty"),
+      specialtyIconSrc: "./assets/ui/bld-solar-cabin.svg",
+      description: t("buildings.solar_cabin.description"),
+      cost: { credits: 130, bricks: 20 },
+      accent: "#14b8a6",
+      iconSrc: "./assets/ui/bld-solar-cabin.svg"
+    },
+    {
+      id: "eco_dome",
+      name: t("buildings.eco_dome.name"),
+      category: "colony",
+      tag: t("categories.colony"),
+      terrain: "surface",
+      requiredResearch: "solar_habitats",
+      nextVariantId: "eco_arcology",
+      citizenSlots: 8,
+      energySlots: 6,
+      isSolar: true,
+      specialtyLabel: t("buildings.eco_dome.specialty"),
+      specialtyIconSrc: "./assets/ui/bld-eco-dome.svg",
+      description: t("buildings.eco_dome.description"),
+      cost: { credits: 310, bricks: 65 },
+      accent: "#22c55e",
+      iconSrc: "./assets/ui/bld-eco-dome.svg"
+    },
+    {
+      id: "eco_arcology",
+      name: t("buildings.eco_arcology.name"),
+      category: "colony",
+      tag: t("categories.colony"),
+      terrain: "surface",
+      requiredResearch: "arcology_grids",
+      nextVariantId: null,
+      citizenSlots: 20,
+      energySlots: 15,
+      isSolar: true,
+      specialtyLabel: t("buildings.eco_arcology.specialty"),
+      specialtyIconSrc: "./assets/ui/bld-eco-arcology.svg",
+      description: t("buildings.eco_arcology.description"),
+      cost: { credits: 620, bricks: 140 },
+      accent: "#10b981",
+      iconSrc: "./assets/ui/bld-eco-arcology.svg"
+    },
+    {
       id: "solar_panel",
       name: t("buildings.solar_panel.name"),
       category: "power",
@@ -311,6 +371,7 @@
       terrain: "solid",
       nextVariantId: "solar_array",
       energySlots: 3,
+      isSolar: true,
       description: t("buildings.solar_panel.description"),
       cost: { credits: 50 },
       accent: "#ffc83a",
@@ -324,6 +385,7 @@
       terrain: "solid",
       nextVariantId: "solar_tower",
       energySlots: 8,
+      isSolar: true,
       description: t("buildings.solar_array.description"),
       cost: { credits: 160, ore: 25 },
       accent: "#ffad26",
@@ -337,6 +399,7 @@
       terrain: "solid",
       nextVariantId: null,
       energySlots: 20,
+      isSolar: true,
       description: t("buildings.solar_tower.description"),
       cost: { credits: 400, ore: 75 },
       accent: "#ff7b1c",
@@ -418,6 +481,90 @@
       iconSrc: "./assets/ui/bld-space-rocket-2.svg"
     },
     {
+      id: "starlight_monument",
+      name: t("buildings.starlight_monument.name"),
+      category: "decorations",
+      tag: t("categories.decorations"),
+      terrain: "solid",
+      nextVariantId: null,
+      isCosmetic: true,
+      specialtyLabel: t("buildings.starlight_monument.specialty"),
+      specialtyIconSrc: "./assets/ui/bld-starlight-monument.svg",
+      description: t("buildings.starlight_monument.description"),
+      cost: { credits: 45, bricks: 5 },
+      accent: "#ec4899",
+      iconSrc: "./assets/ui/bld-starlight-monument.svg"
+    },
+    {
+      id: "helio_mirror",
+      name: t("buildings.helio_mirror.name"),
+      category: "decorations",
+      tag: t("categories.decorations"),
+      terrain: "solid",
+      requiredResearch: "helio_optics",
+      maxPerPlanet: 3,
+      solarEnergyBonus: 0.25,
+      nextVariantId: null,
+      specialtyLabel: t("buildings.helio_mirror.specialty"),
+      specialtyIconSrc: "./assets/ui/bld-helio-mirror.svg",
+      description: t("buildings.helio_mirror.description"),
+      cost: { credits: 220, bricks: 35 },
+      accent: "#fbbf24",
+      iconSrc: "./assets/ui/bld-helio-mirror.svg"
+    },
+    {
+      id: "botanical_garden",
+      name: t("buildings.botanical_garden.name"),
+      category: "decorations",
+      tag: t("categories.decorations"),
+      terrain: "surface",
+      requiredResearch: "civic_gardens",
+      maxPerPlanet: 3,
+      citizenGrowthBonus: 0.50,
+      nextVariantId: null,
+      specialtyLabel: t("buildings.botanical_garden.specialty"),
+      specialtyIconSrc: "./assets/ui/bld-botanical-garden.svg",
+      description: t("buildings.botanical_garden.description"),
+      cost: { credits: 160, bricks: 25 },
+      accent: "#22c55e",
+      iconSrc: "./assets/ui/bld-botanical-garden.svg"
+    },
+    {
+      id: "builders_plaza",
+      name: t("buildings.builders_plaza.name"),
+      category: "decorations",
+      tag: t("categories.decorations"),
+      terrain: "solid",
+      requiredResearch: "modular_prefabs",
+      maxPerPlanet: 2,
+      costDiscount: 0.15,
+      discountCategories: ["colony", "power", "mining"],
+      nextVariantId: null,
+      specialtyLabel: t("buildings.builders_plaza.specialty"),
+      specialtyIconSrc: "./assets/ui/bld-builders-plaza.svg",
+      description: t("buildings.builders_plaza.description"),
+      cost: { credits: 280, bricks: 55 },
+      accent: "#3b82f6",
+      iconSrc: "./assets/ui/bld-builders-plaza.svg"
+    },
+    {
+      id: "geo_terraformer",
+      name: t("buildings.geo_terraformer.name"),
+      category: "terraforming",
+      tag: t("categories.terraforming"),
+      terrain: "any",
+      requiredResearch: "planetary_terraforming",
+      energyRequired: 2,
+      singleUseTerraformer: true,
+      nextVariantId: null,
+      specialtyLabel: t("buildings.geo_terraformer.specialty"),
+      specialtyIconSrc: "./assets/ui/bld-geo-terraformer.svg",
+      description: t("buildings.geo_terraformer.description"),
+      cost: { credits: 180, bricks: 40 },
+      accent: "#14b8a6",
+      iconSrc: "./assets/ui/bld-geo-terraformer.svg"
+    },
+    {
       id: "crash_base",
       name: t("buildings.crash_base.name"),
       category: "colony",
@@ -451,6 +598,8 @@
             b.cost = Object.assign({}, econ.cost);
           } else if (prop === "costScaling" && econ.costScaling && typeof econ.costScaling === "object") {
             b.costScaling = Object.assign({}, econ.costScaling);
+          } else if (Array.isArray(econ[prop])) {
+            b[prop] = econ[prop].slice();
           } else {
             b[prop] = econ[prop];
           }
@@ -508,6 +657,7 @@
   function canBuildOnBiome(buildingId, biomeId) {
     const b = getBuilding(buildingId);
     if (!b) return false;
+    if (b.terrain === "any") return true;
     const biome = getBiome(biomeId);
     return Boolean(biome && biome.terrains && biome.terrains.indexOf(b.terrain) !== -1);
   }
@@ -537,33 +687,56 @@
     return 0;
   }
 
-  function getBuildingCost(buildingId) {
+  function getBuildingDiscountRate(buildingId, planetId) {
+    const b = getBuilding(buildingId);
+    if (!b || typeof callbacks.getPlanetCostDiscount !== "function") return 0;
+    const pId = planetId !== undefined && planetId !== null ? planetId : currentPlanetId;
+    const raw = Number(callbacks.getPlanetCostDiscount(pId, b)) || 0;
+    return Math.max(0, Math.min(0.50, raw));
+  }
+
+  function getBuildingDiscountPercent(buildingId, planetId) {
+    return Math.round(getBuildingDiscountRate(buildingId, planetId) * 100);
+  }
+
+  function getBuildingCost(buildingId, planetId) {
     const b = getBuilding(buildingId);
     if (!b || !b.cost) return null;
-    if (!b.costScaling) {
-      return b.cost;
-    }
-    const owned = getOwnedBuildingCount(b.id);
-    const s = b.costScaling;
+    const pId = planetId !== undefined && planetId !== null ? planetId : currentPlanetId;
+    const discount = getBuildingDiscountRate(b.id, pId);
     const cost = {};
-    if (b.cost.credits > 0) {
-      cost.credits = Math.round(b.cost.credits * Math.pow(s.creditsMult || 1, owned));
+    if (!b.costScaling) {
+      if (b.cost.credits > 0) cost.credits = b.cost.credits;
+      if (b.cost.bricks > 0) cost.bricks = b.cost.bricks;
+      if (b.cost.ore > 0) cost.ore = b.cost.ore;
+    } else {
+      const owned = getOwnedBuildingCount(b.id);
+      const s = b.costScaling;
+      if (b.cost.credits > 0) {
+        cost.credits = Math.round(b.cost.credits * Math.pow(s.creditsMult || 1, owned));
+      }
+      if (b.cost.bricks > 0) {
+        cost.bricks = Math.round(b.cost.bricks * Math.pow(s.bricksMult || 1, owned));
+      }
+      if (owned >= 1 && s.oreBaseAfterFirst > 0) {
+        cost.ore = Math.round(s.oreBaseAfterFirst * Math.pow(s.oreMult || 1, owned - 1));
+      } else if (b.cost.ore > 0) {
+        cost.ore = Math.round(b.cost.ore * Math.pow(s.oreMult || 1, owned));
+      }
     }
-    if (b.cost.bricks > 0) {
-      cost.bricks = Math.round(b.cost.bricks * Math.pow(s.bricksMult || 1, owned));
-    }
-    if (owned >= 1 && s.oreBaseAfterFirst > 0) {
-      cost.ore = Math.round(s.oreBaseAfterFirst * Math.pow(s.oreMult || 1, owned - 1));
-    } else if (b.cost.ore > 0) {
-      cost.ore = Math.round(b.cost.ore * Math.pow(s.oreMult || 1, owned));
+    if (discount > 0) {
+      const factor = 1 - discount;
+      if (cost.credits > 0) cost.credits = Math.max(1, Math.round(cost.credits * factor));
+      if (cost.bricks > 0) cost.bricks = Math.max(1, Math.round(cost.bricks * factor));
+      if (cost.ore > 0) cost.ore = Math.max(1, Math.round(cost.ore * factor));
     }
     return cost;
   }
 
   function canAffordBuilding(buildingId, planetId) {
-    const cost = getBuildingCost(buildingId);
-    if (!cost) return true;
     const pId = planetId !== undefined && planetId !== null ? planetId : currentPlanetId;
+    const cost = getBuildingCost(buildingId, pId);
+    if (!cost) return true;
     if (cost.bricks) {
       const bricksReq = Math.max(0, Number(cost.bricks) || 0);
       if (bricksReq > 0) {
@@ -657,7 +830,7 @@
     return t("rates.per_day", { rate: formatRateNumber(perDay) });
   }
 
-  function renderCostItems(containerEl, cost, planetId) {
+  function renderCostItems(containerEl, cost, planetId, isDiscounted) {
     if (!containerEl) return;
     const costOrder = ["credits", "bricks", "ore"];
     for (let c = 0; c < costOrder.length; c++) {
@@ -666,7 +839,7 @@
       if (!req || req <= 0) continue;
       const hasEnough = getAvailableCurrencyAmount(key, planetId) >= req;
       const item = document.createElement("span");
-      item.className = "build-cost-item" + (hasEnough ? "" : " is-short");
+      item.className = "build-cost-item" + (hasEnough ? "" : " is-short") + (isDiscounted ? " is-discounted" : "");
       const cIcon = document.createElement("img");
       cIcon.className = "build-cost-icon";
       cIcon.src = CURRENCY_ICONS[key];
@@ -712,6 +885,7 @@
   let currentPlanetId = 0;
   let currentTileId = null;
   let currentPlacedId = null;
+  let currentPlacedUsed = false;
   let currentBiomeId = null;
   let pendingConfirmBuildingId = null;
   let menuOpen = false;
@@ -982,7 +1156,7 @@
       const bldImg = '<img class="game-toast-icon" src="' + b.iconSrc + '" alt="" draggable="false" />';
       const bldStrong = '<strong class="game-toast-strong">' + b.name + "</strong>";
       const missing = [];
-      const bCost = getBuildingCost(b.id);
+      const bCost = getBuildingCost(b.id, pId);
       const costOrder = ["credits", "bricks", "ore"];
       for (let c = 0; c < costOrder.length; c++) {
         const key = costOrder[c];
@@ -1038,15 +1212,17 @@
         }
       }
       const isBuilt = currentPlacedId === b.id;
+      const isSpentBuilt = isBuilt && currentPlacedUsed;
       const researchLocked = isBuildingResearchLocked(b.id);
       const limitBlocked = !isBuilt && isBuildingPlanetLimitReached(b.id, currentPlanetId, currentPlacedId);
       const terrainOk = canBuildOnBiome(b.id, currentBiomeId);
-      const affordable = canAffordBuilding(b.id);
+      const affordable = canAffordBuilding(b.id, currentPlanetId);
       const rank = isBuilt ? 0 : !researchLocked && !limitBlocked && terrainOk ? 1 : 2;
       entries.push({
         b: b,
         idx: i,
         isBuilt: isBuilt,
+        isSpentBuilt: isSpentBuilt,
         researchLocked: researchLocked,
         limitBlocked: limitBlocked,
         terrainOk: terrainOk,
@@ -1064,6 +1240,7 @@
       const entry = entries[i];
       const b = entry.b;
       const isBuilt = entry.isBuilt;
+      const isSpentBuilt = entry.isSpentBuilt;
       const isProtectedCard = isProtectedBuilding(b.id);
       const researchLocked = entry.researchLocked;
       const limitBlocked = entry.limitBlocked;
@@ -1077,6 +1254,7 @@
       card.className =
         "build-card" +
         (isBuilt ? " is-built" : "") +
+        (isSpentBuilt ? " is-spent" : "") +
         (isProtectedCard ? " build-card--protected" : "") +
         (!isBuilt && researchLocked ? " is-research-locked" : "") +
         (!isBuilt && !researchLocked && limitBlocked ? " is-limit-blocked" : "") +
@@ -1093,8 +1271,8 @@
 
       if (isBuilt) {
         const badge = document.createElement("span");
-        badge.className = "build-card-badge is-built";
-        badge.textContent = t("build.built_badge");
+        badge.className = "build-card-badge " + (isSpentBuilt ? "is-spent" : "is-built");
+        badge.textContent = t(isSpentBuilt ? "build.spent_badge" : "build.built_badge");
         stage.appendChild(badge);
       }
 
@@ -1213,6 +1391,32 @@
             t("build.max_per_planet", { limit: b.maxPerPlanet })
           )
         );
+      } else if (!showInvalidTerrain && b.citizenSlots && b.citizenSlots > 0 && b.energySlots && b.energySlots > 0) {
+        const multiWrap = document.createElement("span");
+        multiWrap.className = "build-card-multi-chips";
+        multiWrap.appendChild(
+          createCardInfoChip(
+            "build-citizen-chip",
+            "build-citizen-icon",
+            STAT_ICONS.citizens,
+            "build-citizen-label",
+            formatCitizenGain(b.citizenSlots),
+            "data-citizen-slots",
+            b.citizenSlots
+          )
+        );
+        multiWrap.appendChild(
+          createCardInfoChip(
+            "build-energy-chip",
+            "build-energy-icon",
+            STAT_ICONS.energy,
+            "build-energy-label",
+            formatEnergyGain(b.energySlots),
+            "data-energy-slots",
+            b.energySlots
+          )
+        );
+        info.appendChild(multiWrap);
       } else if (!showInvalidTerrain && b.citizenSlots && b.citizenSlots > 0) {
         info.appendChild(
           createCardInfoChip(
@@ -1297,6 +1501,56 @@
             })
           )
         );
+      } else if (!showInvalidTerrain && b.solarEnergyBonus && b.solarEnergyBonus > 0) {
+        info.appendChild(
+          createCardInfoChip(
+            "build-decor-chip is-solar",
+            "build-energy-icon",
+            STAT_ICONS.energy,
+            "build-energy-label",
+            t("build.solar_boost_chip", { pct: Math.round(b.solarEnergyBonus * 100) })
+          )
+        );
+      } else if (!showInvalidTerrain && b.citizenGrowthBonus && b.citizenGrowthBonus > 0) {
+        info.appendChild(
+          createCardInfoChip(
+            "build-decor-chip is-growth",
+            "build-citizen-icon",
+            STAT_ICONS.citizens,
+            "build-citizen-label",
+            t("build.growth_boost_chip", { pct: Math.round(b.citizenGrowthBonus * 100) })
+          )
+        );
+      } else if (!showInvalidTerrain && b.costDiscount && b.costDiscount > 0) {
+        info.appendChild(
+          createCardInfoChip(
+            "build-decor-chip is-discount",
+            "build-terrain-icon",
+            b.iconSrc,
+            "build-terrain-label",
+            t("build.cost_discount_chip", { pct: Math.round(b.costDiscount * 100) })
+          )
+        );
+      } else if (!showInvalidTerrain && b.singleUseTerraformer) {
+        info.appendChild(
+          createCardInfoChip(
+            "build-decor-chip is-terraform",
+            "build-terrain-icon",
+            "./assets/ui/cat-terraforming.svg",
+            "build-terrain-label",
+            t("build.terraform_single_use_chip")
+          )
+        );
+      } else if (!showInvalidTerrain && b.isCosmetic && b.specialtyLabel) {
+        info.appendChild(
+          createCardInfoChip(
+            "build-specialty-chip",
+            "build-terrain-icon",
+            b.specialtyIconSrc || b.iconSrc,
+            "build-terrain-label",
+            b.specialtyLabel
+          )
+        );
       } else {
         info.appendChild(
           createCardInfoChip(
@@ -1320,10 +1574,15 @@
       } else if (isBuilt) {
         const builtLbl = document.createElement("span");
         builtLbl.className = "build-built-label";
-        builtLbl.textContent = t("build.built_badge");
+        builtLbl.textContent = t(isSpentBuilt ? "build.spent_badge" : "build.built_badge");
         actionBtn.appendChild(builtLbl);
       } else {
-        renderCostItems(actionBtn, getBuildingCost(b.id), currentPlanetId);
+        renderCostItems(
+          actionBtn,
+          getBuildingCost(b.id, currentPlanetId),
+          currentPlanetId,
+          getBuildingDiscountRate(b.id, currentPlanetId) > 0
+        );
       }
 
       card.appendChild(stage);
@@ -1374,7 +1633,12 @@
     if (!b) return;
     if (confirmCostsEl) {
       confirmCostsEl.innerHTML = "";
-      renderCostItems(confirmCostsEl, getBuildingCost(b.id), currentPlanetId);
+      renderCostItems(
+        confirmCostsEl,
+        getBuildingCost(b.id, currentPlanetId),
+        currentPlanetId,
+        getBuildingDiscountRate(b.id, currentPlanetId) > 0
+      );
       confirmCostsEl.classList.toggle("is-hidden", confirmCostsEl.childNodes.length === 0);
     }
     if (confirmBuildBtn) {
@@ -1453,7 +1717,8 @@
             b.citizenSlots
           )
         );
-      } else if (b.energySlots && b.energySlots > 0) {
+      }
+      if (b.energySlots && b.energySlots > 0) {
         confirmBadgesEl.appendChild(
           createCardInfoChip(
             "build-energy-chip",
@@ -1465,7 +1730,81 @@
             b.energySlots
           )
         );
-      } else if (b.bricksPerSec && b.bricksPerSec > 0) {
+      }
+      if (b.solarEnergyBonus && b.solarEnergyBonus > 0) {
+        confirmBadgesEl.appendChild(
+          createCardInfoChip(
+            "build-decor-chip is-solar",
+            "build-energy-icon",
+            STAT_ICONS.energy,
+            "build-energy-label",
+            t("build.solar_boost_chip", { pct: Math.round(b.solarEnergyBonus * 100) })
+          )
+        );
+      }
+      if (b.citizenGrowthBonus && b.citizenGrowthBonus > 0) {
+        confirmBadgesEl.appendChild(
+          createCardInfoChip(
+            "build-decor-chip is-growth",
+            "build-citizen-icon",
+            STAT_ICONS.citizens,
+            "build-citizen-label",
+            t("build.growth_boost_chip", { pct: Math.round(b.citizenGrowthBonus * 100) })
+          )
+        );
+      }
+      if (b.costDiscount && b.costDiscount > 0) {
+        confirmBadgesEl.appendChild(
+          createCardInfoChip(
+            "build-decor-chip is-discount",
+            "build-terrain-icon",
+            b.iconSrc,
+            "build-terrain-label",
+            t("build.cost_discount_chip", { pct: Math.round(b.costDiscount * 100) })
+          )
+        );
+        confirmBadgesEl.appendChild(
+          createCardInfoChip(
+            "build-specialty-chip",
+            "build-terrain-icon",
+            "./assets/ui/cat-colony.svg",
+            "build-terrain-label",
+            t("build.discount_targets_chip")
+          )
+        );
+      }
+      if (b.singleUseTerraformer) {
+        confirmBadgesEl.appendChild(
+          createCardInfoChip(
+            "build-decor-chip is-terraform",
+            "build-terrain-icon",
+            "./assets/ui/cat-terraforming.svg",
+            "build-terrain-label",
+            t("build.terraform_single_use_chip")
+          )
+        );
+        confirmBadgesEl.appendChild(
+          createCardInfoChip(
+            "build-limit-chip",
+            "build-research-icon",
+            STAT_ICONS.research,
+            "build-research-label",
+            t("build.terraform_spent_warning")
+          )
+        );
+      }
+      if (getBuildingDiscountPercent(b.id, currentPlanetId) > 0) {
+        confirmBadgesEl.appendChild(
+          createCardInfoChip(
+            "build-discount-chip",
+            "build-terrain-icon",
+            "./assets/ui/bld-builders-plaza.svg",
+            "build-terrain-label",
+            t("build.discount_active_pill", { pct: getBuildingDiscountPercent(b.id, currentPlanetId) })
+          )
+        );
+      }
+      if (b.bricksPerSec && b.bricksPerSec > 0) {
         confirmBadgesEl.appendChild(
           createCardInfoChip(
             "build-bricks-chip",
@@ -1658,11 +1997,12 @@
     window.requestAnimationFrame(syncShelfScroll);
   }
 
-  function openForTile(planetId, tileId, placedBuildingId, biomeId) {
+  function openForTile(planetId, tileId, placedBuildingId, biomeId, placedUsed) {
     closeConfirmScene();
     currentPlanetId = planetId;
     currentTileId = tileId;
     currentPlacedId = placedBuildingId || null;
+    currentPlacedUsed = Boolean(placedUsed);
 
     const biome = getBiome(biomeId);
     currentBiomeId = biome.id;
@@ -1722,12 +2062,38 @@
     return true;
   }
 
-  function updateCurrentBuilding(placedBuildingId) {
+  function updateCurrentBuilding(placedBuildingId, placedUsed) {
     currentPlacedId = placedBuildingId || null;
+    currentPlacedUsed = Boolean(placedUsed);
     syncRemoveButton();
     if (menuOpen) {
       renderBuildingCards();
     }
+  }
+
+  function refreshTileState(planetId, tileId, placedBuildingId, biomeId, placedUsed) {
+    if (!menuOpen || currentPlanetId !== planetId || currentTileId !== tileId) {
+      return;
+    }
+    currentPlacedId = placedBuildingId || null;
+    currentPlacedUsed = Boolean(placedUsed);
+    const biome = getBiome(biomeId);
+    currentBiomeId = biome.id;
+    if (biomeBadgeEl) {
+      biomeBadgeEl.style.setProperty("--biome-accent", biome.accent);
+      biomeBadgeEl.style.setProperty("--biome-bg", biome.badgeBg);
+    }
+    if (biomeIconEl) {
+      biomeIconEl.src = biome.iconSrc;
+    }
+    if (titleEl) {
+      titleEl.textContent = biome.name;
+    }
+    if (drawerEl) {
+      drawerEl.setAttribute("data-biome", biome.id);
+    }
+    syncRemoveButton();
+    renderBuildingCards();
   }
 
   function close(notifyHandler) {
@@ -1822,7 +2188,7 @@
         renderBuildingCards();
         return;
       }
-      if (!canAffordBuilding(bId)) {
+      if (!canAffordBuilding(bId, currentPlanetId)) {
         showPurchaseBlockedToast(b, currentPlanetId, currentPlacedId, currentBiomeId);
         return;
       }
@@ -3618,6 +3984,299 @@
     }
   }
 
+  function buildStarlightMonumentModel(m, time, phase, pxScale) {
+    // Stepped marble hex base & golden collar
+    m.addPrism(0, 0, 0.0, 0.08, 0.62, 0.56, 6, 0, [226, 232, 240], { spec: 0.30 });
+    m.addPrism(0, 0, 0.08, 0.13, 0.44, 0.40, 6, 0, [251, 191, 36], { spec: 0.52 });
+
+    // 4 corner lantern bollards cleanly on base terrace
+    const corners = [
+      [-0.36, -0.30],
+      [0.36, -0.30],
+      [-0.36, 0.30],
+      [0.36, 0.30]
+    ];
+    for (let i = 0; i < corners.length; i++) {
+      m.addPrism(corners[i][0], corners[i][1], 0.08, 0.21, 0.045, 0.038, 6, 0, [148, 163, 184], { spec: 0.3 });
+      m.addPrism(corners[i][0], corners[i][1], 0.21, 0.26, 0.042, 0.02, 6, 0, [253, 224, 71], { emissive: 0.72 });
+    }
+
+    // Faceted white/lavender obelisk spire
+    m.addPrism(0, 0, 0.13, 0.64, 0.19, 0.09, 4, Math.PI / 4, [248, 250, 252], { spec: 0.42 });
+    m.addPrism(0, 0, 0.64, 0.72, 0.11, 0.04, 4, Math.PI / 4, [251, 191, 36], { spec: 0.55 });
+
+    // Levitating glowing magenta-gold octahedral starlight crystal above spire tip
+    const bobZ = 0.85 + 0.035 * Math.sin(time * 0.003 + phase);
+    const spin = time * 0.0018 + phase;
+    const glow = 0.65 + 0.30 * Math.sin(time * 0.004 + phase);
+    m.addPrism(0, 0, bobZ - 0.075, bobZ, 0.015, 0.085, 4, spin, [236, 72, 153], { emissive: glow, spec: 0.75 });
+    m.addPrism(0, 0, bobZ, bobZ + 0.075, 0.085, 0.015, 4, spin, [244, 114, 182], { emissive: glow, spec: 0.75 });
+  }
+
+  function buildHelioMirrorModel(m, time, phase, pxScale) {
+    // Hexagonal plaza base + golden compass collar
+    m.addPrism(0, 0, 0.0, 0.075, 0.64, 0.58, 6, 0, [71, 85, 105], { spec: 0.26 });
+    m.addPrism(0, 0, 0.075, 0.115, 0.48, 0.44, 6, 0, [251, 191, 36], { spec: 0.50 });
+
+    // Gimbal collar & 3 clean support struts
+    m.addPrism(0, 0, 0.115, 0.24, 0.12, 0.08, 6, 0, [148, 163, 184], { spec: 0.35 });
+    const postLW = Math.max(1.5, pxScale * 0.048);
+    for (let i = 0; i < 3; i++) {
+      const a = (Math.PI * 2 * i) / 3 + 0.35;
+      m.addLine([Math.cos(a) * 0.34, Math.sin(a) * 0.34, 0.08], [Math.cos(a) * 0.08, Math.sin(a) * 0.08, 0.23], "#e2e8f0", postLW);
+    }
+
+    // Tilted parabolic concentrator mirror dish (gold backing + cobalt/cyan reflector face)
+    const hw = 0.38;
+    const hd = 0.32;
+    const zLow = 0.25;
+    const zHigh = 0.65;
+    const dz = zHigh - zLow;
+    const dy = hd * 2;
+    const nLen = Math.hypot(dz, dy);
+    const nY = -dz / nLen;
+    const nZ = dy / nLen;
+    const offY = nY * 0.014;
+    const offZ = nZ * 0.014;
+    const lineOffY = nY * 0.018;
+    const lineOffZ = nZ * 0.018;
+
+    m.addQuad(
+      [-hw, -hd, zLow],
+      [hw, -hd, zLow],
+      [hw, hd, zHigh],
+      [-hw, hd, zHigh],
+      [251, 191, 36],
+      { doubleSided: true, spec: 0.55 }
+    );
+    m.addQuad(
+      [-hw * 0.88, -hd * 0.88 + offY, zLow + 0.02 + offZ],
+      [hw * 0.88, -hd * 0.88 + offY, zLow + 0.02 + offZ],
+      [hw * 0.88, hd * 0.88 + offY, zHigh - 0.02 + offZ],
+      [-hw * 0.88, hd * 0.88 + offY, zHigh - 0.02 + offZ],
+      [56, 189, 248],
+      { outwardNormal: [0, nY, nZ], spec: 0.95, emissive: 0.28 }
+    );
+    const gridLW = Math.max(0.8, pxScale * 0.018);
+    m.addLine([0, -hd * 0.88 + lineOffY, zLow + 0.02 + lineOffZ], [0, hd * 0.88 + lineOffY, zHigh - 0.02 + lineOffZ], "#e0f2fe", gridLW);
+    m.addLine([-hw * 0.88, lineOffY, (zLow + zHigh) * 0.5 + lineOffZ], [hw * 0.88, lineOffY, (zLow + zHigh) * 0.5 + lineOffZ], "#e0f2fe", gridLW);
+
+    // Pulsing sun-focal orb held above the mirror dish
+    const focalPulse = 0.65 + 0.30 * Math.sin(time * 0.005 + phase);
+    const fx = 0;
+    const fy = nY * 0.28;
+    const fz = (zLow + zHigh) * 0.5 + nZ * 0.28;
+    m.addLine([0, offY, (zLow + zHigh) * 0.5 + offZ], [fx, fy, fz], "#fde047", Math.max(1.2, pxScale * 0.032));
+    m.addPrism(fx, fy, fz - 0.06, fz + 0.06, 0.065, 0.065, 6, 0, [253, 224, 71], { emissive: focalPulse, spec: 0.7 });
+  }
+
+  function buildBotanicalGardenModel(m, time, phase, pxScale) {
+    // Cream stone curb + lush emerald park terrace
+    m.addPrism(0, 0, 0.0, 0.06, 0.68, 0.65, 8, Math.PI / 8, [241, 245, 249], { spec: 0.24 });
+    m.addPrism(0, 0, 0.06, 0.095, 0.62, 0.60, 8, Math.PI / 8, [34, 197, 94], { spec: 0.12 });
+
+    // Central marble fountain basin + sparkling cyan water + jet plume
+    m.addPrism(0, 0, 0.095, 0.155, 0.24, 0.22, 8, Math.PI / 8, [248, 250, 252], { spec: 0.35 });
+    m.addPrism(0, 0, 0.155, 0.17, 0.18, 0.18, 8, Math.PI / 8, [56, 189, 248], { emissive: 0.45, spec: 0.8 });
+    m.addPrism(0, 0, 0.17, 0.32, 0.055, 0.035, 6, 0, [226, 232, 240], { spec: 0.35 });
+    const jetH = 0.38 + 0.04 * Math.sin(time * 0.006 + phase);
+    m.addPrism(0, 0, 0.32, jetH, 0.025, 0.075, 6, 0, [186, 230, 253], { emissive: 0.7 });
+
+    // 4 non-intersecting trees (2 emerald, 2 cherry blossom)
+    const trees = [
+      { x: -0.36, y: -0.22, col: [22, 163, 74], h: 0.46 },
+      { x: 0.36, y: -0.22, col: [244, 114, 182], h: 0.44 },
+      { x: -0.32, y: 0.28, col: [244, 114, 182], h: 0.42 },
+      { x: 0.32, y: 0.28, col: [22, 163, 74], h: 0.48 }
+    ];
+    for (let i = 0; i < trees.length; i++) {
+      const tr = trees[i];
+      m.addPrism(tr.x, tr.y, 0.095, 0.22, 0.032, 0.024, 6, 0, [146, 64, 14], { spec: 0.1 });
+      m.addDome(tr.x, tr.y, 0.22, 0.125, 0.125, tr.h - 0.22, 2, 6, tr.col, { spec: 0.14 });
+    }
+  }
+
+  function buildBuildersPlazaModel(m, time, phase, pxScale) {
+    // Stepped slate & amber guild plinth
+    m.addPrism(0, 0, 0.0, 0.08, 0.66, 0.60, 6, 0, [100, 116, 139], { spec: 0.28 });
+    m.addPrism(0, 0, 0.08, 0.125, 0.54, 0.50, 6, 0, [251, 191, 36], { spec: 0.50 });
+
+    // Twin steel-blue arch pillars + golden top lintel beam cleanly above hologram cube
+    m.addBox(-0.28, 0, 0.335, 0.085, 0.11, 0.21, [59, 130, 246], { spec: 0.36 });
+    m.addBox(0.28, 0, 0.335, 0.085, 0.11, 0.21, [59, 130, 246], { spec: 0.36 });
+    m.addBox(0, 0, 0.59, 0.39, 0.13, 0.045, [251, 191, 36], { spec: 0.52 });
+    m.addBox(0, 0, 0.655, 0.24, 0.08, 0.02, [248, 250, 252], { spec: 0.4 });
+
+    // Rotating cyan holographic blueprint cube floating cleanly in the arch center
+    const spin = time * 0.002 + phase;
+    const hoverZ = 0.27 + 0.02 * Math.sin(time * 0.0035 + phase);
+    m.addPrism(0, 0, hoverZ, hoverZ + 0.17, 0.12, 0.12, 4, spin, [56, 189, 248], {
+      emissive: 0.65,
+      spec: 0.75,
+      stroke: "rgba(224, 242, 254, 0.85)",
+      lineWidth: Math.max(0.8, pxScale * 0.018)
+    });
+  }
+
+  function buildSolarCabinModel(m, time, phase, pxScale) {
+    // Stone pad & front emerald planter strip
+    m.addPrism(0, 0, 0.0, 0.07, 0.60, 0.56, 6, 0, [100, 116, 139], { spec: 0.22 });
+    m.addBox(0, -0.30, 0.095, 0.24, 0.06, 0.025, [34, 197, 94], { spec: 0.12 });
+
+    // Cream & teal cabin body
+    m.addBox(0, 0.02, 0.20, 0.28, 0.22, 0.13, [255, 247, 234], { spec: 0.28 });
+    // Pitched teal roof
+    m.addPrism(0, 0.02, 0.33, 0.48, 0.39, 0.06, 4, Math.PI / 4, [20, 184, 166], { spec: 0.32 });
+
+    // Tilted cobalt rooftop solar panel mounted cleanly above roof slope
+    m.addQuad([-0.20, -0.14, 0.41], [0.20, -0.14, 0.41], [0.20, 0.14, 0.53], [-0.20, 0.14, 0.53], [37, 99, 235], {
+      doubleSided: true,
+      spec: 0.90,
+      emissive: 0.18
+    });
+    const gridLW = Math.max(0.7, pxScale * 0.016);
+    m.addLine([0, -0.14, 0.414], [0, 0.14, 0.534], "#bae6fd", gridLW);
+    m.addLine([-0.20, 0, 0.474], [0.20, 0, 0.474], "#bae6fd", gridLW);
+
+    // Flush outward warm doorway & windows
+    const winGlow = 0.65 + 0.15 * Math.sin(time * 0.0025 + phase);
+    m.addBox(0, -0.212, 0.16, 0.065, 0.012, 0.08, [255, 138, 61], { spec: 0.3 });
+    m.addBox(-0.16, -0.212, 0.21, 0.055, 0.012, 0.045, [253, 224, 71], { emissive: winGlow });
+    m.addBox(0.16, -0.212, 0.21, 0.055, 0.012, 0.045, [253, 224, 71], { emissive: winGlow });
+  }
+
+  function buildEcoDomeModel(m, time, phase, pxScale) {
+    // Hexagonal silver & emerald terrace
+    m.addPrism(0, 0, 0.0, 0.075, 0.66, 0.62, 6, 0, [203, 213, 225], { spec: 0.28 });
+    m.addPrism(0, 0, 0.075, 0.105, 0.58, 0.56, 6, 0, [34, 197, 94], { spec: 0.14 });
+
+    // Luminous sky-cyan geodesic biodome cupola
+    m.addDome(0, 0, 0.105, 0.34, 0.34, 0.34, 3, 8, [95, 216, 248], {
+      spec: 0.72,
+      emissive: 0.28,
+      stroke: "rgba(255, 255, 255, 0.55)",
+      lineWidth: Math.max(0.7, pxScale * 0.016)
+    });
+    // Top golden beacon spire
+    m.addPrism(0, 0, 0.445, 0.54, 0.04, 0.012, 6, 0, [251, 191, 36], { emissive: 0.68 });
+
+    // 3 external angled cobalt solar collector wings cleanly outside the dome radius
+    for (let i = 0; i < 3; i++) {
+      const a = (Math.PI * 2 * i) / 3 + 0.52;
+      const ca = Math.cos(a);
+      const sa = Math.sin(a);
+      const px = -sa;
+      const py = ca;
+      const rIn = 0.38;
+      const rOut = 0.60;
+      const hw = 0.11;
+      m.addQuad(
+        [ca * rIn - px * hw, sa * rIn - py * hw, 0.24],
+        [ca * rIn + px * hw, sa * rIn + py * hw, 0.24],
+        [ca * rOut + px * hw, sa * rOut + py * hw, 0.13],
+        [ca * rOut - px * hw, sa * rOut - py * hw, 0.13],
+        [37, 99, 235],
+        { doubleSided: true, spec: 0.88, emissive: 0.16 }
+      );
+    }
+  }
+
+  function buildEcoArcologyModel(m, time, phase, pxScale) {
+    // Octagonal terrace & emerald plinth
+    m.addPrism(0, 0, 0.0, 0.08, 0.68, 0.64, 8, Math.PI / 8, [226, 232, 240], { spec: 0.30 });
+    m.addPrism(0, 0, 0.08, 0.115, 0.60, 0.58, 8, Math.PI / 8, [16, 185, 129], { spec: 0.14 });
+
+    // Cleanly stacked 3-tier tower separated by emerald sky-garden rings (zero intersection)
+    m.addPrism(0, 0, 0.115, 0.33, 0.34, 0.32, 6, 0, [255, 252, 245], { spec: 0.36 });
+    m.addPrism(0, 0, 0.33, 0.37, 0.39, 0.38, 6, 0, [34, 197, 94], { spec: 0.16 });
+    m.addPrism(0, 0, 0.37, 0.57, 0.26, 0.24, 6, 0, [255, 252, 245], { spec: 0.36 });
+    m.addPrism(0, 0, 0.57, 0.605, 0.30, 0.29, 6, 0, [34, 197, 94], { spec: 0.16 });
+
+    // Cyan biodome crown + golden finial
+    m.addDome(0, 0, 0.605, 0.22, 0.22, 0.20, 3, 8, [95, 216, 248], {
+      spec: 0.72,
+      emissive: 0.32,
+      stroke: "rgba(254, 240, 138, 0.65)",
+      lineWidth: Math.max(0.6, pxScale * 0.015)
+    });
+    m.addPrism(0, 0, 0.805, 0.90, 0.032, 0.008, 6, 0, [251, 191, 36], { emissive: 0.75 });
+
+    // 3 external vertical cobalt solar wing sails mounted outside the hull
+    const sailLW = Math.max(1.2, pxScale * 0.035);
+    for (let i = 0; i < 3; i++) {
+      const a = (Math.PI * 2 * i) / 3 + 0.52;
+      const ca = Math.cos(a);
+      const sa = Math.sin(a);
+      const px = -sa;
+      const py = ca;
+      const rSail = 0.44;
+      const hw = 0.12;
+      m.addLine([ca * 0.28, sa * 0.28, 0.24], [ca * rSail, sa * rSail, 0.24], "#fbbf24", sailLW);
+      m.addLine([ca * 0.23, sa * 0.23, 0.50], [ca * rSail, sa * rSail, 0.50], "#fbbf24", sailLW);
+      m.addQuad(
+        [ca * rSail - px * hw, sa * rSail - py * hw, 0.14],
+        [ca * rSail + px * hw, sa * rSail + py * hw, 0.14],
+        [ca * rSail + px * hw, sa * rSail + py * hw, 0.56],
+        [ca * rSail - px * hw, sa * rSail - py * hw, 0.56],
+        [37, 99, 235],
+        { doubleSided: true, spec: 0.90, emissive: 0.20 }
+      );
+    }
+
+    // Warm glowing front window accents
+    const winGlow = 0.68 + 0.14 * Math.sin(time * 0.002 + phase);
+    m.addBox(0, -0.312, 0.22, 0.08, 0.012, 0.075, [253, 224, 71], { emissive: winGlow });
+    m.addBox(0, -0.235, 0.47, 0.07, 0.012, 0.06, [253, 224, 71], { emissive: winGlow });
+  }
+
+  function buildGeoTerraformerModel(m, time, phase, pxScale, opts) {
+    const isUsed = Boolean(opts && opts.used);
+    if (isUsed) {
+      // Spent / burnt-out Geo-Terraformer husk
+      m.addPrism(0, 0, 0.0, 0.08, 0.64, 0.58, 6, 0, [51, 65, 85], { spec: 0.12 });
+      m.addPrism(0, 0, 0.08, 0.12, 0.46, 0.42, 6, 0, [71, 85, 105], { spec: 0.14 });
+
+      for (let i = 0; i < 3; i++) {
+        const a = (Math.PI * 2 * i) / 3 + 0.35;
+        const bx = Math.cos(a) * 0.36;
+        const by = Math.sin(a) * 0.36;
+        const tx = Math.cos(a) * 0.22;
+        const ty = Math.sin(a) * 0.22;
+        m.addLine([bx, by, 0.10], [tx, ty, 0.46], "#64748b", Math.max(2.0, pxScale * 0.075));
+        m.addPrism(tx, ty, 0.46, 0.51, 0.045, 0.03, 6, 0, [120, 113, 108], { spec: 0.15 });
+      }
+
+      // Dead matte-charcoal core with slow dim amber-red warning blink
+      const warnBlink = 0.15 + 0.35 * Math.max(0, Math.sin(time * 0.003 + phase));
+      m.addPrism(0, 0, 0.26, 0.44, 0.12, 0.12, 6, 0, [30, 41, 59], { spec: 0.08 });
+      m.addBox(0, -0.11, 0.35, 0.035, 0.015, 0.035, [239, 68, 68], { emissive: warnBlink });
+      return;
+    }
+
+    // Active Geo-Terraformer: teal-and-white seismic rig framing a glowing emerald-cyan core
+    m.addPrism(0, 0, 0.0, 0.08, 0.64, 0.58, 6, 0, [71, 85, 105], { spec: 0.28 });
+    m.addPrism(0, 0, 0.08, 0.12, 0.48, 0.44, 6, 0, [20, 184, 166], { emissive: 0.25, spec: 0.4 });
+
+    for (let i = 0; i < 3; i++) {
+      const a = (Math.PI * 2 * i) / 3 + 0.35;
+      const bx = Math.cos(a) * 0.38;
+      const by = Math.sin(a) * 0.38;
+      const tx = Math.cos(a) * 0.20;
+      const ty = Math.sin(a) * 0.20;
+      m.addLine([bx, by, 0.10], [tx, ty, 0.54], "#f8fafc", Math.max(2.2, pxScale * 0.08));
+      m.addPrism(tx, ty, 0.54, 0.60, 0.048, 0.025, 6, 0, [45, 212, 191], { emissive: 0.65 });
+    }
+
+    // Levitating pulsing emerald-cyan terraforming energy core
+    const spin = time * 0.0024 + phase;
+    const pulse = 0.65 + 0.30 * Math.sin(time * 0.005 + phase);
+    const coreZ = 0.38 + 0.025 * Math.sin(time * 0.004 + phase);
+    m.addPrism(0, 0, coreZ - 0.11, coreZ, 0.02, 0.13, 6, spin, [45, 212, 191], { emissive: pulse, spec: 0.8 });
+    m.addPrism(0, 0, coreZ, coreZ + 0.11, 0.13, 0.02, 6, spin, [167, 243, 208], { emissive: pulse, spec: 0.8 });
+    // Downward energy beam into ground emitter ring
+    m.addPrism(0, 0, 0.12, 0.24, 0.08, 0.04, 6, 0, [95, 216, 248], { emissive: 0.72 });
+  }
+
   function buildSolarTowerModel(m, time, phase, pxScale) {
     // Grand hexagonal foundation + golden trim ring
     m.addPrism(0, 0, 0.0, 0.09, 0.70, 0.66, 6, 0, [71, 85, 105], { spec: 0.28 });
@@ -4533,6 +5192,22 @@
       buildBigHouseModel(collector, time, phase, pxScale);
     } else if (buildingId === "villa") {
       buildVillaModel(collector, time, phase, pxScale);
+    } else if (buildingId === "solar_cabin") {
+      buildSolarCabinModel(collector, time, phase, pxScale);
+    } else if (buildingId === "eco_dome") {
+      buildEcoDomeModel(collector, time, phase, pxScale);
+    } else if (buildingId === "eco_arcology") {
+      buildEcoArcologyModel(collector, time, phase, pxScale);
+    } else if (buildingId === "starlight_monument") {
+      buildStarlightMonumentModel(collector, time, phase, pxScale);
+    } else if (buildingId === "helio_mirror") {
+      buildHelioMirrorModel(collector, time, phase, pxScale);
+    } else if (buildingId === "botanical_garden") {
+      buildBotanicalGardenModel(collector, time, phase, pxScale);
+    } else if (buildingId === "builders_plaza") {
+      buildBuildersPlazaModel(collector, time, phase, pxScale);
+    } else if (buildingId === "geo_terraformer") {
+      buildGeoTerraformerModel(collector, time, phase, pxScale, opts);
     } else if (buildingId === "windmill") {
       buildWindmillModel(collector, time, phase, pxScale);
     } else if (buildingId === "wind_turbine") {
@@ -4949,6 +5624,14 @@
       house: 0.36,
       big_house: 0.54,
       villa: 0.66,
+      solar_cabin: 0.48,
+      eco_dome: 0.50,
+      eco_arcology: 0.85,
+      starlight_monument: 0.82,
+      helio_mirror: 0.64,
+      botanical_garden: 0.44,
+      builders_plaza: 0.64,
+      geo_terraformer: 0.58,
       windmill: 0.75,
       wind_turbine: 0.86,
       wind_farm: 0.88,
@@ -5260,6 +5943,54 @@
     }
   }
 
+  function renderTerraformEffect(ctx, effect, frame, p, depthScale) {
+    const seedBase = effect.seed || 11;
+    // Double expanding teal & gold hexagonal shockwave rings
+    for (let rIdx = 0; rIdx < 2; rIdx++) {
+      const delay = rIdx * 0.16;
+      const rt = clamp01((p - delay) / (1 - delay));
+      if (rt <= 0 || rt >= 1) continue;
+      const rad = 0.24 + 0.86 * easeOutCubic(rt);
+      ctx.save();
+      ctx.globalAlpha *= (1 - rt) * 0.92;
+      ctx.beginPath();
+      for (let k = 0; k < 6; k++) {
+        const a = (Math.PI / 3) * k + 0.22;
+        const pt = projectLocal(frame, Math.cos(a) * rad, Math.sin(a) * rad, 0.04 + rt * 0.08);
+        if (k === 0) ctx.moveTo(pt.x, pt.y);
+        else ctx.lineTo(pt.x, pt.y);
+      }
+      ctx.closePath();
+      ctx.lineWidth = Math.max(2, depthScale * 0.09 * (1 - rt * 0.45));
+      ctx.strokeStyle = rIdx === 0 ? "#2dd4bf" : "#fde047";
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // 7 rising emerald & gold sparkles
+    if (p < 0.92) {
+      const spT = clamp01(p / 0.92);
+      for (let i = 0; i < 7; i++) {
+        const r1 = pseudoRand(seedBase + 40 + i * 5.7);
+        const angle = (Math.PI * 2 * i) / 7 + r1 * 0.55;
+        const dist = 0.18 + 0.55 * easeOutCubic(spT);
+        const lz = 0.10 + (0.72 + r1 * 0.28) * easeOutCubic(spT);
+        const pt = projectLocal(frame, Math.cos(angle) * dist, Math.sin(angle) * dist, lz);
+        const popScale = Math.sin(spT * Math.PI);
+        drawSparkle4(
+          ctx,
+          pt.x,
+          pt.y,
+          depthScale * (0.13 + r1 * 0.05) * popScale,
+          spT * 2.2 + i,
+          i % 2 === 0 ? "#2dd4bf" : "#fde047",
+          "#1b1147",
+          1 - spT * 0.5
+        );
+      }
+    }
+  }
+
   function renderTileEffect(ctx, effect, frame, time) {
     if (!ctx || !effect || !frame) return;
 
@@ -5275,6 +6006,8 @@
       renderDemolishEffect(ctx, effect, frame, p, depthScale);
     } else if (effect.type === "crash") {
       renderCrashEffect(ctx, effect, frame, p, depthScale);
+    } else if (effect.type === "terraform") {
+      renderTerraformEffect(ctx, effect, frame, p, depthScale);
     }
   }
 
@@ -5289,6 +6022,7 @@
     getTerrainGroup: getTerrainGroup,
     getCategory: getCategory,
     getBuildingCost: getBuildingCost,
+    getBuildingDiscountPercent: getBuildingDiscountPercent,
     getBuildingOrePerSec: getBuildingOrePerSec,
     canBuildOnBiome: canBuildOnBiome,
     canAffordBuilding: canAffordBuilding,
@@ -5302,6 +6036,7 @@
     openForTile: openForTile,
     openConfirmForBuilding: openConfirmScene,
     updateCurrentBuilding: updateCurrentBuilding,
+    refreshTileState: refreshTileState,
     close: close,
     isOpen: isOpen,
     isConfirming: function () {

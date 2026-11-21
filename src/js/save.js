@@ -29,6 +29,7 @@
     trade_toggle: true,
     cargo_change: true,
     research_purchase: true,
+    terraform: true,
     intro_complete: true,
     import_string: true,
     reset: true

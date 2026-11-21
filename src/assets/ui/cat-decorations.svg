@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" stroke-linejoin="round" stroke-linecap="round">
+  <ellipse cx="50" cy="90" rx="34" ry="5.5" fill="#1b1147" opacity="0.25"/>
+  <!-- Pedestal base -->
+  <path d="M26 84 L32 72 H68 L74 84 Z" fill="#f4efff" stroke="#1b1147" stroke-width="4.5"/>
+  <path d="M52 72 H68 L74 84 H54 Z" fill="#cfc4f2"/>
+  <path d="M26 84 L32 72 H68 L74 84 Z" fill="none" stroke="#1b1147" stroke-width="4.5"/>
+  <!-- Large 4-point / 8-point colony monument star -->
+  <polygon points="50,12 59,36 84,38 64,53 71,76 50,62 29,76 36,53 16,38 41,36" fill="#ec4899" stroke="#1b1147" stroke-width="5"/>
+  <polygon points="50,12 59,36 84,38 64,53 71,76 50,62" fill="#be185d" opacity="0.45"/>
+  <polygon points="50,24 55,40 72,42 58,52 63,66 50,57 37,66 42,52 28,42 45,40" fill="#ffe047" stroke="#1b1147" stroke-width="3.5"/>
+  <circle cx="46" cy="43" r="4" fill="#ffffff"/>
+  <!-- Sparkles -->
+  <path d="M20 18 V26 M16 22 H24" stroke="#ffe047" stroke-width="3.5"/>
+  <path d="M80 18 V26 M76 22 H84" stroke="#5fd8f8" stroke-width="3.5"/>
+</svg>

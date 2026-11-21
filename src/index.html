@@ -140,6 +140,12 @@
     <span class="tile-action-label" data-i18n="research.open_tree">Research Tree</span>
   </button>
 
+  <!-- Floating World-Anchored Tile Action Button (Geo-Terraformer) -->
+  <button id="btn-tile-terraform" class="tile-action-btn tile-action-btn--terraform is-hidden" type="button" aria-label="Transform Tile" data-i18n-aria-label="aria.terraform_tile">
+    <img class="tile-action-icon" src="./assets/ui/cat-terraforming.svg" alt="" draggable="false" />
+    <span id="tile-terraform-label" class="tile-action-label" data-i18n="terraform.action_btn">Transform Tile</span>
+  </button>
+
   <!-- Floating World-Anchored Tile Action Buttons (Rocket Cargo & Launch) -->
   <div id="tile-rocket-actions" class="tile-action-group is-hidden">
     <button id="btn-tile-rocket-cargo" class="tile-action-btn tile-action-btn--cargo" type="button" aria-label="Load Rocket Cargo" data-i18n-aria-label="aria.rocket_cargo">
@@ -384,6 +390,39 @@
           <img class="tile-action-icon" src="./assets/ui/bld-space-rocket-1.svg" alt="" draggable="false" />
           <span data-i18n="rocket.launch_btn">LAUNCH!</span>
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tile Terraform Modal -->
+  <div id="terraform-modal" class="terraform-modal is-hidden" role="dialog" aria-modal="true" aria-labelledby="terraform-modal-title" aria-label="Transform Tile Terrain" data-i18n-aria-label="aria.terraform_modal" aria-hidden="true">
+    <div class="terraform-modal-backdrop"></div>
+    <div class="terraform-modal-panel" role="document">
+      <div class="terraform-modal-header">
+        <div class="terraform-modal-title-stack">
+          <div class="terraform-modal-emblem">
+            <img class="terraform-modal-icon" src="./assets/ui/bld-geo-terraformer.svg" alt="" draggable="false" />
+          </div>
+          <div class="terraform-modal-title-meta">
+            <h3 id="terraform-modal-title" class="terraform-modal-title" data-i18n="terraform.modal_title">Transform Tile</h3>
+            <span id="terraform-current-biome-pill" class="terraform-current-biome-pill"></span>
+          </div>
+        </div>
+        <button id="btn-close-terraform" class="build-close-btn" type="button" aria-label="Close Transform Tile Modal" data-i18n-aria-label="aria.close_terraform_modal">
+          <img class="btn-icon-md" src="./assets/ui/icon-close.svg" alt="" draggable="false" />
+        </button>
+      </div>
+
+      <p class="terraform-warning-banner" data-i18n="terraform.single_use_warning">Single-use device: after transforming this tile, the Geo-Terraformer becomes unusable and must be demolished or replaced.</p>
+
+      <div class="terraform-grid-wrap">
+        <span class="terraform-grid-label" data-i18n="terraform.choose_biome_label">Select Target Terrain</span>
+        <div id="terraform-biome-grid" class="terraform-biome-grid" role="radiogroup"></div>
+      </div>
+
+      <div class="terraform-modal-footer">
+        <button id="btn-terraform-cancel" class="terraform-modal-btn terraform-modal-btn--cancel" type="button" data-i18n="terraform.btn_cancel">Cancel</button>
+        <button id="btn-terraform-confirm" class="terraform-modal-btn terraform-modal-btn--confirm" type="button" data-i18n="terraform.btn_confirm">Transform Tile</button>
       </div>
     </div>
   </div>

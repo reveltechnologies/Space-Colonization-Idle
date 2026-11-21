@@ -5,6 +5,27 @@ All notable changes to **Space Colonization: Idle** will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0-pre.2] - 2026-11-21
+
+### Added
+- **New Building Categories (`Decorations` & `Terraforming`)**:
+  - Added **Decorations** (`decorations`, `src/assets/ui/cat-decorations.svg`) and **Terraforming** (`terraforming`, `src/assets/ui/cat-terraforming.svg`) tabs to the Build Menu (`src/js/buildings.js`, `src/lang/en_us.js`), with drag-scrollable mobile category tabs (`src/css/style.css`).
+- **Cosmetic & Purposeful Planet Decorations (`src/economy/economy.js`, `src/js/buildings.js`, `src/js/planets.js`)**:
+  - **Starlight Monument** (`starlight_monument`): Affordable crystal obelisk landmark to personalize and brighten colonies.
+  - **Helio Mirror** (`helio_mirror`, max 3 per planet, unlocked via *Helio-Reflector Optics*): Focuses extra starlight to boost Energy output of all Solar buildings on that planet by **+25%** each.
+  - **Botanical Park** (`botanical_garden`, max 3 per planet, unlocked via *Civic Botanical Parks*): Speeds up Citizen population growth rate on that planet by **+50%** each when housing capacity allows.
+  - **Builders' Plaza** (`builders_plaza`, max 2 per planet, unlocked via *Modular Guild Prefabs*): Reduces construction costs for Colony, Power, and Mining buildings on that planet by **15%** each (safely capped at 50% max), with highlighted discounted prices and confirmation pills.
+- **Self-Sustaining Solar Homes (`colony`)**:
+  - Added **Solar Cabin** (`solar_cabin`, +3 Citizens, +2 Solar Energy), **Eco Biodome** (`eco_dome`, +8 Citizens, +6 Solar Energy, unlocked via *Self-Sustaining Habitats*), and **Eco Arcology** (`eco_arcology`, +20 Citizens, +15 Solar Energy, unlocked via *Arcology Microgrids*), complete with dual-stat UI chips and in-place upgrade chain (`Solar Cabin → Eco Biodome → Eco Arcology`).
+- **Single-Use Tile-Transforming Building (`Geo-Terraformer`)**:
+  - Added **Geo-Terraformer** (`geo_terraformer`, unlocked via *Planetary Terraforming*, `terrain: "any"` including Ocean & Lava), with floating **Transform Tile** action button (`#btn-tile-terraform`) and **Transform Tile** terrain picker modal (`#terraform-modal` in `src/index.html`).
+  - Firing requires 2 Energy, transforms the tile into the chosen terrain biome with animated elevation & shockwave VFX (`renderTerraformEffect`), permanently marks the Geo-Terraformer as **SPENT** (burnt-out 3D husk, zero ongoing energy draw, must be demolished or replaced), and persists both `tileBiomes` overrides and `used` state across saves (`src/js/planets.js`, `src/js/save.js`).
+- **Multi-Track Research Tree & 8 New Research Nodes (`src/js/research.js`)**:
+  - Extended `renderTree()` to support multi-track progression rows (`track: 2`) inside existing categories without disrupting existing chains.
+  - Added *Helio-Reflector Optics*, *Self-Sustaining Habitats*, and *Arcology Microgrids* (Power Track 2); *Civic Botanical Parks*, *Modular Guild Prefabs*, and *Civic Prosperity* (+30% Citizen Growth, Colony Track 2); *Planetary Terraforming* and *Crust Stabilization* (+20% Bricks & Energy, Planetary Track 2).
+- **Watertight 3D Models & Cel-Shaded SVG Icons**:
+  - Added 11 custom cel-shaded SVG icons in `src/assets/ui/` and 8 watertight procedural 3D building models (including active & spent states for `buildGeoTerraformerModel`) in `src/js/buildings.js`.
+
 ## [0.2.0-pre.1] - 2026-11-21
 
 ### Fixed

@@ -149,18 +149,70 @@
         citizenSlots: 15
       },
 
+      // Self-Sustaining Solar Homes
+      solar_cabin: {
+        cost: { credits: 130, bricks: 20 },
+        citizenSlots: 3,
+        energySlots: 2,
+        isSolar: true
+      },
+      eco_dome: {
+        cost: { credits: 310, bricks: 65 },
+        citizenSlots: 8,
+        energySlots: 6,
+        isSolar: true
+      },
+      eco_arcology: {
+        cost: { credits: 620, bricks: 140 },
+        citizenSlots: 20,
+        energySlots: 15,
+        isSolar: true
+      },
+
       // Solar Power
       solar_panel: {
         cost: { credits: 50 },
-        energySlots: 3
+        energySlots: 3,
+        isSolar: true
       },
       solar_array: {
         cost: { credits: 150, bricks: 25 },
-        energySlots: 8
+        energySlots: 8,
+        isSolar: true
       },
       solar_tower: {
         cost: { credits: 360, bricks: 65 },
-        energySlots: 20
+        energySlots: 20,
+        isSolar: true
+      },
+
+      // Decorations (Cosmetic & Purposeful Colony Utility)
+      starlight_monument: {
+        cost: { credits: 45, bricks: 5 },
+        isCosmetic: true
+      },
+      helio_mirror: {
+        cost: { credits: 220, bricks: 35 },
+        maxPerPlanet: 3,
+        solarEnergyBonus: 0.25
+      },
+      botanical_garden: {
+        cost: { credits: 160, bricks: 25 },
+        maxPerPlanet: 3,
+        citizenGrowthBonus: 0.50
+      },
+      builders_plaza: {
+        cost: { credits: 280, bricks: 55 },
+        maxPerPlanet: 2,
+        costDiscount: 0.15,
+        discountCategories: ["colony", "power", "mining"]
+      },
+
+      // Terraforming
+      geo_terraformer: {
+        cost: { credits: 180, bricks: 40 },
+        energyRequired: 2,
+        singleUseTerraformer: true
       },
 
       // Wind Power
@@ -225,7 +277,17 @@
       hull_metallurgy: { cost: 40, researchBonus: 0.15 },
       cryo_propellant: { cost: 80, energyBonus: 0.20 },
       orbital_rocketry: { cost: 140 },
-      heavy_starship: { cost: 240 }
+      heavy_starship: { cost: 240 },
+
+      // Track 2: Solar Optics, Self-Sustaining Homes, Civic Decorations & Terraforming
+      helio_optics: { cost: 30 },
+      solar_habitats: { cost: 55 },
+      arcology_grids: { cost: 120 },
+      civic_gardens: { cost: 25 },
+      modular_prefabs: { cost: 55 },
+      civic_prosperity: { cost: 95, citizenGrowthBonus: 0.30 },
+      planetary_terraforming: { cost: 45 },
+      crust_stabilization: { cost: 95, bricksBonus: 0.20, energyBonus: 0.20 }
     }
   };
 

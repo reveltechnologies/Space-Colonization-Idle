@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" stroke-linejoin="round" stroke-linecap="round">
+  <ellipse cx="50" cy="91" rx="44" ry="5.5" fill="#1b1147" opacity="0.28"/>
+  <!-- Base terrace -->
+  <ellipse cx="50" cy="80" rx="40" ry="10" fill="#22c55e" stroke="#1b1147" stroke-width="4.5"/>
+  <!-- Flanking solar wings -->
+  <path d="M6 68 L26 60 L29 74 L9 78 Z" fill="#2563eb" stroke="#1b1147" stroke-width="4"/>
+  <path d="M94 68 L74 60 L71 74 L91 78 Z" fill="#2563eb" stroke="#1b1147" stroke-width="4"/>
+  <!-- Luminous cyan geodesic biodome -->
+  <path d="M22 76 A28 32 0 0 1 78 76 Z" fill="#5fd8f8" stroke="#1b1147" stroke-width="4.5"/>
+  <path d="M31 62 A20 22 0 0 1 48 49" stroke="#ffffff" stroke-width="4" fill="none"/>
+  <!-- Warm lit doorway -->
+  <path d="M43 76 V64 A7 7 0 0 1 57 64 V76 Z" fill="#ffe047" stroke="#1b1147" stroke-width="3.5"/>
+  <!-- Top golden beacon -->
+  <circle cx="50" cy="40" r="5" fill="#ffe047" stroke="#1b1147" stroke-width="3.5"/>
+</svg>

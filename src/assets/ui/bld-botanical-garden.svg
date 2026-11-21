@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" stroke-linejoin="round" stroke-linecap="round">
+  <ellipse cx="50" cy="90" rx="44" ry="6" fill="#1b1147" opacity="0.28"/>
+  <!-- Emerald park terrace -->
+  <ellipse cx="50" cy="78" rx="41" ry="12" fill="#22c55e" stroke="#1b1147" stroke-width="4.5"/>
+  <ellipse cx="50" cy="75" rx="34" ry="8.5" fill="#84e148"/>
+  <!-- Left & right trees (emerald + cherry blossom) -->
+  <rect x="20" y="54" width="6" height="18" rx="2" fill="#92400e" stroke="#1b1147" stroke-width="3"/>
+  <circle cx="23" cy="44" r="14" fill="#16a34a" stroke="#1b1147" stroke-width="4"/>
+  <circle cx="19" cy="40" r="5" fill="#86efac"/>
+  <rect x="74" y="54" width="6" height="18" rx="2" fill="#92400e" stroke="#1b1147" stroke-width="3"/>
+  <circle cx="77" cy="44" r="14" fill="#f472b6" stroke="#1b1147" stroke-width="4"/>
+  <circle cx="73" cy="40" r="5" fill="#fbcfe8"/>
+  <!-- Central fountain -->
+  <ellipse cx="50" cy="73" rx="16" ry="5.5" fill="#f8fafc" stroke="#1b1147" stroke-width="3.5"/>
+  <ellipse cx="50" cy="72" rx="12" ry="3.5" fill="#38bdf8"/>
+  <path d="M46 72 L47 54 H53 L54 72 Z" fill="#e2e8f0" stroke="#1b1147" stroke-width="3"/>
+  <path d="M50 54 Q40 40 36 52 M50 54 Q60 40 64 52 M50 54 V36" stroke="#5fd8f8" stroke-width="3.5" fill="none"/>
+  <circle cx="50" cy="34" r="4" fill="#c9f6ff" stroke="#1b1147" stroke-width="2.5"/>
+</svg>

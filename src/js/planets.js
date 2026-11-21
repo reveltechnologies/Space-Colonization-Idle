@@ -36,6 +36,15 @@
   const bricksRateEl = document.getElementById("rate-bricks");
   const bricksStatBar = document.getElementById("planet-stat-bricks");
   const tileResearchBtn = document.getElementById("btn-tile-research-tree");
+  const tileTerraformBtn = document.getElementById("btn-tile-terraform");
+  const tileTerraformLabelEl = document.getElementById("tile-terraform-label");
+  const terraformModalEl = document.getElementById("terraform-modal");
+  const terraformBackdropEl = terraformModalEl ? terraformModalEl.querySelector(".terraform-modal-backdrop") : null;
+  const terraformCurrentBiomePillEl = document.getElementById("terraform-current-biome-pill");
+  const closeTerraformBtn = document.getElementById("btn-close-terraform");
+  const terraformBiomeGridEl = document.getElementById("terraform-biome-grid");
+  const terraformCancelBtn = document.getElementById("btn-terraform-cancel");
+  const terraformConfirmBtn = document.getElementById("btn-terraform-confirm");
   const tileRocketActionsEl = document.getElementById("tile-rocket-actions");
   const tileRocketCargoBtn = document.getElementById("btn-tile-rocket-cargo");
   const tileRocketCargoLabelEl = document.getElementById("tile-rocket-cargo-label");
@@ -450,6 +459,58 @@
     return tiles;
   }
 
+  const BIOME_VISUAL_PRESETS = {
+    mountains: { rgb: [192, 206, 224], baseElev: 1.038, spec: 0.20, emissive: 0 },
+    glacier:   { rgb: [216, 236, 250], baseElev: 1.028, spec: 0.34, emissive: 0 },
+    highlands: { rgb: [140, 154, 176], baseElev: 1.018, spec: 0.08, emissive: 0 },
+    crater:    { rgb: [71, 85, 105],   baseElev: 1.0,   spec: 0.05, emissive: 0 },
+    forest:    { rgb: [16, 152, 104],  baseElev: 1.028, spec: 0.09, emissive: 0 },
+    plains:    { rgb: [64, 212, 134],  baseElev: 1.020, spec: 0.12, emissive: 0 },
+    ocean:     { rgb: [14, 165, 233],  baseElev: 1.0,   spec: 0.45, emissive: 0 },
+    lava:      { rgb: [245, 158, 11],  baseElev: 1.0,   spec: 0.18, emissive: 0.65 },
+    volcano:   { rgb: [194, 65, 12],   baseElev: 1.040, spec: 0.10, emissive: 0.08 },
+    canyon:    { rgb: [154, 52, 18],   baseElev: 1.028, spec: 0.10, emissive: 0.04 },
+    ashlands:  { rgb: [59, 24, 18],    baseElev: 1.016, spec: 0.15, emissive: 0.02 }
+  };
+
+  const TERRAFORM_TARGET_BIOMES = [
+    "plains",
+    "forest",
+    "highlands",
+    "mountains",
+    "crater",
+    "glacier",
+    "ashlands",
+    "volcano"
+  ];
+
+  function applyTileBiomeStyle(tile, biomeId, snapElev) {
+    const preset = BIOME_VISUAL_PRESETS[biomeId];
+    if (!tile || !preset) return false;
+    tile.biome = biomeId;
+    tile.rgb = preset.rgb.slice();
+    tile.baseElev = preset.baseElev;
+    tile.spec = preset.spec;
+    tile.emissive = preset.emissive;
+    if (snapElev) {
+      tile.currentElev = tile.baseElev;
+    }
+    return true;
+  }
+
+  function resetPlanetTileBiomes(planetIdx) {
+    const p = planets[planetIdx];
+    if (!p || !Array.isArray(p.tiles)) return;
+    if (p.typeId === "rocky") {
+      styleRockyTiles(p.tiles);
+    } else if (p.typeId === "oceanic") {
+      styleOceanicTiles(p.tiles);
+    } else if (p.typeId === "volcanic") {
+      styleVolcanicTiles(p.tiles);
+    }
+    tileBiomesByPlanet[planetIdx] = Object.create(null);
+  }
+
   function buildTileMap(tiles) {
     const map = Object.create(null);
     for (let i = 0; i < tiles.length; i++) {
@@ -600,6 +661,7 @@
   // Interactive hex, buildings & QoL state
   const selectedHexByPlanet = [null, null, null];
   const buildingsByPlanet = [Object.create(null), Object.create(null), Object.create(null)];
+  const tileBiomesByPlanet = [Object.create(null), Object.create(null), Object.create(null)];
   const tileEffectsByPlanet = [Object.create(null), Object.create(null), Object.create(null)];
   const bricksByPlanet = Array.isArray(startingBricksCfg)
     ? [Number(startingBricksCfg[0]) || 0, Number(startingBricksCfg[1]) || 0, Number(startingBricksCfg[2]) || 0]
@@ -636,6 +698,21 @@
     y: 0,
     isBelow: false,
     planetId: -1
+  };
+  const terraformButtonAnchor = {
+    visible: false,
+    x: 0,
+    y: 0,
+    isBelow: false,
+    planetId: -1,
+    tileId: null,
+    used: false
+  };
+  const terraformModalState = {
+    open: false,
+    planetId: -1,
+    tileId: null,
+    selectedBiome: null
   };
   const rocketActionAnchor = {
     visible: false,
@@ -1024,7 +1101,7 @@
       for (let i = 0; i < keys.length; i++) {
         const tileId = keys[i];
         const bInfo = buildings[tileId];
-        if (!bInfo || !bInfo.id) continue;
+        if (!bInfo || !bInfo.id || bInfo.used) continue;
         const bDef = window.GameBuildings.getBuilding(bInfo.id);
         if (bDef && bDef[reqField] > 0) {
           consumers.push({
@@ -1106,13 +1183,90 @@
     );
   }
 
+  function getPlanetSolarBonus(planetIdx) {
+    const buildings = buildingsByPlanet[planetIdx];
+    if (!buildings || !window.GameBuildings) return 0;
+    let bonus = 0;
+    const keys = Object.keys(buildings);
+    for (let i = 0; i < keys.length; i++) {
+      const bInfo = buildings[keys[i]];
+      if (!bInfo || !bInfo.id || bInfo.used) continue;
+      const bDef = window.GameBuildings.getBuilding(bInfo.id);
+      if (bDef && bDef.solarEnergyBonus > 0) {
+        bonus += bDef.solarEnergyBonus;
+      }
+    }
+    return bonus;
+  }
+
+  function getPlanetCitizenGrowthBonus(planetIdx) {
+    const buildings = buildingsByPlanet[planetIdx];
+    if (!buildings || !window.GameBuildings) return 0;
+    let bonus = 0;
+    const keys = Object.keys(buildings);
+    for (let i = 0; i < keys.length; i++) {
+      const bInfo = buildings[keys[i]];
+      if (!bInfo || !bInfo.id || bInfo.used) continue;
+      const bDef = window.GameBuildings.getBuilding(bInfo.id);
+      if (bDef && bDef.citizenGrowthBonus > 0) {
+        bonus += bDef.citizenGrowthBonus;
+      }
+    }
+    return bonus;
+  }
+
+  function getPlanetCitizenGrowthRate(planetIdx) {
+    const planetBonus = getPlanetCitizenGrowthBonus(planetIdx);
+    const researchMult =
+      window.GameResearch && typeof window.GameResearch.getCitizenGrowthMultiplier === "function"
+        ? window.GameResearch.getCitizenGrowthMultiplier()
+        : 1;
+    return CITIZEN_REGEN_PER_SEC * (1 + planetBonus) * researchMult;
+  }
+
+  function getPlanetCostDiscount(planetIdx, buildingDef) {
+    if (!buildingDef || !buildingDef.category) return 0;
+    const buildings = buildingsByPlanet[planetIdx];
+    if (!buildings || !window.GameBuildings) return 0;
+    let discount = 0;
+    const keys = Object.keys(buildings);
+    for (let i = 0; i < keys.length; i++) {
+      const bInfo = buildings[keys[i]];
+      if (!bInfo || !bInfo.id || bInfo.used) continue;
+      const bDef = window.GameBuildings.getBuilding(bInfo.id);
+      if (!bDef || !(bDef.costDiscount > 0)) continue;
+      if (Array.isArray(bDef.discountCategories) && bDef.discountCategories.indexOf(buildingDef.category) !== -1) {
+        discount += bDef.costDiscount;
+      }
+    }
+    return clamp(discount, 0, 0.50);
+  }
+
   function calculatePlanetEnergyCapacity(planetIdx) {
-    const base = calculatePlanetStatCapacity(planetIdx, "energySlots");
+    const buildings = buildingsByPlanet[planetIdx];
+    let nonSolarBase = 0;
+    let solarBase = 0;
+    if (buildings && window.GameBuildings) {
+      const keys = Object.keys(buildings);
+      for (let i = 0; i < keys.length; i++) {
+        const bInfo = buildings[keys[i]];
+        if (!bInfo || !bInfo.id || bInfo.used) continue;
+        const bDef = window.GameBuildings.getBuilding(bInfo.id);
+        if (bDef && bDef.energySlots > 0) {
+          if (bDef.isSolar) {
+            solarBase += bDef.energySlots;
+          } else {
+            nonSolarBase += bDef.energySlots;
+          }
+        }
+      }
+    }
+    const solarBonus = getPlanetSolarBonus(planetIdx);
     const mult =
       window.GameResearch && typeof window.GameResearch.getEnergyMultiplier === "function"
         ? window.GameResearch.getEnergyMultiplier()
         : 1;
-    return Math.round(base * mult);
+    return Math.round((nonSolarBase + solarBase * (1 + solarBonus)) * mult);
   }
 
   function getPlanetPowerStatus(planetIdx) {
@@ -1370,6 +1524,10 @@
             used: formatPlanetStat(cit.usedCitizens)
           });
         }
+        const growthMult = getPlanetCitizenGrowthRate(activeDotIndex) / Math.max(0.0001, CITIZEN_REGEN_PER_SEC);
+        if (growthMult > 1.001) {
+          statText += t("resource_tooltips.growth_bonus_suffix", { pct: Math.round((growthMult - 1) * 100) });
+        }
       } else if (key === "energy") {
         const power = getPlanetPowerStatus(activeDotIndex);
         statText = t("resource_tooltips.energy_avail_label", {
@@ -1377,6 +1535,10 @@
           max: formatPlanetStat(power.maxEnergy),
           used: formatPlanetStat(power.usedEnergy)
         });
+        const solarPct = Math.round(getPlanetSolarBonus(activeDotIndex) * 100);
+        if (solarPct > 0) {
+          statText += t("resource_tooltips.solar_bonus_suffix", { pct: solarPct });
+        }
       } else if (key === "bricks") {
         const amt = Math.floor(bricksByPlanet[activeDotIndex] || 0);
         const rateText = formatPlanetBrickRate(calculatePlanetBrickRate(activeDotIndex));
@@ -1495,10 +1657,14 @@
     }
     selectionPulse = null;
     researchButtonAnchor.visible = false;
+    terraformButtonAnchor.visible = false;
     rocketActionAnchor.visible = false;
     tradeActionAnchor.visible = false;
     if (tileResearchBtn) {
       tileResearchBtn.classList.add("is-hidden");
+    }
+    if (tileTerraformBtn) {
+      tileTerraformBtn.classList.add("is-hidden");
     }
     if (tileRocketActionsEl) {
       tileRocketActionsEl.classList.add("is-hidden");
@@ -1508,6 +1674,9 @@
     }
     if (cargoModalState.open) {
       closeRocketCargoModal();
+    }
+    if (terraformModalState.open) {
+      closeTerraformModal();
     }
     if (window.GameBuildings) {
       window.GameBuildings.close(false);
@@ -2111,10 +2280,10 @@
               ? window.GameBuildings.getBuilding(entry.placed.id)
               : null;
           const isEnergyBlocked = Boolean(
-            placedDef && placedDef.energyRequired > 0 && planetPower.energyBlockedTiles[tile.id]
+            placedDef && !entry.placed.used && placedDef.energyRequired > 0 && planetPower.energyBlockedTiles[tile.id]
           );
           const isCitizenBlocked = Boolean(
-            placedDef && placedDef.citizensRequired > 0 && planetCitizens.citizenBlockedTiles[tile.id]
+            placedDef && !entry.placed.used && placedDef.citizensRequired > 0 && planetCitizens.citizenBlockedTiles[tile.id]
           );
           const isBricksBlocked = Boolean(
             placedDef &&
@@ -2136,7 +2305,9 @@
                       : 0,
                   flightProgress: activeFp !== null ? activeFp : undefined
                 }
-              : undefined;
+              : placedDef && placedDef.singleUseTerraformer
+                ? { used: Boolean(entry.placed.used) }
+                : undefined;
 
           if (eff && eff.type === "build") {
             const bp = clamp((time - eff.startTime) / eff.duration, 0, 1);
@@ -2196,11 +2367,12 @@
           (!eff || eff.type !== "demolish");
         if (needsTileActionBounds) {
           const isResearchCenter = entry.placed.id === "research_center";
+          const placedBDef = window.GameBuildings ? window.GameBuildings.getBuilding(entry.placed.id) : null;
+          const isTerraformer = Boolean(placedBDef && placedBDef.singleUseTerraformer);
           const isLaunchRocket =
             !entry.placed.isLanded &&
             (entry.placed.id === "space_rocket_1" || entry.placed.id === "space_rocket_2") &&
             planet.id + 1 < PLANET_COUNT;
-          const placedBDef = window.GameBuildings ? window.GameBuildings.getBuilding(entry.placed.id) : null;
           const isTradeBuilding = Boolean(placedBDef && placedBDef.tradeVariant);
           const nextUpgradeDef =
             !entry.placed.isLanded &&
@@ -2210,7 +2382,7 @@
               : null;
           const hasTradeOrUpgrade = isTradeBuilding || Boolean(nextUpgradeDef);
 
-          if (isResearchCenter || isLaunchRocket || hasTradeOrUpgrade) {
+          if (isResearchCenter || isTerraformer || isLaunchRocket || hasTradeOrUpgrade) {
             const bBounds = computeSelectedBuildingScreenBounds(entry, buildingFrame, cx, cy, focalLength);
             if (isResearchCenter) {
               const topY = bBounds.minY - 14;
@@ -2220,6 +2392,19 @@
               researchButtonAnchor.isBelow = flipBelow;
               researchButtonAnchor.x = clamp(bBounds.cx, 84, Math.max(84, width - 84));
               researchButtonAnchor.y = flipBelow
+                ? Math.min(height - 56, bBounds.maxY + 14)
+                : topY;
+            }
+            if (isTerraformer) {
+              const topY = bBounds.minY - 14;
+              const flipBelow = topY < 82;
+              terraformButtonAnchor.visible = true;
+              terraformButtonAnchor.planetId = planet.id;
+              terraformButtonAnchor.tileId = tile.id;
+              terraformButtonAnchor.used = Boolean(entry.placed.used);
+              terraformButtonAnchor.isBelow = flipBelow;
+              terraformButtonAnchor.x = clamp(bBounds.cx, 92, Math.max(92, width - 92));
+              terraformButtonAnchor.y = flipBelow
                 ? Math.min(height - 56, bBounds.maxY + 14)
                 : topY;
             }
@@ -3287,7 +3472,7 @@
     if (!followRocketBtn) return;
     const researchOpen =
       window.GameResearch && typeof window.GameResearch.isOpen === "function" && window.GameResearch.isOpen();
-    if (activeFlights.length === 0 || researchOpen || cargoModalState.open) {
+    if (activeFlights.length === 0 || researchOpen || cargoModalState.open || terraformModalState.open) {
       followRocketBtn.classList.add("is-hidden");
       followRocketBtn.classList.remove("is-following");
       return;
@@ -3660,7 +3845,8 @@
     if (!tileRocketActionsEl) return;
     const modalBlocking =
       (window.GameResearch && typeof window.GameResearch.isOpen === "function" && window.GameResearch.isOpen()) ||
-      cargoModalState.open;
+      cargoModalState.open ||
+      terraformModalState.open;
     if (!rocketActionAnchor.visible || modalBlocking) {
       tileRocketActionsEl.classList.add("is-hidden");
       return;
@@ -3858,11 +4044,225 @@
     }
   }
 
+  function renderTerraformBiomeGrid() {
+    if (!terraformBiomeGridEl || !window.GameBuildings) return;
+    terraformBiomeGridEl.innerHTML = "";
+
+    const pId = terraformModalState.planetId;
+    const tId = terraformModalState.tileId;
+    const planet = planets[pId];
+    const tile = planet && planet.tileById ? planet.tileById[tId] : null;
+    const currentBiomeId = tile ? tile.biome : null;
+
+    for (let i = 0; i < TERRAFORM_TARGET_BIOMES.length; i++) {
+      const bId = TERRAFORM_TARGET_BIOMES[i];
+      const biome = window.GameBuildings.getBiome(bId);
+      const isCurrent = bId === currentBiomeId;
+      const isSelected = terraformModalState.selectedBiome === bId && !isCurrent;
+
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className =
+        "terraform-biome-card" +
+        (isCurrent ? " is-current" : "") +
+        (isSelected ? " is-selected" : "");
+      btn.setAttribute("role", "radio");
+      btn.setAttribute("aria-checked", isSelected ? "true" : "false");
+      btn.disabled = isCurrent;
+
+      const icon = document.createElement("img");
+      icon.className = "terraform-biome-icon";
+      icon.src = biome.iconSrc;
+      icon.alt = "";
+      icon.draggable = false;
+
+      const name = document.createElement("span");
+      name.className = "terraform-biome-name";
+      name.textContent = biome.name;
+
+      btn.appendChild(icon);
+      btn.appendChild(name);
+
+      if (isCurrent) {
+        const tag = document.createElement("span");
+        tag.className = "terraform-biome-tag";
+        tag.textContent = t("terraform.current_tag");
+        btn.appendChild(tag);
+      } else {
+        btn.addEventListener("click", function () {
+          terraformModalState.selectedBiome = bId;
+          renderTerraformBiomeGrid();
+          if (terraformConfirmBtn) {
+            terraformConfirmBtn.classList.remove("is-disabled");
+          }
+        });
+      }
+
+      terraformBiomeGridEl.appendChild(btn);
+    }
+
+    if (terraformConfirmBtn) {
+      terraformConfirmBtn.classList.toggle("is-disabled", !terraformModalState.selectedBiome || terraformModalState.selectedBiome === currentBiomeId);
+    }
+  }
+
+  function openTerraformModal(planetId, tileId) {
+    const planet = planets[planetId];
+    const tile = planet && planet.tileById ? planet.tileById[tileId] : null;
+    const placed = buildingsByPlanet[planetId] && buildingsByPlanet[planetId][tileId];
+    const bDef = placed && window.GameBuildings ? window.GameBuildings.getBuilding(placed.id) : null;
+    if (!planet || !tile || !placed || !bDef || !bDef.singleUseTerraformer || placed.used) return;
+
+    terraformModalState.open = true;
+    terraformModalState.planetId = planetId;
+    terraformModalState.tileId = tileId;
+    terraformModalState.selectedBiome = null;
+    for (let i = 0; i < TERRAFORM_TARGET_BIOMES.length; i++) {
+      if (TERRAFORM_TARGET_BIOMES[i] !== tile.biome) {
+        terraformModalState.selectedBiome = TERRAFORM_TARGET_BIOMES[i];
+        break;
+      }
+    }
+
+    if (terraformCurrentBiomePillEl && window.GameBuildings) {
+      const curBiome = window.GameBuildings.getBiome(tile.biome);
+      terraformCurrentBiomePillEl.innerHTML = "";
+      const img = document.createElement("img");
+      img.className = "terraform-current-biome-icon";
+      img.src = curBiome.iconSrc;
+      img.alt = "";
+      img.draggable = false;
+      const lbl = document.createElement("span");
+      lbl.textContent = t("terraform.current_biome", { biome: curBiome.name });
+      terraformCurrentBiomePillEl.appendChild(img);
+      terraformCurrentBiomePillEl.appendChild(lbl);
+    }
+
+    renderTerraformBiomeGrid();
+
+    if (terraformModalEl) {
+      terraformModalEl.classList.remove("is-hidden");
+      terraformModalEl.classList.add("is-open");
+      terraformModalEl.setAttribute("aria-hidden", "false");
+    }
+    document.body.classList.add("terraform-modal-open");
+  }
+
+  function closeTerraformModal() {
+    if (!terraformModalState.open && (!terraformModalEl || !terraformModalEl.classList.contains("is-open"))) {
+      return;
+    }
+    terraformModalState.open = false;
+    terraformModalState.planetId = -1;
+    terraformModalState.tileId = null;
+    terraformModalState.selectedBiome = null;
+    if (terraformModalEl) {
+      terraformModalEl.classList.remove("is-open");
+      terraformModalEl.classList.add("is-hidden");
+      terraformModalEl.setAttribute("aria-hidden", "true");
+    }
+    document.body.classList.remove("terraform-modal-open");
+  }
+
+  function executeTerraform(planetId, tileId, targetBiomeId) {
+    const planet = planets[planetId];
+    const tile = planet && planet.tileById ? planet.tileById[tileId] : null;
+    const placed = buildingsByPlanet[planetId] && buildingsByPlanet[planetId][tileId];
+    const bDef = placed && window.GameBuildings ? window.GameBuildings.getBuilding(placed.id) : null;
+    if (!planet || !tile || !placed || !bDef || !bDef.singleUseTerraformer) return false;
+
+    if (placed.used) {
+      const iconImg = '<img class="game-toast-icon" src="' + bDef.iconSrc + '" alt="" draggable="false" />';
+      const bStrong = '<strong class="game-toast-strong">' + bDef.name + "</strong>";
+      showGameToast("<span>" + iconImg + t("toast.terraform_already_used", { building: bStrong }) + "</span>");
+      return false;
+    }
+
+    const power = getPlanetPowerStatus(planetId);
+    if (bDef.energyRequired > 0 && power.energyBlockedTiles[tileId]) {
+      const iconImg = '<img class="game-toast-icon" src="./assets/ui/icon-energy.svg" alt="" draggable="false" />';
+      const bStrong = '<strong class="game-toast-strong">' + bDef.name + "</strong>";
+      showGameToast(
+        "<span>" + iconImg + t("toast.terraform_need_power", { building: bStrong, energy: formatPlanetStat(bDef.energyRequired) }) + "</span>"
+      );
+      return false;
+    }
+
+    if (!targetBiomeId || targetBiomeId === tile.biome || !BIOME_VISUAL_PRESETS[targetBiomeId]) {
+      const curBiome = window.GameBuildings.getBiome(tile.biome);
+      showGameToast("<span>" + t("toast.terraform_same_biome", { biome: '<strong class="game-toast-strong">' + curBiome.name + "</strong>" }) + "</span>");
+      return false;
+    }
+
+    if (!applyTileBiomeStyle(tile, targetBiomeId, false)) return false;
+    tileBiomesByPlanet[planetId][tileId] = targetBiomeId;
+    placed.used = true;
+
+    const now = performance.now();
+    tileEffectsByPlanet[planetId][tileId] = {
+      type: "terraform",
+      startTime: now,
+      duration: 950,
+      seed: Number(tileId) * 2.41 + (now % 97) * 0.019
+    };
+
+    closeTerraformModal();
+    lastInteractionTime = now;
+    updatePlanetStatsHud(true);
+
+    if (window.GameBuildings && typeof window.GameBuildings.refreshTileState === "function") {
+      window.GameBuildings.refreshTileState(planetId, tileId, placed.id, tile.biome, true);
+    }
+
+    const newBiome = window.GameBuildings ? window.GameBuildings.getBiome(targetBiomeId) : null;
+    const bStrong = '<strong class="game-toast-strong">' + bDef.name + "</strong>";
+    const biomePill = newBiome
+      ? '<span class="game-toast-pill"><img class="game-toast-pill-icon" src="' + newBiome.iconSrc + '" alt="" draggable="false" /> ' + newBiome.name + "</span>"
+      : targetBiomeId;
+    showGameToast(
+      "<span>" +
+        '<img class="game-toast-icon" src="./assets/ui/cat-terraforming.svg" alt="" draggable="false" />' +
+        t("toast.terraform_success", { biome: biomePill, building: bStrong }) +
+        "</span>",
+      "success"
+    );
+    notifySave("terraform", true);
+    return true;
+  }
+
+  function updateTerraformActionOverlay() {
+    if (!tileTerraformBtn) return;
+    const modalBlocking =
+      (window.GameResearch && typeof window.GameResearch.isOpen === "function" && window.GameResearch.isOpen()) ||
+      cargoModalState.open ||
+      terraformModalState.open;
+    if (!terraformButtonAnchor.visible || modalBlocking) {
+      tileTerraformBtn.classList.add("is-hidden");
+      return;
+    }
+
+    tileTerraformBtn.classList.remove("is-hidden");
+    tileTerraformBtn.classList.toggle("is-below", Boolean(terraformButtonAnchor.isBelow));
+    tileTerraformBtn.classList.toggle("is-spent", Boolean(terraformButtonAnchor.used));
+    if (tileTerraformLabelEl) {
+      tileTerraformLabelEl.textContent = t(terraformButtonAnchor.used ? "terraform.spent_btn" : "terraform.action_btn");
+    }
+    tileTerraformBtn.style.transform =
+      "translate3d(" +
+      terraformButtonAnchor.x.toFixed(1) +
+      "px, " +
+      terraformButtonAnchor.y.toFixed(1) +
+      "px, 0) translate(-50%, " +
+      (terraformButtonAnchor.isBelow ? "0" : "-100%") +
+      ")";
+  }
+
   function updateTradeActionOverlay() {
     if (!tileTradeActionsEl) return;
     const modalBlocking =
       (window.GameResearch && typeof window.GameResearch.isOpen === "function" && window.GameResearch.isOpen()) ||
-      cargoModalState.open;
+      cargoModalState.open ||
+      terraformModalState.open;
     if (!tradeActionAnchor.visible || modalBlocking) {
       tileTradeActionsEl.classList.add("is-hidden");
       return;
@@ -3960,7 +4360,7 @@
           citizensByPlanet[i] = minCit;
         }
         if (maxCit > 0 && citizensByPlanet[i] < maxCit) {
-          citizensByPlanet[i] = Math.min(maxCit, citizensByPlanet[i] + CITIZEN_REGEN_PER_SEC * dtSec);
+          citizensByPlanet[i] = Math.min(maxCit, citizensByPlanet[i] + getPlanetCitizenGrowthRate(i) * dtSec);
         } else if (citizensByPlanet[i] > maxCit) {
           citizensByPlanet[i] = Math.max(minCit, maxCit);
         }
@@ -3987,6 +4387,7 @@
     }
 
     researchButtonAnchor.visible = false;
+    terraformButtonAnchor.visible = false;
     rocketActionAnchor.visible = false;
     tradeActionAnchor.visible = false;
 
@@ -4155,7 +4556,8 @@
     if (tileResearchBtn) {
       const modalActive =
         (window.GameResearch && typeof window.GameResearch.isOpen === "function" && window.GameResearch.isOpen()) ||
-        cargoModalState.open;
+        cargoModalState.open ||
+        terraformModalState.open;
       if (researchButtonAnchor.visible && !modalActive) {
         tileResearchBtn.classList.remove("is-hidden");
         tileResearchBtn.classList.toggle("is-below", Boolean(researchButtonAnchor.isBelow));
@@ -4172,6 +4574,7 @@
       }
     }
 
+    updateTerraformActionOverlay();
     updateRocketActionOverlay();
     updateTradeActionOverlay();
     updateFollowRocketButton();
@@ -4386,7 +4789,7 @@
         selectionPulse = { planetId: hit.planetId, tileId: hit.hexId, startTime: now };
         if (window.GameBuildings) {
           const placed = buildingsByPlanet[hit.planetId][hit.hexId];
-          window.GameBuildings.openForTile(hit.planetId, hit.hexId, placed ? placed.id : null, tile ? tile.biome : null);
+          window.GameBuildings.openForTile(hit.planetId, hit.hexId, placed ? placed.id : null, tile ? tile.biome : null, Boolean(placed && placed.used));
         }
       }
       lastTapTime = 0;
@@ -4416,7 +4819,7 @@
         selectionPulse = { planetId: hit.planetId, tileId: hit.hexId, startTime: now };
         if (window.GameBuildings) {
           const placed = buildingsByPlanet[hit.planetId][hit.hexId];
-          window.GameBuildings.openForTile(hit.planetId, hit.hexId, placed ? placed.id : null, tile ? tile.biome : null);
+          window.GameBuildings.openForTile(hit.planetId, hit.hexId, placed ? placed.id : null, tile ? tile.biome : null, Boolean(placed && placed.used));
         }
       }
     } else if (!onPlanet) {
@@ -4616,6 +5019,12 @@
       }
       return;
     }
+    if (terraformModalState.open) {
+      if (e.key === "Escape") {
+        closeTerraformModal();
+      }
+      return;
+    }
     const activeTag = document.activeElement && document.activeElement.tagName;
     if (
       isRenamingPlanet ||
@@ -4708,6 +5117,57 @@
         if (window.GameResearch && typeof window.GameResearch.open === "function") {
           window.GameResearch.open(planets[activeDotIndex]);
         }
+      });
+    }
+
+    if (tileTerraformBtn) {
+      tileTerraformBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        const pId = terraformButtonAnchor.planetId;
+        const tId = terraformButtonAnchor.tileId;
+        if (pId < 0 || !tId) return;
+        const placed = buildingsByPlanet[pId] && buildingsByPlanet[pId][tId];
+        const bDef = placed && window.GameBuildings ? window.GameBuildings.getBuilding(placed.id) : null;
+        if (!placed || !bDef || !bDef.singleUseTerraformer) return;
+
+        if (placed.used) {
+          tileTerraformBtn.classList.remove("is-shake");
+          void tileTerraformBtn.offsetWidth;
+          tileTerraformBtn.classList.add("is-shake");
+          window.setTimeout(function () { tileTerraformBtn.classList.remove("is-shake"); }, 280);
+          const iconImg = '<img class="game-toast-icon" src="' + bDef.iconSrc + '" alt="" draggable="false" />';
+          showGameToast("<span>" + iconImg + t("toast.terraform_already_used", { building: '<strong class="game-toast-strong">' + bDef.name + "</strong>" }) + "</span>");
+          return;
+        }
+
+        const power = getPlanetPowerStatus(pId);
+        if (bDef.energyRequired > 0 && power.energyBlockedTiles[tId]) {
+          tileTerraformBtn.classList.remove("is-shake");
+          void tileTerraformBtn.offsetWidth;
+          tileTerraformBtn.classList.add("is-shake");
+          window.setTimeout(function () { tileTerraformBtn.classList.remove("is-shake"); }, 280);
+          const iconImg = '<img class="game-toast-icon" src="./assets/ui/icon-energy.svg" alt="" draggable="false" />';
+          showGameToast("<span>" + iconImg + t("toast.terraform_need_power", { building: '<strong class="game-toast-strong">' + bDef.name + "</strong>", energy: formatPlanetStat(bDef.energyRequired) }) + "</span>");
+          return;
+        }
+
+        openTerraformModal(pId, tId);
+      });
+    }
+
+    if (closeTerraformBtn) {
+      closeTerraformBtn.addEventListener("click", closeTerraformModal);
+    }
+    if (terraformBackdropEl) {
+      terraformBackdropEl.addEventListener("click", closeTerraformModal);
+    }
+    if (terraformCancelBtn) {
+      terraformCancelBtn.addEventListener("click", closeTerraformModal);
+    }
+    if (terraformConfirmBtn) {
+      terraformConfirmBtn.addEventListener("click", function () {
+        if (!terraformModalState.open) return;
+        executeTerraform(terraformModalState.planetId, terraformModalState.tileId, terraformModalState.selectedBiome);
       });
     }
 
@@ -4995,6 +5455,7 @@
         },
         getBuildingCountOnPlanet: countBuildingOnPlanet,
         getBuildingCountGlobal: countBuildingGlobal,
+        getPlanetCostDiscount: getPlanetCostDiscount,
         onPlace: function (buildingId) {
           const tileId = selectedHexByPlanet[targetIndex];
           if (!tileId) return;
@@ -5025,7 +5486,7 @@
           if (!window.GameBuildings.canBuildOnBiome(buildingId, tile.biome)) return;
           const buildCost =
             typeof window.GameBuildings.getBuildingCost === "function"
-              ? window.GameBuildings.getBuildingCost(buildingId)
+              ? window.GameBuildings.getBuildingCost(buildingId, targetIndex)
               : bld.cost;
           if (buildCost) {
             if (buildCost.bricks) {
@@ -5109,7 +5570,7 @@
           };
           lastInteractionTime = now;
           updatePlanetStatsHud(true);
-          window.GameBuildings.updateCurrentBuilding(buildingId);
+          window.GameBuildings.updateCurrentBuilding(buildingId, false);
           notifySave("build", true);
         },
         onRemove: function () {
@@ -5126,6 +5587,9 @@
           if (cargoModalState.open && cargoModalState.planetId === targetIndex && cargoModalState.tileId === tileId) {
             closeRocketCargoModal();
           }
+          if (terraformModalState.open && terraformModalState.planetId === targetIndex && terraformModalState.tileId === tileId) {
+            closeTerraformModal();
+          }
 
           const now = performance.now();
           delete buildingsByPlanet[targetIndex][tileId];
@@ -5141,7 +5605,7 @@
           };
           lastInteractionTime = now;
           updatePlanetStatsHud(true);
-          window.GameBuildings.updateCurrentBuilding(null);
+          window.GameBuildings.updateCurrentBuilding(null, false);
           notifySave("demolish", true);
         },
         onClose: function () {
@@ -5527,7 +5991,20 @@
           entry.tradeEnabled = Boolean(bInfo.tradeEnabled);
           entry.tradeTimer = roundDecimals(bInfo.tradeTimer || 0, 3);
         }
+        if (bInfo.used) {
+          entry.used = true;
+        }
         outBuildings[tileId] = entry;
+      }
+
+      const outTileBiomes = {};
+      const srcBiomes = tileBiomesByPlanet[i] || {};
+      const biomeTileKeys = Object.keys(srcBiomes);
+      for (let bk = 0; bk < biomeTileKeys.length; bk++) {
+        const btId = biomeTileKeys[bk];
+        if (BIOME_VISUAL_PRESETS[srcBiomes[btId]]) {
+          outTileBiomes[btId] = srcBiomes[btId];
+        }
       }
 
       exportedPlanets.push({
@@ -5535,7 +6012,8 @@
         unlocked: i === 0 ? true : Boolean(p && p.unlocked),
         bricks: roundDecimals(Math.max(0, Number(bricksByPlanet[i]) || 0), 4),
         citizens: roundDecimals(Math.max(getPlanetBaseCitizenCount(i), Number(citizensByPlanet[i]) || 0), 4),
-        buildings: outBuildings
+        buildings: outBuildings,
+        tileBiomes: outTileBiomes
       });
     }
 
@@ -5590,6 +6068,21 @@
       const sp = savedPlanets[i] && typeof savedPlanets[i] === "object" ? savedPlanets[i] : null;
       if (!p) continue;
 
+      resetPlanetTileBiomes(i);
+      const savedBiomes = sp && sp.tileBiomes && typeof sp.tileBiomes === "object" ? sp.tileBiomes : null;
+      if (savedBiomes) {
+        const bTileKeys = Object.keys(savedBiomes);
+        for (let bk = 0; bk < bTileKeys.length; bk++) {
+          const btId = String(bTileKeys[bk]);
+          const bName = savedBiomes[bTileKeys[bk]];
+          const tileObj = p.tileById ? p.tileById[btId] : null;
+          if (tileObj && typeof bName === "string" && BIOME_VISUAL_PRESETS[bName]) {
+            applyTileBiomeStyle(tileObj, bName, true);
+            tileBiomesByPlanet[i][btId] = bName;
+          }
+        }
+      }
+
       p.name = sp && sp.name ? sanitizePlanetName(sp.name, p.defaultName) : p.defaultName;
       p.unlocked = i === 0 ? true : Boolean(sp && sp.unlocked);
       p.shadowAmount = p.unlocked ? 0 : 1;
@@ -5633,7 +6126,8 @@
           tradeTimer:
             bDef.tradeVariant && Number.isFinite(Number(bData.tradeTimer))
               ? clamp(Number(bData.tradeTimer), 0, bDef.tradeIntervalSec || 60)
-              : 0
+              : 0,
+          used: Boolean(bDef.singleUseTerraformer && bData.used)
         };
       }
 
@@ -5800,8 +6294,9 @@
           if (!planets[i] || !planets[i].unlocked) continue;
           const cap = calculatePlanetCitizenCapacity(i);
           const cur = citizensByPlanet[i] || 0;
-          if (cur < cap) {
-            maxRegenSec = Math.max(maxRegenSec, (cap - cur) / CITIZEN_REGEN_PER_SEC);
+          const regenRate = getPlanetCitizenGrowthRate(i);
+          if (cur < cap && regenRate > 0) {
+            maxRegenSec = Math.max(maxRegenSec, (cap - cur) / regenRate);
           }
         }
       }
@@ -5833,7 +6328,7 @@
             citizensByPlanet[pIdx] = minCit;
           }
           if (maxCit > 0 && citizensByPlanet[pIdx] < maxCit) {
-            citizensByPlanet[pIdx] = Math.min(maxCit, citizensByPlanet[pIdx] + CITIZEN_REGEN_PER_SEC * chunkSec);
+            citizensByPlanet[pIdx] = Math.min(maxCit, citizensByPlanet[pIdx] + getPlanetCitizenGrowthRate(pIdx) * chunkSec);
           } else if (citizensByPlanet[pIdx] > maxCit) {
             citizensByPlanet[pIdx] = Math.max(minCit, maxCit);
           }
@@ -6001,6 +6496,7 @@
     for (let i = 0; i < PLANET_COUNT; i++) {
       const p = planets[i];
       buildingsByPlanet[i] = Object.create(null);
+      resetPlanetTileBiomes(i);
       tileEffectsByPlanet[i] = Object.create(null);
       bricksByPlanet[i] = Array.isArray(startingBricksCfg) ? Math.max(0, Number(startingBricksCfg[i]) || 0) : 0;
       const startCit = Array.isArray(startingCitizensCfg)
@@ -6026,6 +6522,7 @@
     }
 
     clearSelectionAndCloseBuildMenu();
+    closeTerraformModal();
     targetIndex = 0;
     scrollPos = 0;
     lastRenderScrollPos = 0;

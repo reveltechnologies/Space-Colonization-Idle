@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" stroke-linejoin="round" stroke-linecap="round">
+  <ellipse cx="50" cy="91" rx="42" ry="5.5" fill="#1b1147" opacity="0.28"/>
+  <!-- Flanking cobalt solar sails -->
+  <path d="M10 44 L28 38 L31 74 L13 78 Z" fill="#2563eb" stroke="#1b1147" stroke-width="4"/>
+  <path d="M90 44 L72 38 L69 74 L87 78 Z" fill="#2563eb" stroke="#1b1147" stroke-width="4"/>
+  <!-- Multi-tier white & emerald eco tower -->
+  <rect x="26" y="64" width="48" height="22" rx="4" fill="#ffffff" stroke="#1b1147" stroke-width="4.5"/>
+  <rect x="23" y="60" width="54" height="6" rx="3" fill="#22c55e" stroke="#1b1147" stroke-width="3"/>
+  <rect x="31" y="40" width="38" height="20" rx="4" fill="#ffffff" stroke="#1b1147" stroke-width="4.5"/>
+  <rect x="28" y="36" width="44" height="6" rx="3" fill="#22c55e" stroke="#1b1147" stroke-width="3"/>
+  <!-- Cyan biodome crown -->
+  <path d="M34 36 A16 17 0 0 1 66 36 Z" fill="#5fd8f8" stroke="#1b1147" stroke-width="4"/>
+  <circle cx="50" cy="14" r="4.5" fill="#ffe047" stroke="#1b1147" stroke-width="3"/>
+  <!-- Warm windows -->
+  <rect x="44" y="71" width="12" height="15" rx="3" fill="#ffe047" stroke="#1b1147" stroke-width="3"/>
+  <rect x="38" y="46" width="8" height="8" rx="2" fill="#ffe047" stroke="#1b1147" stroke-width="2.5"/>
+  <rect x="54" y="46" width="8" height="8" rx="2" fill="#ffe047" stroke="#1b1147" stroke-width="2.5"/>
+</svg>

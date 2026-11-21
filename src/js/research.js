@@ -287,6 +287,105 @@
       iconSrc: "./assets/ui/bld-space-rocket-2.svg",
       accent: "#f59e0b",
       unlocksBuilding: "space_rocket_2"
+    },
+
+    // Track 2: Solar Optics, Self-Sustaining Homes, Civic Decorations & Terraforming
+    {
+      id: "helio_optics",
+      category: "power",
+      track: 2,
+      order: 1,
+      cost: 30,
+      requiredPlanetType: null,
+      prereq: null,
+      iconSrc: "./assets/ui/bld-helio-mirror.svg",
+      accent: "#fbbf24",
+      unlocksBuilding: "helio_mirror"
+    },
+    {
+      id: "solar_habitats",
+      category: "power",
+      track: 2,
+      order: 2,
+      cost: 55,
+      requiredPlanetType: null,
+      prereq: "helio_optics",
+      iconSrc: "./assets/ui/bld-eco-dome.svg",
+      accent: "#22c55e",
+      unlocksBuilding: "eco_dome"
+    },
+    {
+      id: "arcology_grids",
+      category: "power",
+      track: 2,
+      order: 3,
+      cost: 120,
+      requiredPlanetType: "oceanic",
+      prereq: "solar_habitats",
+      iconSrc: "./assets/ui/bld-eco-arcology.svg",
+      accent: "#14b8a6",
+      unlocksBuilding: "eco_arcology"
+    },
+    {
+      id: "civic_gardens",
+      category: "colony",
+      track: 2,
+      order: 1,
+      cost: 25,
+      requiredPlanetType: null,
+      prereq: null,
+      iconSrc: "./assets/ui/bld-botanical-garden.svg",
+      accent: "#34d399",
+      unlocksBuilding: "botanical_garden"
+    },
+    {
+      id: "modular_prefabs",
+      category: "colony",
+      track: 2,
+      order: 2,
+      cost: 55,
+      requiredPlanetType: null,
+      prereq: "civic_gardens",
+      iconSrc: "./assets/ui/bld-builders-plaza.svg",
+      accent: "#f59e0b",
+      unlocksBuilding: "builders_plaza"
+    },
+    {
+      id: "civic_prosperity",
+      category: "colony",
+      track: 2,
+      order: 3,
+      cost: 95,
+      requiredPlanetType: "oceanic",
+      prereq: "modular_prefabs",
+      citizenGrowthBonus: 0.30,
+      iconSrc: "./assets/ui/icon-citizen.svg",
+      accent: "#38bdf8"
+    },
+    {
+      id: "planetary_terraforming",
+      category: "planetary",
+      track: 2,
+      order: 1,
+      cost: 45,
+      requiredPlanetType: null,
+      prereq: null,
+      iconSrc: "./assets/ui/bld-geo-terraformer.svg",
+      accent: "#14b8a6",
+      unlocksBuilding: "geo_terraformer"
+    },
+    {
+      id: "crust_stabilization",
+      category: "planetary",
+      track: 2,
+      order: 2,
+      cost: 95,
+      requiredPlanetType: "oceanic",
+      prereq: "planetary_terraforming",
+      bricksBonus: 0.20,
+      energyBonus: 0.20,
+      iconSrc: "./assets/ui/cat-terraforming.svg",
+      accent: "#10b981"
     }
   ];
 
@@ -425,6 +524,10 @@
 
   function getCitizenMultiplier() {
     return sumResearchedBonus("citizenBonus");
+  }
+
+  function getCitizenGrowthMultiplier() {
+    return sumResearchedBonus("citizenGrowthBonus");
   }
 
   function formatNumber(val) {
@@ -842,102 +945,115 @@
     if (!treeBodyEl) return;
     treeBodyEl.innerHTML = "";
 
-    const catNodes = [];
+    const tracksMap = Object.create(null);
     for (let i = 0; i < RESEARCH_NODES.length; i++) {
-      if (RESEARCH_NODES[i].category === activeCategoryId) {
-        catNodes.push(RESEARCH_NODES[i]);
+      const n = RESEARCH_NODES[i];
+      if (n.category !== activeCategoryId) continue;
+      const trackNum = n.track || 1;
+      if (!tracksMap[trackNum]) {
+        tracksMap[trackNum] = [];
       }
+      tracksMap[trackNum].push(n);
     }
-    catNodes.sort(function (a, b) {
-      return (a.order || 0) - (b.order || 0);
-    });
 
-    const track = document.createElement("div");
-    track.className = "research-chain-track";
+    const trackKeys = Object.keys(tracksMap)
+      .map(function (k) { return Number(k); })
+      .sort(function (a, b) { return a - b; });
+    treeBodyEl.classList.toggle("is-multi-track", trackKeys.length > 1);
 
-    for (let j = 0; j < catNodes.length; j++) {
-      const node = catNodes[j];
-      const done = isResearched(node.id);
-      const prereqMet = !node.prereq || isResearched(node.prereq);
-      const planetMet =
-        !node.requiredPlanetType ||
-        (openedFromPlanet && openedFromPlanet.typeId === node.requiredPlanetType);
-      const affordable = researchPoints >= node.cost;
-      const isSelected = selectedNodeId === node.id;
-
-      if (j > 0) {
-        const prevDone = isResearched(catNodes[j - 1].id);
-        const conn = document.createElement("span");
-        conn.className = "research-connector" + (prevDone ? " is-unlocked" : "");
-        conn.setAttribute("aria-hidden", "true");
-        track.appendChild(conn);
-      }
-
-      const nodeBtn = document.createElement("button");
-      nodeBtn.type = "button";
-      nodeBtn.className =
-        "research-icon-node" +
-        (done ? " is-researched" : "") +
-        (!done && !prereqMet ? " is-prereq-locked" : "") +
-        (!done && prereqMet && !planetMet ? " is-wrong-planet" : "") +
-        (!done && prereqMet && planetMet && affordable ? " is-ready" : "") +
-        (!done && prereqMet && planetMet && !affordable ? " is-unaffordable" : "") +
-        (isSelected ? " is-selected" : "");
-      nodeBtn.setAttribute("data-research", node.id);
-      nodeBtn.setAttribute("aria-label", getNodeName(node.id));
-      nodeBtn.style.setProperty("--node-accent", node.accent || "#38bdf8");
-
-      const iconBox = document.createElement("span");
-      iconBox.className = "research-icon-box";
-
-      const stepBadge = document.createElement("span");
-      stepBadge.className = "research-step-badge" + (done ? " is-done" : "");
-      stepBadge.textContent = done ? "✓" : String(node.order || j + 1);
-      iconBox.appendChild(stepBadge);
-
-      const icon = document.createElement("img");
-      icon.className = "research-icon-img";
-      icon.src = node.iconSrc;
-      icon.alt = "";
-      icon.draggable = false;
-      iconBox.appendChild(icon);
-
-      if (node.requiredPlanetType) {
-        const pMeta = resolvePlanetMeta(node.requiredPlanetType);
-        const pBadge = document.createElement("span");
-        pBadge.className = "research-mini-planet " + (planetMet || done ? "is-met" : "is-required");
-        const pImg = document.createElement("img");
-        pImg.src = pMeta.iconSrc;
-        pImg.alt = "";
-        pImg.draggable = false;
-        pBadge.appendChild(pImg);
-        iconBox.appendChild(pBadge);
-      }
-
-      if (!done && !prereqMet) {
-        const lock = document.createElement("span");
-        lock.className = "research-mini-status is-locked";
-        lock.textContent = "🔒";
-        iconBox.appendChild(lock);
-      }
-
-      const costChip = document.createElement("span");
-      costChip.className = "research-icon-cost" + (!done && !affordable ? " is-short" : "");
-      costChip.textContent = done ? "✓" : formatNumber(node.cost) + " " + t("research.rp_unit");
-
-      nodeBtn.appendChild(iconBox);
-      nodeBtn.appendChild(costChip);
-
-      nodeBtn.addEventListener("click", function () {
-        selectedNodeId = selectedNodeId === node.id ? null : node.id;
-        renderTree();
-        renderDetailPanel();
+    for (let tIdx = 0; tIdx < trackKeys.length; tIdx++) {
+      const catNodes = tracksMap[trackKeys[tIdx]];
+      catNodes.sort(function (a, b) {
+        return (a.order || 0) - (b.order || 0);
       });
 
-      track.appendChild(nodeBtn);
-    }
+      const track = document.createElement("div");
+      track.className = "research-chain-track";
 
-    treeBodyEl.appendChild(track);
+      for (let j = 0; j < catNodes.length; j++) {
+        const node = catNodes[j];
+        const done = isResearched(node.id);
+        const prereqMet = !node.prereq || isResearched(node.prereq);
+        const planetMet =
+          !node.requiredPlanetType ||
+          (openedFromPlanet && openedFromPlanet.typeId === node.requiredPlanetType);
+        const affordable = researchPoints >= node.cost;
+        const isSelected = selectedNodeId === node.id;
+
+        if (j > 0) {
+          const prevDone = isResearched(node.prereq || catNodes[j - 1].id);
+          const conn = document.createElement("span");
+          conn.className = "research-connector" + (prevDone ? " is-unlocked" : "");
+          conn.setAttribute("aria-hidden", "true");
+          track.appendChild(conn);
+        }
+
+        const nodeBtn = document.createElement("button");
+        nodeBtn.type = "button";
+        nodeBtn.className =
+          "research-icon-node" +
+          (done ? " is-researched" : "") +
+          (!done && !prereqMet ? " is-prereq-locked" : "") +
+          (!done && prereqMet && !planetMet ? " is-wrong-planet" : "") +
+          (!done && prereqMet && planetMet && affordable ? " is-ready" : "") +
+          (!done && prereqMet && planetMet && !affordable ? " is-unaffordable" : "") +
+          (isSelected ? " is-selected" : "");
+        nodeBtn.setAttribute("data-research", node.id);
+        nodeBtn.setAttribute("aria-label", getNodeName(node.id));
+        nodeBtn.style.setProperty("--node-accent", node.accent || "#38bdf8");
+
+        const iconBox = document.createElement("span");
+        iconBox.className = "research-icon-box";
+
+        const stepBadge = document.createElement("span");
+        stepBadge.className = "research-step-badge" + (done ? " is-done" : "");
+        stepBadge.textContent = done ? "✓" : String(node.order || j + 1);
+        iconBox.appendChild(stepBadge);
+
+        const icon = document.createElement("img");
+        icon.className = "research-icon-img";
+        icon.src = node.iconSrc;
+        icon.alt = "";
+        icon.draggable = false;
+        iconBox.appendChild(icon);
+
+        if (node.requiredPlanetType) {
+          const pMeta = resolvePlanetMeta(node.requiredPlanetType);
+          const pBadge = document.createElement("span");
+          pBadge.className = "research-mini-planet " + (planetMet || done ? "is-met" : "is-required");
+          const pImg = document.createElement("img");
+          pImg.src = pMeta.iconSrc;
+          pImg.alt = "";
+          pImg.draggable = false;
+          pBadge.appendChild(pImg);
+          iconBox.appendChild(pBadge);
+        }
+
+        if (!done && !prereqMet) {
+          const lock = document.createElement("span");
+          lock.className = "research-mini-status is-locked";
+          lock.textContent = "🔒";
+          iconBox.appendChild(lock);
+        }
+
+        const costChip = document.createElement("span");
+        costChip.className = "research-icon-cost" + (!done && !affordable ? " is-short" : "");
+        costChip.textContent = done ? "✓" : formatNumber(node.cost) + " " + t("research.rp_unit");
+
+        nodeBtn.appendChild(iconBox);
+        nodeBtn.appendChild(costChip);
+
+        nodeBtn.addEventListener("click", function () {
+          selectedNodeId = selectedNodeId === node.id ? null : node.id;
+          renderTree();
+          renderDetailPanel();
+        });
+
+        track.appendChild(nodeBtn);
+      }
+
+      treeBodyEl.appendChild(track);
+    }
   }
 
   function open(planet) {
@@ -1115,6 +1231,7 @@
     getResearchMultiplier: getResearchMultiplier,
     getEnergyMultiplier: getEnergyMultiplier,
     getCitizenMultiplier: getCitizenMultiplier,
+    getCitizenGrowthMultiplier: getCitizenGrowthMultiplier,
     setPlanetProvider: setPlanetProvider,
     onChange: onChange,
     exportState: exportState,

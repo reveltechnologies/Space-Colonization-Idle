@@ -47,7 +47,10 @@
       continue_intro: "Continue Story",
       secret_reset_modal: "Reset Progress Confirmation",
       secret_reset_confirm: "Confirm Reset",
-      secret_reset_cancel: "Cancel Reset"
+      secret_reset_cancel: "Cancel Reset",
+      terraform_tile: "Transform Tile",
+      terraform_modal: "Transform Tile Terrain",
+      close_terraform_modal: "Close Transform Tile Modal"
     },
     currencies: {
       credits: "Credits",
@@ -91,12 +94,15 @@
       power: "Power",
       mining: "Mining",
       colony: "Colony",
-      science: "Science"
+      science: "Science",
+      decorations: "Decorations",
+      terraforming: "Terraforming"
     },
     terrains: {
       solid: "Any Solid",
       surface: "Surface",
-      mountainous: "Mountainous"
+      mountainous: "Mountainous",
+      any: "Any Tile"
     },
     biomes: {
       mountains: { name: "Mountains" },
@@ -160,6 +166,46 @@
       villa: {
         name: "Villa",
         description: "Luxurious grand colony estate with amethyst pavilion wings, climate-controlled biodome terraces, and high-capacity executive suites."
+      },
+      solar_cabin: {
+        name: "Solar Cabin",
+        specialty: "Self-Sustaining Home",
+        description: "Cozy off-grid frontier cabin topped with photovoltaic roof panels. Houses 3 Citizens while generating +2 solar Energy for your colony."
+      },
+      eco_dome: {
+        name: "Eco Biodome",
+        specialty: "Self-Sustaining Biodome",
+        description: "Pressurized glass living dome ringed by lush planters and flanking solar wings. Houses 8 Citizens and supplies +6 clean solar Energy."
+      },
+      eco_arcology: {
+        name: "Eco Arcology",
+        specialty: "Self-Sustaining Spire",
+        description: "Vertical green-terrace tower fitted with towering cobalt solar sails. Supports 20 Citizens and generates +15 solar Energy on its own."
+      },
+      starlight_monument: {
+        name: "Starlight Monument",
+        specialty: "Colony Landmark",
+        description: "A radiant crystal obelisk honoring your pioneers' journey from Nova-7. Purely decorative landmark to personalize and brighten your world."
+      },
+      helio_mirror: {
+        name: "Helio Mirror",
+        specialty: "+25% Solar Energy",
+        description: "Tilted orbital-grade reflector dish that focuses extra starlight onto this planet, boosting Energy output of all Solar buildings here by +25% (max 3 per planet)."
+      },
+      botanical_garden: {
+        name: "Botanical Park",
+        specialty: "+50% Citizen Growth",
+        description: "Lush green park with a glowing fountain and blossom trees that makes life on this planet thrive, speeding up Citizen growth by +50% when housing space allows (max 3 per planet)."
+      },
+      builders_plaza: {
+        name: "Builders' Plaza",
+        specialty: "-15% Build Cost",
+        description: "Civic architecture plaza with holographic blueprint arches that streamlines local construction, reducing Colony, Power, and Mining building costs on this planet by 15% (max 2 per planet)."
+      },
+      geo_terraformer: {
+        name: "Geo-Terraformer",
+        specialty: "1-Use Tile Transformer",
+        description: "Heavy seismic emitter rig that reshapes any tile (even Ocean or Lava) into a chosen terrain biome. Requires 2 Energy to fire, then burns out permanently and must be demolished or replaced."
       },
       solar_panel: {
         name: "Solar Panel",
@@ -262,7 +308,26 @@
       citizen_req_many: "-{count} Citizens",
       citizen_req_short: "-{count}",
       replace_notice: "Replaces existing {building} on this tile.",
-      replace_fallback_building: "building"
+      replace_fallback_building: "building",
+      spent_badge: "SPENT",
+      solar_boost_chip: "+{pct}% Solar Energy",
+      growth_boost_chip: "+{pct}% Citizen Growth",
+      cost_discount_chip: "-{pct}% Build Cost",
+      discount_targets_chip: "Colony, Power & Mining",
+      terraform_single_use_chip: "1-Use Tile Transform",
+      terraform_spent_warning: "Single-use: burns out after use",
+      discount_active_pill: "-{pct}% Plaza Discount"
+    },
+    terraform: {
+      action_btn: "Transform Tile",
+      spent_btn: "Spent — Demolish or Replace",
+      modal_title: "Transform Tile",
+      current_biome: "Current: {biome}",
+      single_use_warning: "Single-use device: after transforming this tile, the Geo-Terraformer becomes unusable and must be demolished or replaced.",
+      choose_biome_label: "Select Target Terrain",
+      current_tag: "Current",
+      btn_cancel: "Cancel",
+      btn_confirm: "Transform Tile"
     },
     toast: {
       cannot_build_unbuildable: "Cannot build {building} on {biome} terrain.",
@@ -287,7 +352,11 @@
       trade_auto_stopped: "{building} on {planet} auto-stopped — no Construction Bricks left!",
       trade_no_bricks_to_start: "Cannot start {building} — no Construction Bricks left on {planet}!",
       cannot_demolish_protected: "{building} is your permanent shelter and cannot be destroyed.",
-      cannot_replace_protected: "{building} is permanent and cannot be replaced."
+      cannot_replace_protected: "{building} is permanent and cannot be replaced.",
+      terraform_need_power: "{building} needs {energy} Energy before it can transform this tile.",
+      terraform_already_used: "{building} has already been used — demolish or replace it with another building.",
+      terraform_same_biome: "This tile is already {biome}. Pick a different terrain type.",
+      terraform_success: "Tile transformed into {biome}! {building} is now spent — demolish or replace it."
     },
     research: {
       title: "Research Tree",
@@ -421,6 +490,46 @@
           name: "Heavy Starship Design",
           effect: "Unlocks Space Rocket II",
           description: "Masters twin strap-on booster staging from {planet_2} launchpads, unlocking Space Rocket II in the Build Menu."
+        },
+        helio_optics: {
+          name: "Helio-Reflector Optics",
+          effect: "Unlocks Helio Mirror",
+          description: "Focuses orbital mirror arrays to concentrate starlight onto planetary grids, unlocking the Helio Mirror decoration."
+        },
+        solar_habitats: {
+          name: "Self-Sustaining Habitats",
+          effect: "Unlocks Eco Biodome",
+          description: "Combines closed-loop hydroponics with integrated solar shells, unlocking the self-powered Eco Biodome."
+        },
+        arcology_grids: {
+          name: "Arcology Microgrids",
+          effect: "Unlocks Eco Arcology",
+          description: "High-density vertical living towers tested on {planet_2} with built-in solar sails, unlocking the Eco Arcology."
+        },
+        civic_gardens: {
+          name: "Civic Botanical Parks",
+          effect: "Unlocks Botanical Park",
+          description: "Designs thriving pressurized colony parks that boost Citizen growth speed, unlocking the Botanical Park decoration."
+        },
+        modular_prefabs: {
+          name: "Modular Guild Prefabs",
+          effect: "Unlocks Builders' Plaza",
+          description: "Standardizes holographic prefab arches that cut local building costs, unlocking the Builders' Plaza decoration."
+        },
+        civic_prosperity: {
+          name: "Civic Prosperity",
+          effect: "+30% Citizen Growth",
+          description: "Colony-wide quality-of-life charters from {planet_2} that speed up Citizen population growth across every planet."
+        },
+        planetary_terraforming: {
+          name: "Planetary Terraforming",
+          effect: "Unlocks Geo-Terraformer",
+          description: "Harnesses focused seismic emitter cores to reshape tile terrain, unlocking the single-use Geo-Terraformer."
+        },
+        crust_stabilization: {
+          name: "Crust Stabilization",
+          effect: "+20% Bricks & Energy",
+          description: "Deep tectonic anchors tested on {planet_2} that reinforce planetary Mines and Energy grids."
         }
       }
     },
@@ -432,6 +541,8 @@
       energy_avail_label: "Available: {avail} / {max} (Used: {used})",
       citizens_avail_label: "Available: {avail} / {max} (Used: {used})",
       citizens_regen_label: "Available: {avail} (Pop: {pop} / {max}, Used: {used})",
+      solar_bonus_suffix: " · Solar +{pct}%",
+      growth_bonus_suffix: " · Growth +{pct}%",
       rate_suffix: " ({rate})",
       credits: {
         title: "Space Credits",
@@ -443,11 +554,11 @@
       },
       citizens: {
         title: "Citizens",
-        description: "Colony pioneers living on this planet (Planet 1 always has 1 permanent pioneer — you!). Houses and landed Space Rockets expand capacity; Citizens staff Mines, Science facilities, Trade Rockets, and crew Space Rocket launches."
+        description: "Colony pioneers living on this planet (Planet 1 always has 1 permanent pioneer — you!). Homes, Eco Habitats, and landed Space Rockets expand capacity; Botanical Parks speed up population growth."
       },
       energy: {
         title: "Energy",
-        description: "Electrical power capacity on this planet. Generated by Solar Panels, Solar Arrays, Solar Towers, Windmills, Wind Turbines, and Wind Farms, and boosted by Power research."
+        description: "Electrical power capacity on this planet. Generated by Solar buildings, Wind generators, and Self-Sustaining Eco Homes, and boosted by Helio Mirrors and Power research."
       },
       bricks: {
         title: "Construction Bricks",

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" stroke-linejoin="round" stroke-linecap="round">
+  <ellipse cx="50" cy="90" rx="38" ry="5.5" fill="#1b1147" opacity="0.25"/>
+  <!-- Hex tile 3D slab -->
+  <polygon points="16,58 34,42 66,42 84,58 66,76 34,76" fill="#64748b" stroke="#1b1147" stroke-width="5"/>
+  <polygon points="16,58 34,76 66,76 84,58 84,68 66,86 34,86 16,68" fill="#475569" stroke="#1b1147" stroke-width="4.5"/>
+  <!-- Emerald terraforming wave across right/top half -->
+  <path d="M50 42 H66 L84 58 L66 76 H44 Q52 58 50 42 Z" fill="#22c55e" stroke="#1b1147" stroke-width="4"/>
+  <path d="M54 47 H64 L77 58" stroke="#86efac" stroke-width="3.5" fill="none"/>
+  <!-- Rising glowing teal energy beam & sprout -->
+  <path d="M46 56 V26" stroke="#2dd4bf" stroke-width="6"/>
+  <path d="M54 56 V32" stroke="#5fd8f8" stroke-width="4"/>
+  <path d="M50 56 V28" stroke="#1b1147" stroke-width="3.5"/>
+  <path d="M50 32 Q36 22 32 32 Q42 40 50 34 Z" fill="#84e148" stroke="#1b1147" stroke-width="3.5"/>
+  <path d="M50 28 Q64 16 68 26 Q58 36 50 30 Z" fill="#22c55e" stroke="#1b1147" stroke-width="3.5"/>
+  <circle cx="50" cy="14" r="5" fill="#ffe047" stroke="#1b1147" stroke-width="3"/>
+</svg>

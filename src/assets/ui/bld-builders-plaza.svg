@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" stroke-linejoin="round" stroke-linecap="round">
+  <ellipse cx="50" cy="91" rx="42" ry="5.5" fill="#1b1147" opacity="0.28"/>
+  <!-- Guild plinth -->
+  <path d="M14 88 L20 76 H80 L86 88 Z" fill="#94a3b8" stroke="#1b1147" stroke-width="4.5"/>
+  <rect x="24" y="70" width="52" height="7" rx="2.5" fill="#ffc83a" stroke="#1b1147" stroke-width="3.5"/>
+  <!-- Twin blueprint arch pillars -->
+  <rect x="23" y="34" width="12" height="36" rx="3" fill="#3b82f6" stroke="#1b1147" stroke-width="4"/>
+  <rect x="65" y="34" width="12" height="36" rx="3" fill="#3b82f6" stroke="#1b1147" stroke-width="4"/>
+  <!-- Golden arch lintel -->
+  <path d="M18 36 L30 22 H70 L82 36 Z" fill="#ffc83a" stroke="#1b1147" stroke-width="4.5"/>
+  <rect x="34" y="26" width="32" height="5" rx="2" fill="#fff7e8"/>
+  <!-- Floating cyan blueprint hologram cube -->
+  <polygon points="50,40 62,47 62,60 50,67 38,60 38,47" fill="#38bdf8" stroke="#1b1147" stroke-width="3.5"/>
+  <polygon points="50,40 62,47 50,54 38,47" fill="#bae6fd"/>
+  <line x1="50" y1="54" x2="50" y2="67" stroke="#1b1147" stroke-width="2.5"/>
+</svg>
