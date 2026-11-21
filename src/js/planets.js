@@ -1940,7 +1940,8 @@
     }
 
     ctx.save();
-    ctx.globalAlpha = transform.alpha;
+    try {
+      ctx.globalAlpha = transform.alpha;
 
     // 1. Outer 3D Atmospheric Halo
     const haloRadius = r * 1.28;
@@ -2364,6 +2365,9 @@
           isFocused &&
           isSelected &&
           entry.placed &&
+          entry.topVisible &&
+          Array.isArray(entry.topPts) &&
+          entry.depthZ > -0.25 &&
           (!eff || eff.type !== "demolish");
         if (needsTileActionBounds) {
           const isResearchCenter = entry.placed.id === "research_center";
@@ -2470,8 +2474,9 @@
     } else if (planet.unlockVfx) {
       drawPlanetUnlockShatter(ctx, cx, cy, r, planet.unlockVfx, time, transform.alpha);
     }
-
-    ctx.restore();
+    } finally {
+      ctx.restore();
+    }
   }
 
   // --- Forgiving 3D Tile Hit Testing ---
@@ -3030,12 +3035,14 @@
     let minY = Infinity;
     let maxY = -Infinity;
 
-    const pts = entry.topPts;
-    for (let k = 0; k < pts.length; k++) {
-      if (pts[k].x < minX) minX = pts[k].x;
-      if (pts[k].x > maxX) maxX = pts[k].x;
-      if (pts[k].y < minY) minY = pts[k].y;
-      if (pts[k].y > maxY) maxY = pts[k].y;
+    const pts = entry && entry.topPts;
+    if (Array.isArray(pts)) {
+      for (let k = 0; k < pts.length; k++) {
+        if (pts[k].x < minX) minX = pts[k].x;
+        if (pts[k].x > maxX) maxX = pts[k].x;
+        if (pts[k].y < minY) minY = pts[k].y;
+        if (pts[k].y > maxY) maxY = pts[k].y;
+      }
     }
 
     const o = buildingFrame.origin;
@@ -3078,6 +3085,14 @@
     if (peakSp.x > maxX) maxX = peakSp.x;
     if (peakSp.y < minY) minY = peakSp.y;
     if (peakSp.y > maxY) maxY = peakSp.y;
+
+    if (!Number.isFinite(minX) || !Number.isFinite(maxX) || !Number.isFinite(minY) || !Number.isFinite(maxY)) {
+      const fallbackSp = project(o, cx, cy, focalLength);
+      minX = fallbackSp.x - 26;
+      maxX = fallbackSp.x + 26;
+      minY = fallbackSp.y - 26;
+      maxY = fallbackSp.y + 26;
+    }
 
     const bCx = (minX + maxX) * 0.5;
     const bCy = (minY + maxY) * 0.5;
@@ -4331,16 +4346,15 @@
 
   function render(time) {
     if (!ctx || !canvas) return;
-
-    if (
-      window.GameIntro &&
-      typeof window.GameIntro.coversStage === "function" &&
-      window.GameIntro.coversStage()
-    ) {
-      lastFrameTime = time;
-      window.requestAnimationFrame(render);
-      return;
-    }
+    try {
+      if (
+        window.GameIntro &&
+        typeof window.GameIntro.coversStage === "function" &&
+        window.GameIntro.coversStage()
+      ) {
+        lastFrameTime = time;
+        return;
+      }
 
     const dtMs = Math.min(time - lastFrameTime, 60);
     const dtSec = dtMs / 1000;
@@ -4578,8 +4592,13 @@
     updateRocketActionOverlay();
     updateTradeActionOverlay();
     updateFollowRocketButton();
-
-    window.requestAnimationFrame(render);
+    } catch (err) {
+      if (typeof console !== "undefined" && console.error) {
+        console.error(err);
+      }
+    } finally {
+      window.requestAnimationFrame(render);
+    }
   }
 
   // --- Input & Multi-Touch Gesture Handlers ---
