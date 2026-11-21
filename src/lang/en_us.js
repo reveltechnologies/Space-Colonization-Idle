@@ -469,58 +469,128 @@
       gain_sep: ", "
     },
     intro: {
-      tap_to_finish: "Tap to complete text",
+      tap_to_finish: "Tap to show all text",
       tap_to_continue: "Tap to continue",
-      default_pioneer: "Pioneer",
-      name_placeholder: "Enter your name...",
-      name_required_error: "Enter your name to unlock ignition!",
-      hint_enter_name: "Enter your name above to launch",
-      hint_ready_launch: "Press Launch to lift off!",
+      default_pioneer: "Explorer",
+      name_placeholder: "Type your name...",
+      name_required_error: "Please type your name to unlock the ship!",
+      hint_enter_name: "Type your name above to unlock the engines",
+      hint_ready_launch: "Engines unlocked — press Launch!",
       salvage_citizen: "+1 Citizen",
       salvage_energy: "+1 Energy",
       salvage_bricks: "+1/m Bricks",
       steps: [
         {
-          speaker: "Archives",
-          caption: "For centuries, Homeworld Nova-7 shone as humanity's greatest golden metropolis...",
-          btn: "Next"
+          beats: [
+            {
+              speaker: "Storyteller",
+              caption: "This was Nova-7, our homeworld. For a thousand years, billions of us lived in peace beneath its golden rings—never knowing the planet's core was running out of time.",
+              btn: "Continue"
+            },
+            {
+              speaker: "Chief Leo (Radio)",
+              caption: "Morning, rookie! I just finished fueling up your little scout ship on Pad 01. Wait a second... did you just feel the floor shake?",
+              btn: "What was that?"
+            }
+          ]
         },
         {
-          speaker: "Nova-7 Alert",
-          caption: "CRITICAL WARNING! Planetary core destabilizing — total collapse imminent!",
-          btn: "Sprint to Ship!"
+          beats: [
+            {
+              speaker: "V.E.G.A. (Ship AI)",
+              caption: "Red alert! The planet's core is breaking apart! The ground is collapsing across every city!",
+              btn: "Leo, come in!"
+            },
+            {
+              speaker: "Chief Leo (Radio)",
+              caption: "There's no time! Your scout ship is the only one fueled and ready. Get into the cockpit right now—I'll hold the launch tower steady from the control room!",
+              btn: "What about you?!"
+            }
+          ]
         },
         {
-          speaker: "V.E.G.A. AI",
-          caption: "Emergency launch controls locked! Enter your name to register as pilot and unlock the thrusters!",
-          btn: "Ignite & Launch!"
+          beats: [
+            {
+              speaker: "Chief Leo (Radio)",
+              caption: "The tower clamps are jammed—I have to hold the release lever by hand! Sign your name on the cockpit screen to unlock the engines, and don't look back!",
+              btn: "Launch!"
+            }
+          ]
         },
         {
-          speaker: "{name}",
-          caption: "Full throttle! We barely cleared the shockwave... Homeworld Nova-7 is gone.",
-          btn: "Check Systems"
+          beats: [
+            {
+              speaker: "Chief Leo (Radio)",
+              caption: "You're clear of the tower! Fly far, {name}... find a new home for us. Somebody has to remember we were here— *kzzzt*—",
+              btn: "Leo?! Come in!"
+            },
+            {
+              speaker: "{name}",
+              caption: "...Leo? Anybody? ...The whole radio is just static. Nova-7 is gone. Everyone I ever knew... gone in a single flash.",
+              btn: "Keep Flying"
+            }
+          ]
         },
         {
-          speaker: "V.E.G.A. AI",
-          caption: "Warning, {name}! Main fuel tanks completely dry! Thrusters offline — we've lost all steering!",
-          btn: "Drift Onward"
+          beats: [
+            {
+              speaker: "V.E.G.A. (Ship AI)",
+              caption: "{name}, our fuel tanks just hit zero. That emergency launch burned every last drop we had. The engines are shutting down...",
+              btn: "Can we steer?"
+            },
+            {
+              speaker: "{name}",
+              caption: "The thrusters are dead! We're spinning out of control in the middle of nowhere... V.E.G.A., are we going to make it?",
+              btn: "Listen to V.E.G.A."
+            },
+            {
+              speaker: "V.E.G.A. (Ship AI)",
+              caption: "I am still right here with you, {name}. I turned off my own lights and heaters to save oxygen for you. Rest your eyes—I will keep watch in the dark.",
+              btn: "Close Your Eyes"
+            }
+          ]
         },
         {
-          speaker: "{name}",
-          caption: "Floating silently in the dark... Wait — is that a rocky planet ahead?!",
-          btn: "Scan Planet"
+          beats: [
+            {
+              speaker: "Storyteller",
+              caption: "Days turned into weeks as the little ship drifted silently through the cold dark. Just when hope began to fade, a pale rocky world appeared ahead.",
+              btn: "Wake Up"
+            },
+            {
+              speaker: "V.E.G.A. (Ship AI)",
+              caption: "{name}, wake up! Look out the front window! My sensors found a planet—and it has solid ground, ice, and minerals!",
+              btn: "Look Outside"
+            }
+          ]
         },
         {
-          speaker: "V.E.G.A. AI",
-          caption: "Hold on, {name}! Gravity capture confirmed — entering atmosphere with zero braking fuel!",
-          btn: "Brace for Impact!"
+          beats: [
+            {
+              speaker: "{name}",
+              caption: "It's huge... wait, why are we speeding up?! V.E.G.A., its gravity is pulling us straight down, and we have no fuel to slow down!",
+              btn: "Grab the Controls"
+            },
+            {
+              speaker: "V.E.G.A. (Ship AI)",
+              caption: "I'm locking your seat harness and sending all my last battery power into the crash shields! Hold on tight, {name}—we're going in!",
+              btn: "Brace for Impact!"
+            }
+          ]
         },
         {
-          speaker_pre: "V.E.G.A. AI",
-          speaker: "{name}",
-          caption_pre: "Brace for touchdown, {name}! Atmospheric heat peaking!",
-          caption: "I survived! The crashed hull gives me shelter, power, and salvage — time to rebuild!",
-          btn: "Start Colony!"
+          beats: [
+            {
+              speaker: "V.E.G.A. (Ship AI)",
+              caption: "*Bzzzt*... Systems rebooting... {name}? Are you hurt? You made it! We're alive!",
+              btn: "I'm Okay"
+            },
+            {
+              speaker: "{name}",
+              caption: "My ship is wrecked, but its hull is still strong enough to be my shelter and power source. I made a promise to Leo... and this is where our new home begins.",
+              btn: "Build Our New Home"
+            }
+          ]
         }
       ]
     },

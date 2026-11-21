@@ -200,6 +200,7 @@
   const ctx = canvasEl ? canvasEl.getContext("2d") : null;
   const alarmOverlayEl = document.getElementById("intro-alarm-overlay");
   const flashOverlayEl = document.getElementById("intro-flash-overlay");
+  const dialogueDeckEl = document.getElementById("intro-dialogue-deck");
   const portraitFrameEl = document.getElementById("intro-portrait-frame");
   const portraitIconEl = document.getElementById("intro-portrait-icon");
   const speakerNameEl = document.getElementById("intro-speaker-name");
@@ -220,62 +221,66 @@
   const STEPS = [
     {
       idx: 0,
-      minReadyMs: 850,
-      portrait: "./assets/ui/intro-nova7.svg",
-      alert: false,
-      btnStyle: "default"
+      beats: [
+        { minReadyMs: 650, portrait: "./assets/ui/intro-nova7.svg", alert: false, btnStyle: "default" },
+        { minReadyMs: 350, portrait: "./assets/ui/icon-citizen.svg", alert: false, btnStyle: "default" }
+      ]
     },
     {
       idx: 1,
-      minReadyMs: 1150,
-      portrait: "./assets/ui/intro-ai.svg",
-      alert: true,
-      btnStyle: "urgent"
+      beats: [
+        { minReadyMs: 750, portrait: "./assets/ui/intro-ai.svg", alert: true, btnStyle: "urgent" },
+        { minReadyMs: 350, portrait: "./assets/ui/icon-citizen.svg", alert: true, btnStyle: "urgent" }
+      ]
     },
     {
       idx: 2,
-      minReadyMs: 650,
-      portrait: "./assets/ui/intro-ai.svg",
-      alert: true,
-      requiresName: true,
-      btnStyle: "urgent",
-      btnIcon: "./assets/ui/bld-space-rocket-2.svg"
+      beats: [
+        {
+          minReadyMs: 550,
+          portrait: "./assets/ui/icon-citizen.svg",
+          alert: true,
+          requiresName: true,
+          btnStyle: "urgent",
+          btnIcon: "./assets/ui/bld-space-rocket-2.svg"
+        }
+      ]
     },
     {
       idx: 3,
-      minReadyMs: 2350,
-      portrait: "./assets/ui/icon-citizen.svg",
-      alert: true,
-      btnStyle: "default"
+      beats: [
+        { minReadyMs: 1850, portrait: "./assets/ui/icon-citizen.svg", alert: true, btnStyle: "urgent" },
+        { minReadyMs: 350, portrait: "./assets/ui/icon-citizen.svg", alert: false, btnStyle: "default" }
+      ]
     },
     {
       idx: 4,
-      minReadyMs: 1750,
-      portrait: "./assets/ui/intro-ai.svg",
-      alert: true,
-      btnStyle: "default"
+      beats: [
+        { minReadyMs: 1550, portrait: "./assets/ui/intro-ai.svg", alert: true, btnStyle: "default" },
+        { minReadyMs: 350, portrait: "./assets/ui/icon-citizen.svg", alert: true, btnStyle: "default" },
+        { minReadyMs: 350, portrait: "./assets/ui/intro-ai.svg", alert: false, btnStyle: "default" }
+      ]
     },
     {
       idx: 5,
-      minReadyMs: 1050,
-      portrait: "./assets/ui/icon-citizen.svg",
-      alert: false,
-      btnStyle: "default"
+      beats: [
+        { minReadyMs: 750, portrait: "./assets/ui/intro-nova7.svg", alert: false, btnStyle: "default" },
+        { minReadyMs: 350, portrait: "./assets/ui/intro-ai.svg", alert: false, btnStyle: "default" }
+      ]
     },
     {
       idx: 6,
-      minReadyMs: 1350,
-      portrait: "./assets/ui/intro-ai.svg",
-      alert: true,
-      btnStyle: "urgent"
+      beats: [
+        { minReadyMs: 750, portrait: "./assets/ui/icon-citizen.svg", alert: true, btnStyle: "default" },
+        { minReadyMs: 350, portrait: "./assets/ui/intro-ai.svg", alert: true, btnStyle: "urgent" }
+      ]
     },
     {
       idx: 7,
-      minReadyMs: 2150,
-      portraitPre: "./assets/ui/intro-ai.svg",
-      portrait: "./assets/ui/bld-crash-base.svg",
-      alert: false,
-      btnStyle: "victory"
+      beats: [
+        { minReadyMs: 450, portrait: "./assets/ui/intro-ai.svg", alert: false, btnStyle: "default" },
+        { minReadyMs: 450, portrait: "./assets/ui/bld-crash-base.svg", alert: false, btnStyle: "victory", showSalvage: true }
+      ]
     }
   ];
 
@@ -284,6 +289,8 @@
   let playing = false;
   let rafId = 0;
   let sceneIndex = 0;
+  let beatIndex = 0;
+  let beatStartMs = 0;
   let sceneStartWall = 0;
   let playStartWall = 0;
   let stepMs = 0;
@@ -292,10 +299,17 @@
   let impactFlashFired = false;
   let preparedFired = false;
   let impactFired = false;
-  let step7PostMode = false;
+  let step7DialogueStarted = false;
+
+  function getCurrentBeatCfg() {
+    const cfg = STEPS[sceneIndex];
+    return cfg && cfg.beats ? cfg.beats[beatIndex] || cfg.beats[0] : null;
+  }
   let fullCaptionText = "";
   let textComplete = false;
   let typewriterStartMs = 0;
+  let typewriterCharTimes = [];
+  let typedCursor = 0;
   let lastTypedLen = -1;
   let continueVisible = false;
   let lastHintKey = "";
@@ -1368,7 +1382,7 @@
       1
     );
 
-    setAlarmActive(true);
+    setAlarmActive(beatIndex === 0);
   }
 
   function renderStep4FuelEmpty(sMs, elapsed) {
@@ -1408,7 +1422,7 @@
       1
     );
 
-    setAlarmActive(fuelPct <= 0);
+    setAlarmActive(fuelPct <= 0 && beatIndex < 2);
   }
 
   function renderStep5AdriftVoid(sMs, elapsed) {
@@ -1567,12 +1581,13 @@
       }
     }
 
-    if (sMs >= 1620 && !step7PostMode) {
-      step7PostMode = true;
-      applyStep7PostSurvivalUI();
+    if (sMs >= 1520 && !step7DialogueStarted) {
+      step7DialogueStarted = true;
+      if (dialogueDeckEl) dialogueDeckEl.classList.remove("is-hidden");
+      enterBeat(0);
     }
 
-    setAlarmActive(!step7PostMode);
+    setAlarmActive(!step7DialogueStarted);
 
     const target =
       currentCallbacks && typeof currentCallbacks.getCrashTarget === "function"
@@ -1753,21 +1768,29 @@
     return true;
   }
 
-  function applyStep7PostSurvivalUI() {
-    const cfg = STEPS[7];
-    const pName = getDisplayPlayerName();
-    if (speakerNameEl) speakerNameEl.textContent = t("intro.steps.7.speaker", { name: pName });
-    if (portraitIconEl) portraitIconEl.src = cfg.portrait;
-    if (portraitFrameEl) portraitFrameEl.classList.remove("is-alert");
-    if (salvageChipsEl) salvageChipsEl.classList.remove("is-hidden");
-    startTypewriter(t("intro.steps.7.caption", { name: pName }));
-  }
-
   function startTypewriter(textStr) {
     fullCaptionText = String(textStr || "");
     textComplete = false;
     lastTypedLen = -1;
+    typedCursor = 0;
     typewriterStartMs = stepMs;
+    typewriterCharTimes = new Array(fullCaptionText.length);
+    let acc = 0;
+    for (let i = 0; i < fullCaptionText.length; i++) {
+      const ch = fullCaptionText.charAt(i);
+      const nextCh = i + 1 < fullCaptionText.length ? fullCaptionText.charAt(i + 1) : "";
+      acc += 17;
+      typewriterCharTimes[i] = acc;
+      if (ch === "," || ch === ";" || ch === ":") {
+        acc += 65;
+      } else if (ch === "\u2014") {
+        acc += 115;
+      } else if (ch === "." && nextCh === ".") {
+        acc += 85;
+      } else if ((ch === "." || ch === "?" || ch === "!") && nextCh === " ") {
+        acc += 165;
+      }
+    }
     updateTapHintUI("intro.tap_to_finish", true);
     tickTypewriter();
   }
@@ -1775,6 +1798,7 @@
   function forceRevealText() {
     if (textComplete) return;
     textComplete = true;
+    typedCursor = fullCaptionText.length;
     lastTypedLen = fullCaptionText.length;
     if (captionEl) captionEl.textContent = fullCaptionText;
   }
@@ -1782,12 +1806,15 @@
   function tickTypewriter() {
     if (!textComplete) {
       const elapsedType = Math.max(0, stepMs - typewriterStartMs);
-      const count = Math.min(fullCaptionText.length, Math.max(1, Math.floor(elapsedType / 18)));
+      while (typedCursor < fullCaptionText.length && elapsedType >= typewriterCharTimes[typedCursor]) {
+        typedCursor++;
+      }
+      const count = Math.max(1, typedCursor);
       if (count !== lastTypedLen) {
         lastTypedLen = count;
         if (captionEl) captionEl.textContent = fullCaptionText.slice(0, count);
       }
-      if (count >= fullCaptionText.length) {
+      if (typedCursor >= fullCaptionText.length) {
         textComplete = true;
       }
     }
@@ -1808,67 +1835,66 @@
     if (continueVisible === visible) return;
     continueVisible = visible;
     const cfg = STEPS[sceneIndex];
+    const beatCfg = getCurrentBeatCfg();
     if (continueBtn) {
       continueBtn.classList.toggle("is-hidden", !visible);
-      continueBtn.classList.toggle("is-urgent", visible && cfg.btnStyle === "urgent");
-      continueBtn.classList.toggle("is-victory", visible && cfg.btnStyle === "victory");
-      if (!visible || !cfg.requiresName) {
+      continueBtn.classList.toggle("is-urgent", Boolean(visible && beatCfg && beatCfg.btnStyle === "urgent"));
+      continueBtn.classList.toggle("is-victory", Boolean(visible && beatCfg && beatCfg.btnStyle === "victory"));
+      if (!visible || !beatCfg || !beatCfg.requiresName) {
         continueBtn.classList.remove("is-locked");
         lastNameLockedState = null;
       }
     }
     if (continueIconEl) {
-      if (visible && cfg.btnIcon) {
-        continueIconEl.src = cfg.btnIcon;
+      if (visible && beatCfg && beatCfg.btnIcon) {
+        continueIconEl.src = beatCfg.btnIcon;
         continueIconEl.classList.remove("is-hidden");
       } else {
         continueIconEl.classList.add("is-hidden");
       }
     }
-    if (continueLabelEl && visible) {
-      continueLabelEl.textContent = t("intro.steps." + cfg.idx + ".btn");
+    if (continueLabelEl && visible && cfg) {
+      continueLabelEl.textContent = t("intro.steps." + cfg.idx + ".beats." + beatIndex + ".btn", {
+        name: getDisplayPlayerName()
+      });
     }
   }
 
-  function enterStep(idx) {
-    sceneIndex = clamp(idx, 0, STEP_COUNT - 1);
-    sceneStartWall = 0;
-    stepMs = 0;
+  function enterBeat(bIdx) {
+    const cfg = STEPS[sceneIndex];
+    if (!cfg || !cfg.beats) return;
+    beatIndex = clamp(bIdx, 0, cfg.beats.length - 1);
+    beatStartMs = stepMs;
     sceneReady = false;
-    step7PostMode = false;
-    flashFiredInStep3 = false;
-    impactFlashFired = false;
     continueVisible = false;
     lastNameLockedState = null;
 
-    const cfg = STEPS[sceneIndex];
+    const beatCfg = cfg.beats[beatIndex];
     const pName = getDisplayPlayerName();
 
     if (speakerNameEl) {
-      speakerNameEl.textContent =
-        sceneIndex === 7
-          ? t("intro.steps.7.speaker_pre", { name: pName })
-          : t("intro.steps." + cfg.idx + ".speaker", { name: pName });
+      speakerNameEl.textContent = t("intro.steps." + cfg.idx + ".beats." + beatIndex + ".speaker", { name: pName });
     }
     if (portraitFrameEl) {
-      portraitFrameEl.classList.toggle("is-alert", Boolean(cfg.alert));
+      portraitFrameEl.classList.toggle("is-alert", Boolean(beatCfg.alert));
     }
     if (portraitIconEl) {
-      portraitIconEl.src = cfg.portraitPre || cfg.portrait;
+      portraitIconEl.src = beatCfg.portrait;
     }
     if (nameRowEl) {
-      nameRowEl.classList.toggle("is-hidden", !cfg.requiresName);
+      nameRowEl.classList.toggle("is-hidden", !beatCfg.requiresName);
     }
     if (nameErrorEl) {
       nameErrorEl.classList.add("is-hidden");
     }
     if (playerNameInputEl) {
       playerNameInputEl.classList.remove("is-invalid");
-      if (cfg.requiresName) {
+      if (beatCfg.requiresName) {
         playerNameInputEl.value = enteredPlayerName;
         if (window.matchMedia && window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
           window.setTimeout(function () {
-            if (playing && STEPS[sceneIndex] && STEPS[sceneIndex].requiresName && playerNameInputEl) {
+            const curBeat = getCurrentBeatCfg();
+            if (playing && curBeat && curBeat.requiresName && playerNameInputEl) {
               playerNameInputEl.focus();
             }
           }, 60);
@@ -1878,7 +1904,7 @@
       }
     }
     if (salvageChipsEl) {
-      salvageChipsEl.classList.add("is-hidden");
+      salvageChipsEl.classList.toggle("is-hidden", !beatCfg.showSalvage);
     }
     if (continueBtn) {
       continueBtn.classList.add("is-hidden");
@@ -1888,19 +1914,38 @@
       continueIconEl.classList.add("is-hidden");
     }
 
-    const startCaption =
-      sceneIndex === 7
-        ? t("intro.steps.7.caption_pre", { name: pName })
-        : t("intro.steps." + cfg.idx + ".caption", { name: pName });
-    startTypewriter(startCaption);
+    startTypewriter(t("intro.steps." + cfg.idx + ".beats." + beatIndex + ".caption", { name: pName }));
+  }
+
+  function enterStep(idx) {
+    sceneIndex = clamp(idx, 0, STEP_COUNT - 1);
+    sceneStartWall = 0;
+    stepMs = 0;
+    beatIndex = 0;
+    beatStartMs = 0;
+    sceneReady = false;
+    step7DialogueStarted = false;
+    flashFiredInStep3 = false;
+    impactFlashFired = false;
+    continueVisible = false;
+    lastNameLockedState = null;
+
+    if (sceneIndex === 7) {
+      if (dialogueDeckEl) dialogueDeckEl.classList.add("is-hidden");
+      updateTapHintUI("", false);
+      return;
+    }
+
+    if (dialogueDeckEl) dialogueDeckEl.classList.remove("is-hidden");
+    enterBeat(0);
   }
 
   function handleUserTapAdvance() {
-    if (!playing) return;
-    const cfg = STEPS[sceneIndex];
+    if (!playing || (sceneIndex === 7 && !step7DialogueStarted)) return;
+    const beatCfg = getCurrentBeatCfg();
     if (!textComplete) {
       forceRevealText();
-      if (cfg && cfg.requiresName) {
+      if (beatCfg && beatCfg.requiresName) {
         if (sceneReady) {
           setContinueButtonVisible(true);
           const hasValidName = syncNameStepButtonState();
@@ -1916,7 +1961,7 @@
       }
       return;
     }
-    if (cfg && cfg.requiresName) {
+    if (beatCfg && beatCfg.requiresName) {
       return;
     }
     if (sceneReady) {
@@ -1927,8 +1972,13 @@
   function advanceScene() {
     if (!playing || !sceneReady) return false;
     const cfg = STEPS[sceneIndex];
-    if (cfg && cfg.requiresName) {
+    const beatCfg = getCurrentBeatCfg();
+    if (beatCfg && beatCfg.requiresName) {
       return submitPlayerNameAndAdvance();
+    }
+    if (cfg && cfg.beats && beatIndex + 1 < cfg.beats.length) {
+      enterBeat(beatIndex + 1);
+      return true;
     }
     if (sceneIndex + 1 < STEP_COUNT) {
       enterStep(sceneIndex + 1);
@@ -1976,38 +2026,42 @@
     if (!sceneStartWall) sceneStartWall = now;
     stepMs = Math.max(0, now - sceneStartWall);
     const elapsed = Math.max(0, now - playStartWall);
-    const cfg = STEPS[sceneIndex];
 
     pointerTiltX += (targetTiltX - pointerTiltX) * 0.08;
     pointerTiltY += (targetTiltY - pointerTiltY) * 0.08;
 
-    tickTypewriter();
+    const beatCfg = getCurrentBeatCfg();
+    if (sceneIndex === 7 && !step7DialogueStarted) {
+      sceneReady = false;
+    } else if (beatCfg) {
+      tickTypewriter();
+      const beatElapsed = Math.max(0, stepMs - beatStartMs);
+      if (!sceneReady && beatElapsed >= beatCfg.minReadyMs) {
+        sceneReady = true;
+      }
 
-    if (!sceneReady && stepMs >= cfg.minReadyMs) {
-      sceneReady = true;
-    }
-
-    if (cfg.requiresName) {
-      if (sceneReady) {
-        setContinueButtonVisible(true);
-        const hasValidName = syncNameStepButtonState();
-        if (textComplete) {
-          updateTapHintUI(hasValidName ? "intro.hint_ready_launch" : "intro.hint_enter_name", true);
-        } else {
+      if (beatCfg.requiresName) {
+        if (sceneReady) {
+          setContinueButtonVisible(true);
+          const hasValidName = syncNameStepButtonState();
+          if (textComplete) {
+            updateTapHintUI(hasValidName ? "intro.hint_ready_launch" : "intro.hint_enter_name", true);
+          } else {
+            updateTapHintUI("intro.tap_to_finish", true);
+          }
+        } else if (!textComplete) {
           updateTapHintUI("intro.tap_to_finish", true);
+        } else {
+          updateTapHintUI("", false);
         }
+      } else if (sceneReady && textComplete) {
+        setContinueButtonVisible(true);
+        updateTapHintUI("intro.tap_to_continue", true);
       } else if (!textComplete) {
         updateTapHintUI("intro.tap_to_finish", true);
       } else {
         updateTapHintUI("", false);
       }
-    } else if (sceneReady && textComplete) {
-      setContinueButtonVisible(true);
-      updateTapHintUI("intro.tap_to_continue", true);
-    } else if (!textComplete) {
-      updateTapHintUI("intro.tap_to_finish", true);
-    } else {
-      updateTapHintUI("", false);
     }
 
     ctx.clearRect(0, 0, width, height);
@@ -2092,7 +2146,8 @@
   if (playerNameInputEl) {
     playerNameInputEl.addEventListener("input", function () {
       const valid = syncNameStepButtonState();
-      if (playing && STEPS[sceneIndex] && STEPS[sceneIndex].requiresName && sceneReady && textComplete) {
+      const beatCfg = getCurrentBeatCfg();
+      if (playing && beatCfg && beatCfg.requiresName && sceneReady && textComplete) {
         updateTapHintUI(valid ? "intro.hint_ready_launch" : "intro.hint_enter_name", true);
       }
     });
@@ -2101,8 +2156,8 @@
   if (continueBtn) {
     continueBtn.addEventListener("click", function (e) {
       e.stopPropagation();
-      const cfg = STEPS[sceneIndex];
-      if (cfg && cfg.requiresName) {
+      const beatCfg = getCurrentBeatCfg();
+      if (beatCfg && beatCfg.requiresName) {
         forceRevealText();
         submitPlayerNameAndAdvance();
         return;
@@ -2151,8 +2206,8 @@
 
   window.addEventListener("keydown", function (e) {
     if (!playing) return;
-    const cfg = STEPS[sceneIndex];
-    if (cfg && cfg.requiresName) {
+    const beatCfg = getCurrentBeatCfg();
+    if (beatCfg && beatCfg.requiresName) {
       if (e.key === "Enter") {
         e.preventDefault();
         forceRevealText();
@@ -2183,6 +2238,7 @@
       return {
         playing: playing,
         sceneIndex: sceneIndex,
+        beatIndex: beatIndex,
         sceneReady: sceneReady,
         textComplete: textComplete,
         preparedFired: preparedFired,
