@@ -26,6 +26,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Watertight 3D Models & Cel-Shaded SVG Icons**:
   - Added 11 custom cel-shaded SVG icons in `src/assets/ui/` and 8 watertight procedural 3D building models (including active & spent states for `buildGeoTerraformerModel`) in `src/js/buildings.js`.
 
+### Fixed
+- **Fixed-Position Build Menu Header Controls (`src/css/style.css`)**:
+  - Locked `.build-drawer-header` to a 2-row CSS Grid (`grid-template-columns: minmax(0, 1fr) auto`) across all viewports so the Demolish button, Close button, and Category tabs stay at fixed coordinates inside the `.build-drawer` background panel regardless of tile biome name length, while `.build-title` stays single-line with ellipsis truncation inside Row 1.
+- **Constant-Height Build Menu Cards (`src/css/style.css`, `src/js/buildings.js`, `src/lang/en_us.js`)**:
+  - Locked `.build-card-info` and `.build-card-action` to uniform single-row heights across all breakpoints, switched `.build-card-multi-chips` to single-row compact `+N` badges for dual-output buildings (`solar_cabin`, `eco_dome`, `eco_arcology`, `crash_base`), and added `.is-compact-costs` for 3-currency costs so `#build-drawer` never changes height when switching categories or tiles.
+
 ## [0.2.0-pre.1] - 2026-11-21
 
 ### Fixed

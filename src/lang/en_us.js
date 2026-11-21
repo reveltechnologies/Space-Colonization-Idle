@@ -302,6 +302,7 @@
       citizen_gain_one: "+{count} Citizen",
       citizen_gain_many: "+{count} Citizens",
       energy_gain: "+{count} Energy",
+      stat_plus_short: "+{count}",
       energy_req: "-{count} Energy",
       energy_req_short: "-{count}",
       citizen_req_one: "-{count} Citizen",

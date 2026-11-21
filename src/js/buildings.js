@@ -833,10 +833,12 @@
   function renderCostItems(containerEl, cost, planetId, isDiscounted) {
     if (!containerEl) return;
     const costOrder = ["credits", "bricks", "ore"];
+    let renderedCount = 0;
     for (let c = 0; c < costOrder.length; c++) {
       const key = costOrder[c];
       const req = cost && cost[key];
       if (!req || req <= 0) continue;
+      renderedCount++;
       const hasEnough = getAvailableCurrencyAmount(key, planetId) >= req;
       const item = document.createElement("span");
       item.className = "build-cost-item" + (hasEnough ? "" : " is-short") + (isDiscounted ? " is-discounted" : "");
@@ -851,6 +853,9 @@
       item.appendChild(cIcon);
       item.appendChild(cVal);
       containerEl.appendChild(item);
+    }
+    if (containerEl.classList) {
+      containerEl.classList.toggle("is-compact-costs", renderedCount >= 3);
     }
   }
 
@@ -1338,26 +1343,26 @@
         const multiWrap = document.createElement("span");
         multiWrap.className = "build-card-multi-chips";
         if (b.citizenSlots && b.citizenSlots > 0) {
-          multiWrap.appendChild(
-            createCardInfoChip(
-              "build-citizen-chip",
-              "build-citizen-icon",
-              STAT_ICONS.citizens,
-              "build-citizen-label",
-              formatCitizenGain(b.citizenSlots)
-            )
+          const cChip = createCardInfoChip(
+            "build-citizen-chip",
+            "build-citizen-icon",
+            STAT_ICONS.citizens,
+            "build-citizen-label",
+            t("build.stat_plus_short", { count: formatCostValue(b.citizenSlots) })
           );
+          cChip.title = formatCitizenGain(b.citizenSlots);
+          multiWrap.appendChild(cChip);
         }
         if (b.energySlots && b.energySlots > 0) {
-          multiWrap.appendChild(
-            createCardInfoChip(
-              "build-energy-chip",
-              "build-energy-icon",
-              STAT_ICONS.energy,
-              "build-energy-label",
-              formatEnergyGain(b.energySlots)
-            )
+          const eChip = createCardInfoChip(
+            "build-energy-chip",
+            "build-energy-icon",
+            STAT_ICONS.energy,
+            "build-energy-label",
+            t("build.stat_plus_short", { count: formatCostValue(b.energySlots) })
           );
+          eChip.title = formatEnergyGain(b.energySlots);
+          multiWrap.appendChild(eChip);
         }
         if (b.bricksPerSec && b.bricksPerSec > 0) {
           multiWrap.appendChild(
@@ -1394,28 +1399,28 @@
       } else if (!showInvalidTerrain && b.citizenSlots && b.citizenSlots > 0 && b.energySlots && b.energySlots > 0) {
         const multiWrap = document.createElement("span");
         multiWrap.className = "build-card-multi-chips";
-        multiWrap.appendChild(
-          createCardInfoChip(
-            "build-citizen-chip",
-            "build-citizen-icon",
-            STAT_ICONS.citizens,
-            "build-citizen-label",
-            formatCitizenGain(b.citizenSlots),
-            "data-citizen-slots",
-            b.citizenSlots
-          )
+        const cChip = createCardInfoChip(
+          "build-citizen-chip",
+          "build-citizen-icon",
+          STAT_ICONS.citizens,
+          "build-citizen-label",
+          t("build.stat_plus_short", { count: formatCostValue(b.citizenSlots) }),
+          "data-citizen-slots",
+          b.citizenSlots
         );
-        multiWrap.appendChild(
-          createCardInfoChip(
-            "build-energy-chip",
-            "build-energy-icon",
-            STAT_ICONS.energy,
-            "build-energy-label",
-            formatEnergyGain(b.energySlots),
-            "data-energy-slots",
-            b.energySlots
-          )
+        cChip.title = formatCitizenGain(b.citizenSlots);
+        multiWrap.appendChild(cChip);
+        const eChip = createCardInfoChip(
+          "build-energy-chip",
+          "build-energy-icon",
+          STAT_ICONS.energy,
+          "build-energy-label",
+          t("build.stat_plus_short", { count: formatCostValue(b.energySlots) }),
+          "data-energy-slots",
+          b.energySlots
         );
+        eChip.title = formatEnergyGain(b.energySlots);
+        multiWrap.appendChild(eChip);
         info.appendChild(multiWrap);
       } else if (!showInvalidTerrain && b.citizenSlots && b.citizenSlots > 0) {
         info.appendChild(

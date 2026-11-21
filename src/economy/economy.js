@@ -137,7 +137,7 @@
 
       // Colony Housing
       small_house: {
-        cost: { credits: 60, bricks: 10 },
+        cost: { bricks: 25 },
         citizenSlots: 2
       },
       big_house: {
