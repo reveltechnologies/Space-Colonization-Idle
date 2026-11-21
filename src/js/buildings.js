@@ -2242,6 +2242,141 @@
     return "rgb(" + r + "," + g + "," + b + ")";
   }
 
+  const CLIP_AX = new Float64Array(32);
+  const CLIP_AY = new Float64Array(32);
+  const CLIP_BX = new Float64Array(32);
+  const CLIP_BY = new Float64Array(32);
+  const CLIP_OVERLAP_PT = { x: 0, y: 0 };
+  const LINE_HIT_INFO = { x: 0, y: 0, um: 0 };
+
+  let sortNodeCap = 256;
+  let sortEdgeCap = 2048;
+  let sortIndeg = new Int16Array(sortNodeCap);
+  let sortDone = new Uint8Array(sortNodeCap);
+  let sortHead = new Int32Array(sortNodeCap);
+  let sortEdgeTo = new Int32Array(sortEdgeCap);
+  let sortEdgeNext = new Int32Array(sortEdgeCap);
+
+  function ensureSortNodeCap(n) {
+    if (n <= sortNodeCap) return;
+    while (sortNodeCap < n) sortNodeCap *= 2;
+    sortIndeg = new Int16Array(sortNodeCap);
+    sortDone = new Uint8Array(sortNodeCap);
+    sortHead = new Int32Array(sortNodeCap);
+  }
+
+  function ensureSortEdgeCap(needed) {
+    if (needed <= sortEdgeCap) return;
+    let nextCap = sortEdgeCap;
+    while (nextCap < needed) nextCap *= 2;
+    const nextTo = new Int32Array(nextCap);
+    nextTo.set(sortEdgeTo);
+    const nextNext = new Int32Array(nextCap);
+    nextNext.set(sortEdgeNext);
+    sortEdgeTo = nextTo;
+    sortEdgeNext = nextNext;
+    sortEdgeCap = nextCap;
+  }
+
+  function clipPolyOverlapCentroid(ptsA, ptsB, outPt) {
+    let len = ptsA.length < 32 ? ptsA.length : 32;
+    for (let i = 0; i < len; i++) {
+      CLIP_AX[i] = ptsA[i].x;
+      CLIP_AY[i] = ptsA[i].y;
+    }
+    const nb = ptsB.length;
+    for (let e = 0; e < nb; e++) {
+      const p1 = ptsB[e];
+      const p2 = ptsB[(e + 1) % nb];
+      const x1 = p1.x;
+      const y1 = p1.y;
+      const ex = p2.x - x1;
+      const ey = p2.y - y1;
+      if (len === 0) return false;
+      let outLen = 0;
+      let sx = CLIP_AX[len - 1];
+      let sy = CLIP_AY[len - 1];
+      let sCross = ex * (sy - y1) - ey * (sx - x1);
+      for (let i = 0; i < len; i++) {
+        const px = CLIP_AX[i];
+        const py = CLIP_AY[i];
+        const pCross = ex * (py - y1) - ey * (px - x1);
+        if (pCross >= 0) {
+          if (sCross < 0 && outLen < 32) {
+            const t = sCross / (sCross - pCross);
+            CLIP_BX[outLen] = sx + t * (px - sx);
+            CLIP_BY[outLen] = sy + t * (py - sy);
+            outLen++;
+          }
+          if (outLen < 32) {
+            CLIP_BX[outLen] = px;
+            CLIP_BY[outLen] = py;
+            outLen++;
+          }
+        } else if (sCross >= 0 && outLen < 32) {
+          const t = sCross / (sCross - pCross);
+          CLIP_BX[outLen] = sx + t * (px - sx);
+          CLIP_BY[outLen] = sy + t * (py - sy);
+          outLen++;
+        }
+        sx = px;
+        sy = py;
+        sCross = pCross;
+      }
+      len = outLen;
+      if (len < 3) return false;
+      for (let i = 0; i < len; i++) {
+        CLIP_AX[i] = CLIP_BX[i];
+        CLIP_AY[i] = CLIP_BY[i];
+      }
+    }
+    let area2 = 0;
+    let cx = 0;
+    let cy = 0;
+    for (let i = 0, j = len - 1; i < len; j = i++) {
+      const cr = CLIP_AX[j] * CLIP_AY[i] - CLIP_AX[i] * CLIP_AY[j];
+      area2 += cr;
+      cx += (CLIP_AX[j] + CLIP_AX[i]) * cr;
+      cy += (CLIP_AY[j] + CLIP_AY[i]) * cr;
+    }
+    if (Math.abs(area2) < 0.02) return false;
+    outPt.x = cx / (3 * area2);
+    outPt.y = cy / (3 * area2);
+    return true;
+  }
+
+  function clipLineInPoly(p0, p1, ptsPoly, outInfo) {
+    const dx = p1.x - p0.x;
+    const dy = p1.y - p0.y;
+    let u0 = 0;
+    let u1 = 1;
+    const np = ptsPoly.length;
+    for (let e = 0; e < np; e++) {
+      const a = ptsPoly[e];
+      const b = ptsPoly[(e + 1) % np];
+      const ex = b.x - a.x;
+      const ey = b.y - a.y;
+      const num = ex * (p0.y - a.y) - ey * (p0.x - a.x);
+      const den = ex * dy - ey * dx;
+      if (Math.abs(den) < 1e-9) {
+        if (num < 0) return false;
+      } else {
+        const uHit = -num / den;
+        if (den > 0) {
+          if (uHit > u0) u0 = uHit;
+        } else {
+          if (uHit < u1) u1 = uHit;
+        }
+        if (u0 >= u1 - 1e-6) return false;
+      }
+    }
+    const um = 0.5 * (u0 + u1);
+    outInfo.x = p0.x + um * dx;
+    outInfo.y = p0.y + um * dy;
+    outInfo.um = um;
+    return true;
+  }
+
   function createMeshCollector(frame, buildScale, opts) {
     const o = opts || {};
     const primitives = [];
@@ -2342,12 +2477,13 @@
       const toCam = sub3(camVec, fc);
       const facing = dot3(fn, toCam);
 
-      if (!o.doubleSided && facing <= -1e-5) {
+      if (!o.doubleSided && facing <= 1e-7) {
         return;
       }
 
       const camNormal = facing < 0 ? { x: -fn.x, y: -fn.y, z: -fn.z } : fn;
       const planeD = dot3(camNormal, fc);
+      const camOffset = planeD - dot3(camNormal, camVec);
       const fill = shadeColor(rgb, camNormal, lightDir, halfVec, atmo, o);
       const bias = o.depthBias || 0;
 
@@ -2356,8 +2492,6 @@
       let maxX = -Infinity;
       let minY = Infinity;
       let maxY = -Infinity;
-      let minD = Infinity;
-      let maxD = -Infinity;
       let sumD = 0;
 
       for (let i = 0; i < count; i++) {
@@ -2368,26 +2502,29 @@
         if (pt.x > maxX) maxX = pt.x;
         if (pt.y < minY) minY = pt.y;
         if (pt.y > maxY) maxY = pt.y;
-        const d = dot3(w, viewAxis);
-        if (d < minD) minD = d;
-        if (d > maxD) maxD = d;
-        sumD += d;
+        sumD += dot3(w, viewAxis);
+      }
+
+      let area2 = 0;
+      for (let i = 0, j = count - 1; i < count; j = i++) {
+        area2 += pts[j].x * pts[i].y - pts[i].x * pts[j].y;
+      }
+      if (Math.abs(area2) < 1e-4) {
+        return;
+      }
+      if (area2 < 0) {
+        pts.reverse();
       }
 
       primitives.push({
-        pid: nextPid++,
         type: "poly",
         pts: pts,
-        wVerts: wVerts,
-        hasPlane: true,
         camNormal: camNormal,
-        planeD: planeD,
+        camOffset: camOffset,
         minX: minX,
         maxX: maxX,
         minY: minY,
         maxY: maxY,
-        minD: minD + bias,
-        maxD: maxD + bias,
         depthZ: sumD / count + bias,
         depthBias: bias,
         fill: fill,
@@ -2400,32 +2537,38 @@
       addFace([v0, v1, v2, v3], rgb, opts);
     }
 
-    function addLine(a, bPt, stroke, lineWidth, depthBias) {
+    function addLine(a, bPt, stroke, lineWidth, depthBias, opts) {
       const wa = toWorld(a[0], a[1], a[2]);
       const wb = toWorld(bPt[0], bPt[1], bPt[2]);
       if (wa.z >= nearClipZ || wb.z >= nearClipZ) {
         return;
       }
+      if (opts && opts.outwardNormal) {
+        const hintW = dirToWorld(opts.outwardNormal[0], opts.outwardNormal[1], opts.outwardNormal[2]);
+        const midW = { x: (wa.x + wb.x) * 0.5, y: (wa.y + wb.y) * 0.5, z: (wa.z + wb.z) * 0.5 };
+        if (dot3(hintW, sub3(camVec, midW)) <= 1e-7) {
+          return;
+        }
+      }
       const p0 = frame.project(wa, frame.cx, frame.cy, frame.focalLength);
       const p1 = frame.project(wb, frame.cx, frame.cy, frame.focalLength);
       const da = dot3(wa, viewAxis);
       const db = dot3(wb, viewAxis);
+      const d0 = camVec.z - wa.z;
+      const d1 = camVec.z - wb.z;
       const bias = depthBias || 0;
       const lw = lineWidth || 1.2;
       const pad = lw * 0.5;
       primitives.push({
-        pid: nextPid++,
         type: "line",
         p0: p0,
         p1: p1,
-        wVerts: [wa, wb],
-        hasPlane: false,
+        d0: d0 < 0.30 ? 0.30 : d0,
+        d1: d1 < 0.30 ? 0.30 : d1,
         minX: Math.min(p0.x, p1.x) - pad,
         maxX: Math.max(p0.x, p1.x) + pad,
         minY: Math.min(p0.y, p1.y) - pad,
         maxY: Math.max(p0.y, p1.y) + pad,
-        minD: Math.min(da, db) + bias,
-        maxD: Math.max(da, db) + bias,
         depthZ: (da + db) * 0.5 + bias,
         depthBias: bias,
         stroke: stroke,
@@ -2545,89 +2688,114 @@
       }
     }
 
-    function classifyVertsAgainstPlane(verts, normal, planeD, eps) {
-      let hasPos = false;
-      let hasNeg = false;
-      for (let k = 0; k < verts.length; k++) {
-        const d = dot3(normal, verts[k]) - planeD;
-        if (d > eps) {
-          if (hasNeg) return 2;
-          hasPos = true;
-        } else if (d < -eps) {
-          if (hasPos) return 2;
-          hasNeg = true;
-        }
-      }
-      if (!hasPos && !hasNeg) return 0;
-      return hasPos ? 1 : -1;
-    }
-
     function drawAll(ctx) {
-      const count = primitives.length;
-      if (count === 0) return;
+      const n = primitives.length;
+      if (n === 0) return;
 
-      primitives.sort(function (a, bItem) {
-        const dm = a.minD - bItem.minD;
-        return dm !== 0 ? dm : a.depthZ - bItem.depthZ;
-      });
+      ensureSortNodeCap(n);
+      for (let i = 0; i < n; i++) {
+        sortHead[i] = -1;
+        sortIndeg[i] = 0;
+        sortDone[i] = 0;
+      }
 
-      if (count > 1) {
-        const EPS = 1e-4;
-        const moved = new Uint8Array(nextPid);
-        let guard = count * 4;
-        let i = 0;
+      let edgeCount = 0;
+      const cx = frame.cx;
+      const cy = frame.cy;
+      const fl = frame.focalLength;
 
-        while (i < count - 1 && guard > 0) {
-          const P = primitives[i];
-          let swapped = false;
-
-          for (let j = i + 1; j < count; j++) {
-            const Q = primitives[j];
-            if (Q.minD >= P.maxD - EPS) {
-              break;
-            }
-            if (
-              P.maxX <= Q.minX + 0.5 ||
-              Q.maxX <= P.minX + 0.5 ||
-              P.maxY <= Q.minY + 0.5 ||
-              Q.maxY <= P.minY + 0.5
-            ) {
-              continue;
-            }
-
-            const pSideQ = Q.hasPlane ? classifyVertsAgainstPlane(P.wVerts, Q.camNormal, Q.planeD, EPS) : 2;
-            if (pSideQ === -1) {
-              continue;
-            }
-
-            const qSideP = P.hasPlane ? classifyVertsAgainstPlane(Q.wVerts, P.camNormal, P.planeD, EPS) : 2;
-            if (qSideP === 1) {
-              continue;
-            }
-
-            const mustSwap =
-              pSideQ === 1 ||
-              qSideP === -1 ||
-              ((pSideQ === 0 || qSideP === 0) && P.depthBias > Q.depthBias);
-
-            if (mustSwap && !moved[Q.pid]) {
-              moved[Q.pid] = 1;
-              primitives.splice(j, 1);
-              primitives.splice(i, 0, Q);
-              guard--;
-              swapped = true;
-              break;
-            }
+      for (let i = 0; i < n; i++) {
+        const A = primitives[i];
+        const aIsPoly = A.type === "poly";
+        for (let j = i + 1; j < n; j++) {
+          const B = primitives[j];
+          if (
+            A.maxX <= B.minX + 0.05 ||
+            B.maxX <= A.minX + 0.05 ||
+            A.maxY <= B.minY + 0.05 ||
+            B.maxY <= A.minY + 0.05
+          ) {
+            continue;
           }
 
-          if (!swapped) {
-            i++;
+          const bIsPoly = B.type === "poly";
+          let dir = 0;
+
+          if (aIsPoly && bIsPoly) {
+            if (!clipPolyOverlapCentroid(A.pts, B.pts, CLIP_OVERLAP_PT)) {
+              continue;
+            }
+            const rx = (CLIP_OVERLAP_PT.x - cx) / fl;
+            const ry = -(CLIP_OVERLAP_PT.y - cy) / fl;
+            const da = A.camNormal.x * rx + A.camNormal.y * ry - A.camNormal.z;
+            const db = B.camNormal.x * rx + B.camNormal.y * ry - B.camNormal.z;
+            if (Math.abs(da) > 1e-7 && Math.abs(db) > 1e-7) {
+              const ta = A.camOffset / da;
+              const tb = B.camOffset / db;
+              if (Math.abs(ta - tb) > 1e-5) {
+                dir = ta > tb ? -1 : 1;
+              } else {
+                dir = A.depthBias <= B.depthBias ? -1 : 1;
+              }
+            } else {
+              dir = A.depthZ <= B.depthZ ? -1 : 1;
+            }
+          } else if (aIsPoly !== bIsPoly) {
+            const L = aIsPoly ? B : A;
+            const P = aIsPoly ? A : B;
+            if (!clipLineInPoly(L.p0, L.p1, P.pts, LINE_HIT_INFO)) {
+              continue;
+            }
+            const rx = (LINE_HIT_INFO.x - cx) / fl;
+            const ry = -(LINE_HIT_INFO.y - cy) / fl;
+            const dp = P.camNormal.x * rx + P.camNormal.y * ry - P.camNormal.z;
+            const tL = (L.d0 * L.d1) / ((1 - LINE_HIT_INFO.um) * L.d1 + LINE_HIT_INFO.um * L.d0);
+            const tP = Math.abs(dp) > 1e-7 ? P.camOffset / dp : camVec.z - P.depthZ;
+            const lineBehind =
+              Math.abs(tL - tP) > 1e-5 ? tL > tP : L.depthBias <= P.depthBias;
+            dir = lineBehind ? (aIsPoly ? 1 : -1) : (aIsPoly ? -1 : 1);
+          } else {
+            continue;
+          }
+
+          if (dir !== 0) {
+            const from = dir < 0 ? i : j;
+            const to = dir < 0 ? j : i;
+            ensureSortEdgeCap(edgeCount + 1);
+            sortEdgeTo[edgeCount] = to;
+            sortEdgeNext[edgeCount] = sortHead[from];
+            sortHead[from] = edgeCount++;
+            sortIndeg[to]++;
           }
         }
       }
 
-      for (let i = 0; i < count; i++) {
-        const p = primitives[i];
+      for (let step = 0; step < n; step++) {
+        let best = -1;
+        for (let i = 0; i < n; i++) {
+          if (sortDone[i] || sortIndeg[i] !== 0) continue;
+          if (best < 0 || primitives[i].depthZ < primitives[best].depthZ) {
+            best = i;
+          }
+        }
+        if (best < 0) {
+          for (let i = 0; i < n; i++) {
+            if (sortDone[i]) continue;
+            if (
+              best < 0 ||
+              sortIndeg[i] < sortIndeg[best] ||
+              (sortIndeg[i] === sortIndeg[best] && primitives[i].depthZ < primitives[best].depthZ)
+            ) {
+              best = i;
+            }
+          }
+        }
+        sortDone[best] = 1;
+        for (let e = sortHead[best]; e !== -1; e = sortEdgeNext[e]) {
+          sortIndeg[sortEdgeTo[e]]--;
+        }
+
+        const p = primitives[best];
         if (p.type === "line") {
           ctx.beginPath();
           ctx.moveTo(p.p0.x, p.p0.y);
@@ -4066,23 +4234,22 @@
         emissive: 1.0,
         spec: 0.2
       });
-      // 6 sweeping 3D plasma bow-shock ribbons arcing cleanly outside wings & tail
+      // 6 sweeping 3D plasma bow-shock ribbons arcing cleanly outside full wingspan & tail
       for (let k = 0; k < 6; k++) {
         const ang = (Math.PI * 2 * k) / 6 + time * 0.008;
         const ca = Math.cos(ang);
         const sa = Math.sin(ang);
         const tx = -sa;
         const ty = ca;
-        const rMid = (k % 2 === 0 ? 0.62 : 0.50) * (0.78 + 0.28 * reentry) * flick;
-        const rBack = rMid * 1.42;
-        const zBack = -0.35 - 0.55 * reentry * flick;
+        const rBack = (k % 2 === 0 ? 1.38 : 1.24) * (0.85 + 0.22 * reentry) * flick;
+        const zBack = -0.32 - 0.45 * reentry * flick;
         const wFront = 0.06;
         const wBack = 0.14;
         const pCol = k % 2 === 0 ? [255, 200, 58] : [255, 90, 77];
 
         m.addQuad(
-          [ca * 0.18 - tx * wFront, sa * 0.18 - ty * wFront, shockTip - 0.12],
-          [ca * 0.18 + tx * wFront, sa * 0.18 + ty * wFront, shockTip - 0.12],
+          [ca * 0.24 - tx * wFront, sa * 0.24 - ty * wFront, shockTip - 0.04],
+          [ca * 0.24 + tx * wFront, sa * 0.24 + ty * wFront, shockTip - 0.04],
           [ca * rBack + tx * wBack, sa * rBack + ty * wBack, zBack],
           [ca * rBack - tx * wBack, sa * rBack - ty * wBack, zBack],
           pCol,
@@ -4091,49 +4258,72 @@
       }
     }
 
-    // 2. Layered 3D Exhaust Plumes (stacked non-overlapping segments behind nozzle)
+    // 2. Layered 3D Exhaust Plumes (strictly behind nozzle glow with tiny non-overlapping gaps)
     if (thr > 0.02) {
       const flicker = 0.86 + 0.24 * Math.sin(time * 0.055 + phase);
       const exLen = (0.48 + 0.72 * thr) * flicker;
       const spin = time * 0.016 + phase;
-      const zNoz = -0.80;
+      const zNoz = -0.816;
       const outerCol = sputter ? [255, 90, 77] : [56, 189, 248];
       const midCol = sputter ? [251, 146, 60] : [186, 230, 253];
 
-      m.addPrism(0, 0, zNoz, zNoz - exLen * 0.32, 0.125, 0.105, 5, spin * 0.5, [255, 255, 255], {
+      m.addPrism(0, 0, zNoz, zNoz - exLen * 0.31, 0.125, 0.105, 5, spin * 0.5, [255, 255, 255], {
         emissive: 1.0,
         spec: 0.1
       });
-      m.addPrism(0, 0, zNoz - exLen * 0.32, zNoz - exLen * 0.66, 0.132, 0.068, 5, -spin, midCol, {
+      m.addPrism(0, 0, zNoz - exLen * 0.316, zNoz - exLen * 0.65, 0.130, 0.068, 5, -spin, midCol, {
         emissive: 0.98,
         spec: 0.1
       });
-      m.addPrism(0, 0, zNoz - exLen * 0.66, zNoz - exLen, 0.075, 0.002, 5, spin, outerCol, {
+      m.addPrism(0, 0, zNoz - exLen * 0.656, zNoz - exLen, 0.074, 0.002, 5, spin, outerCol, {
         emissive: 0.92,
         spec: 0.1
       });
     }
 
-    // 3. 3D Swept Fuselage (crimson nose cone, forward fuselage, mid-aft hull, thermal belly keel, flank stripes)
-    m.addPrism(0, 0, 0.56, 1.06, 0.19, 0.022, 6, Math.PI / 6, [255, 90, 77], { spec: 0.48 });
-    m.addPrism(0, 0, 0.14, 0.56, 0.245, 0.19, 6, Math.PI / 6, [248, 250, 252], { spec: 0.52 });
-    m.addPrism(0, 0, -0.58, 0.14, 0.215, 0.245, 6, Math.PI / 6, [232, 238, 248], { spec: 0.46 });
-    m.addPrism(0, 0, -0.64, -0.58, 0.19, 0.215, 6, Math.PI / 6, [71, 85, 105], { spec: 0.30 });
-    m.addBox(0, -0.236, -0.20, 0.115, 0.020, 0.34, [68, 82, 104], { spec: 0.24 });
+    // 3. Contiguous 4-Section Swept Fuselage Shell (zero internal bulkhead seam caps)
+    m.addPrism(0, 0, 0.56, 1.06, 0.19, 0.022, 6, Math.PI / 6, [255, 90, 77], { spec: 0.48, openBottom: true });
+    m.addPrism(0, 0, 0.14, 0.56, 0.245, 0.19, 6, Math.PI / 6, [248, 250, 252], {
+      spec: 0.52,
+      openTop: true,
+      openBottom: true
+    });
+    m.addPrism(0, 0, -0.58, 0.14, 0.215, 0.245, 6, Math.PI / 6, [232, 238, 248], {
+      spec: 0.46,
+      openTop: true,
+      openBottom: true
+    });
+    m.addPrism(0, 0, -0.64, -0.58, 0.19, 0.215, 6, Math.PI / 6, [71, 85, 105], { spec: 0.30, openTop: true });
+    // Ventral thermal belly keel strictly below fuselage bottom ridge (y <= -0.248)
+    m.addBox(0, -0.264, -0.20, 0.092, 0.016, 0.30, [68, 82, 104], { spec: 0.24 });
 
-    // Crimson racing stripes mounted flush outside port & starboard flank flats
-    m.addBox(-0.228, 0.0, -0.21, 0.015, 0.045, 0.33, [224, 62, 49], { spec: 0.36 });
-    m.addBox(0.228, 0.0, -0.21, 0.015, 0.045, 0.33, [255, 90, 77], { spec: 0.36 });
+    // Crimson racing stripes mounted strictly outside port/starboard hull flanks & above wing top
+    m.addBox(-0.224, 0.068, -0.20, 0.009, 0.024, 0.30, [224, 62, 49], { spec: 0.36 });
+    m.addBox(0.224, 0.068, -0.20, 0.009, 0.024, 0.30, [255, 90, 77], { spec: 0.36 });
 
-    // 4. 3D Cockpit Canopy & Inner Pilot Visor Glow cleanly seated atop dorsal fuselage
-    m.addBox(0, 0.252, 0.22, 0.10, 0.040, 0.18, [56, 189, 248], { emissive: 0.48, spec: 0.85 });
-    m.addPrism(0, 0.245, 0.40, 0.56, 0.095, 0.02, 6, 0, [56, 189, 248], { emissive: 0.45, spec: 0.82 });
-    m.addBox(0, 0.304, 0.24, 0.068, 0.011, 0.095, [253, 224, 71], { emissive: 0.72 });
+    // 4. 3D Cockpit Canopy, Tapered Frustum Nose & Visor Glow strictly atop dorsal ridge (y >= 0.248)
+    m.addBox(0, 0.286, 0.22, 0.094, 0.038, 0.16, [56, 189, 248], { emissive: 0.48, spec: 0.85 });
+    const cyB = 0.248;
+    const cyT0 = 0.324;
+    const cyT1 = 0.270;
+    const cx0 = 0.094;
+    const cx1 = 0.036;
+    const cz0 = 0.382;
+    const cz1 = 0.53;
+    const canopyCol = [56, 189, 248];
+    const canopyOpt = { emissive: 0.45, spec: 0.82 };
+    m.addQuad([-cx0, cyT0, cz0], [cx0, cyT0, cz0], [cx1, cyT1, cz1], [-cx1, cyT1, cz1], canopyCol, Object.assign({ outwardNormal: [0, 0.94, 0.34] }, canopyOpt));
+    m.addQuad([-cx0, cyB, cz0], [-cx1, cyB, cz1], [cx1, cyB, cz1], [cx0, cyB, cz0], canopyCol, Object.assign({ outwardNormal: [0, -1, 0] }, canopyOpt));
+    m.addQuad([-cx1, cyB, cz1], [cx1, cyB, cz1], [cx1, cyT1, cz1], [-cx1, cyT1, cz1], canopyCol, Object.assign({ outwardNormal: [0, 0, 1] }, canopyOpt));
+    m.addQuad([-cx0, cyB, cz0], [-cx0, cyT0, cz0], [cx0, cyT0, cz0], [cx0, cyB, cz0], canopyCol, Object.assign({ outwardNormal: [0, 0, -1] }, canopyOpt));
+    m.addQuad([cx0, cyB, cz0], [cx1, cyB, cz1], [cx1, cyT1, cz1], [cx0, cyT0, cz0], canopyCol, Object.assign({ outwardNormal: [0.93, 0, 0.36] }, canopyOpt));
+    m.addQuad([-cx0, cyB, cz0], [-cx0, cyT0, cz0], [-cx1, cyT1, cz1], [-cx1, cyB, cz1], canopyCol, Object.assign({ outwardNormal: [-0.93, 0, 0.36] }, canopyOpt));
+    m.addBox(0, 0.335, 0.24, 0.066, 0.009, 0.095, [253, 224, 71], { emissive: 0.72 });
 
     // 5. Watertight 6-Face Swept Delta Wings (Starboard +X & Port -X) with Dorsal Solar Arrays & Nav Lights
     const lw = Math.max(0.9, pxScale * 0.025);
     for (let s = -1; s <= 1; s += 2) {
-      const rx0 = s * 0.218;
+      const rx0 = s * 0.215;
       const rx1 = s * 0.88;
       const yTop = 0.025;
       const yBot = -0.045;
@@ -4141,98 +4331,141 @@
       const sideCol = [148, 163, 184];
 
       // Top, bottom, leading edge, trailing edge, tip cap, and inboard root cap
-      m.addQuad([rx0, yTop, 0.22], [rx0, yTop, -0.48], [rx1, yTop, -0.56], [rx1, yTop, -0.18], topCol, {
-        spec: 0.42,
-        outwardNormal: [0, 1, 0]
-      });
-      m.addQuad([rx0, yBot, 0.22], [rx1, yBot, -0.18], [rx1, yBot, -0.56], [rx0, yBot, -0.48], sideCol, {
-        spec: 0.42,
-        outwardNormal: [0, -1, 0]
-      });
-      m.addQuad([rx0, yTop, 0.22], [rx1, yTop, -0.18], [rx1, yBot, -0.18], [rx0, yBot, 0.22], [241, 245, 249], {
-        spec: 0.42,
-        outwardNormal: [s * 0.40, 0, 0.69]
-      });
-      m.addQuad([rx0, yTop, -0.48], [rx0, yBot, -0.48], [rx1, yBot, -0.56], [rx1, yTop, -0.56], sideCol, {
-        spec: 0.42,
-        outwardNormal: [s * 0.08, 0, -0.69]
-      });
-      m.addQuad([rx1, yTop, -0.18], [rx1, yTop, -0.56], [rx1, yBot, -0.56], [rx1, yBot, -0.18], [255, 90, 77], {
-        spec: 0.42,
-        outwardNormal: [s, 0, 0]
-      });
-      m.addQuad([rx0, yTop, 0.22], [rx0, yBot, 0.22], [rx0, yBot, -0.48], [rx0, yTop, -0.48], sideCol, {
-        spec: 0.35,
-        outwardNormal: [-s, 0, 0]
-      });
+      if (s > 0) {
+        m.addQuad([rx0, yTop, 0.22], [rx1, yTop, -0.18], [rx1, yTop, -0.56], [rx0, yTop, -0.48], topCol, {
+          spec: 0.42,
+          outwardNormal: [0, 1, 0]
+        });
+        m.addQuad([rx0, yBot, 0.22], [rx0, yBot, -0.48], [rx1, yBot, -0.56], [rx1, yBot, -0.18], sideCol, {
+          spec: 0.42,
+          outwardNormal: [0, -1, 0]
+        });
+        m.addQuad([rx0, yTop, 0.22], [rx0, yBot, 0.22], [rx1, yBot, -0.18], [rx1, yTop, -0.18], [241, 245, 249], {
+          spec: 0.42,
+          outwardNormal: [0.40, 0, 0.69]
+        });
+        m.addQuad([rx0, yTop, -0.48], [rx1, yTop, -0.56], [rx1, yBot, -0.56], [rx0, yBot, -0.48], sideCol, {
+          spec: 0.42,
+          outwardNormal: [0.08, 0, -0.69]
+        });
+        m.addQuad([rx1, yTop, -0.18], [rx1, yBot, -0.18], [rx1, yBot, -0.56], [rx1, yTop, -0.56], [255, 90, 77], {
+          spec: 0.42,
+          outwardNormal: [1, 0, 0]
+        });
+        m.addQuad([rx0, yTop, 0.22], [rx0, yTop, -0.48], [rx0, yBot, -0.48], [rx0, yBot, 0.22], sideCol, {
+          spec: 0.35,
+          outwardNormal: [-1, 0, 0]
+        });
 
-      // Single-sided cobalt solar wing array mounted flush above dorsal surface (matches crash_base solar wing)
+        // Single-sided cobalt solar wing array mounted flush above dorsal surface (matches crash_base solar wing)
+        const sx0 = s * 0.28;
+        const sx1 = s * 0.72;
+        m.addQuad(
+          [sx0, yTop + 0.012, 0.04],
+          [sx1, yTop + 0.012, -0.20],
+          [sx1, yTop + 0.012, -0.47],
+          [sx0, yTop + 0.012, -0.38],
+          [37, 99, 235],
+          { outwardNormal: [0, 1, 0], spec: 0.90, emissive: 0.16 }
+        );
+      } else {
+        m.addQuad([rx0, yTop, 0.22], [rx0, yTop, -0.48], [rx1, yTop, -0.56], [rx1, yTop, -0.18], topCol, {
+          spec: 0.42,
+          outwardNormal: [0, 1, 0]
+        });
+        m.addQuad([rx0, yBot, 0.22], [rx1, yBot, -0.18], [rx1, yBot, -0.56], [rx0, yBot, -0.48], sideCol, {
+          spec: 0.42,
+          outwardNormal: [0, -1, 0]
+        });
+        m.addQuad([rx0, yTop, 0.22], [rx1, yTop, -0.18], [rx1, yBot, -0.18], [rx0, yBot, 0.22], [241, 245, 249], {
+          spec: 0.42,
+          outwardNormal: [-0.40, 0, 0.69]
+        });
+        m.addQuad([rx0, yTop, -0.48], [rx0, yBot, -0.48], [rx1, yBot, -0.56], [rx1, yTop, -0.56], sideCol, {
+          spec: 0.42,
+          outwardNormal: [-0.08, 0, -0.69]
+        });
+        m.addQuad([rx1, yTop, -0.18], [rx1, yTop, -0.56], [rx1, yBot, -0.56], [rx1, yBot, -0.18], [255, 90, 77], {
+          spec: 0.42,
+          outwardNormal: [-1, 0, 0]
+        });
+        m.addQuad([rx0, yTop, 0.22], [rx0, yBot, 0.22], [rx0, yBot, -0.48], [rx0, yTop, -0.48], sideCol, {
+          spec: 0.35,
+          outwardNormal: [1, 0, 0]
+        });
+
+        // Single-sided cobalt solar wing array mounted flush above dorsal surface (matches crash_base solar wing)
+        const sx0 = s * 0.28;
+        const sx1 = s * 0.72;
+        m.addQuad(
+          [sx0, yTop + 0.012, 0.04],
+          [sx0, yTop + 0.012, -0.38],
+          [sx1, yTop + 0.012, -0.47],
+          [sx1, yTop + 0.012, -0.20],
+          [37, 99, 235],
+          { outwardNormal: [0, 1, 0], spec: 0.90, emissive: 0.16 }
+        );
+      }
       const sx0 = s * 0.28;
       const sx1 = s * 0.72;
-      m.addQuad(
-        [sx0, yTop + 0.012, 0.04],
-        [sx0, yTop + 0.012, -0.38],
-        [sx1, yTop + 0.012, -0.47],
-        [sx1, yTop + 0.012, -0.20],
-        [37, 99, 235],
-        { outwardNormal: [0, 1, 0], spec: 0.90, emissive: 0.16 }
-      );
       m.addLine(
         [(sx0 + sx1) * 0.5, yTop + 0.018, -0.08],
         [(sx0 + sx1) * 0.5, yTop + 0.018, -0.425],
         "rgba(186, 230, 253, 0.82)",
-        lw
+        lw,
+        0,
+        { outwardNormal: [0, 1, 0] }
       );
 
       // Wingtip navigation beacon pod flush outside tip cap
-      m.addBox(s * 0.916, -0.01, -0.37, 0.036, 0.040, 0.14, s < 0 ? [255, 90, 77] : [52, 211, 153], {
+      m.addBox(s * 0.918, -0.01, -0.37, 0.036, 0.040, 0.14, s < 0 ? [255, 90, 77] : [52, 211, 153], {
         emissive: 0.72,
         spec: 0.5
       });
 
       // Twin wing-root auxiliary thruster pods mounted cleanly below ventral wing surface
-      m.addPrism(s * 0.31, -0.098, -0.66, -0.34, 0.050, 0.052, 6, 0, [100, 116, 139], { spec: 0.38 });
-      m.addBox(s * 0.31, -0.098, -0.674, 0.034, 0.034, 0.014, sputter ? [251, 146, 60] : [56, 189, 248], {
+      m.addPrism(s * 0.31, -0.102, -0.66, -0.34, 0.048, 0.050, 6, 0, [100, 116, 139], { spec: 0.38 });
+      m.addBox(s * 0.31, -0.102, -0.676, 0.032, 0.032, 0.014, sputter ? [251, 146, 60] : [56, 189, 248], {
         emissive: thr > 0 ? 0.85 : 0.15
       });
     }
 
-    // 6. Watertight 6-Face Vertical Crimson Tail Fin atop aft hull & Blinking Red Distress Beacon
-    m.addQuad([-0.026, 0.22, -0.18], [-0.026, 0.22, -0.60], [-0.026, 0.66, -0.58], [-0.026, 0.60, -0.42], [224, 62, 49], {
+    // 6. Watertight 6-Face Vertical Crimson Tail Fin strictly atop dorsal ridge (y >= 0.248) & Blinking Red Beacon
+    m.addQuad([-0.026, 0.248, -0.18], [-0.026, 0.60, -0.42], [-0.026, 0.66, -0.58], [-0.026, 0.248, -0.58], [224, 62, 49], {
       spec: 0.38,
       outwardNormal: [-1, 0, 0]
     });
-    m.addQuad([0.026, 0.22, -0.18], [0.026, 0.60, -0.42], [0.026, 0.66, -0.58], [0.026, 0.22, -0.60], [255, 90, 77], {
+    m.addQuad([0.026, 0.248, -0.18], [0.026, 0.248, -0.58], [0.026, 0.66, -0.58], [0.026, 0.60, -0.42], [255, 90, 77], {
       spec: 0.38,
       outwardNormal: [1, 0, 0]
     });
-    m.addQuad([-0.026, 0.22, -0.18], [-0.026, 0.60, -0.42], [0.026, 0.60, -0.42], [0.026, 0.22, -0.18], [255, 135, 115], {
+    m.addQuad([-0.026, 0.248, -0.18], [0.026, 0.248, -0.18], [0.026, 0.60, -0.42], [-0.026, 0.60, -0.42], [255, 135, 115], {
       spec: 0.38,
-      outwardNormal: [0, 0.24, 0.38]
+      outwardNormal: [0, 0.24, 0.35]
     });
-    m.addQuad([-0.026, 0.22, -0.60], [0.026, 0.22, -0.60], [0.026, 0.66, -0.58], [-0.026, 0.66, -0.58], [190, 48, 38], {
+    m.addQuad([-0.026, 0.248, -0.58], [-0.026, 0.66, -0.58], [0.026, 0.66, -0.58], [0.026, 0.248, -0.58], [190, 48, 38], {
       spec: 0.38,
-      outwardNormal: [0, 0.02, -0.44]
+      outwardNormal: [0, 0, -1]
     });
-    m.addQuad([-0.026, 0.60, -0.42], [-0.026, 0.66, -0.58], [0.026, 0.66, -0.58], [0.026, 0.60, -0.42], [255, 120, 100], {
+    m.addQuad([-0.026, 0.60, -0.42], [0.026, 0.60, -0.42], [0.026, 0.66, -0.58], [-0.026, 0.66, -0.58], [255, 120, 100], {
       spec: 0.38,
-      outwardNormal: [0, 0.16, -0.06]
+      outwardNormal: [0, 0.16, 0.06]
     });
-    m.addQuad([-0.026, 0.22, -0.18], [0.026, 0.22, -0.18], [0.026, 0.22, -0.60], [-0.026, 0.22, -0.60], [168, 42, 34], {
+    m.addQuad([-0.026, 0.248, -0.18], [-0.026, 0.248, -0.58], [0.026, 0.248, -0.58], [0.026, 0.248, -0.18], [168, 42, 34], {
       spec: 0.30,
       outwardNormal: [0, -1, 0]
     });
 
     if (beacon) {
       const pulse = 0.5 + 0.5 * Math.sin(time * 0.009 + phase);
-      m.addDome(0, 0.65, -0.51, 0.055, 0.065, 0.055, 2, 6, pulse > 0.45 ? [255, 90, 77] : [140, 32, 32], {
+      m.addBox(0, 0.692, -0.51, 0.036, 0.028, 0.046, pulse > 0.45 ? [255, 90, 77] : [140, 32, 32], {
         emissive: 0.25 + 0.75 * pulse
       });
     }
 
-    // 7. Main Rear Thruster Nozzle Bell + Inner Reactor Glow flush behind nozzle
-    m.addPrism(0, 0, -0.78, -0.64, 0.155, 0.115, 8, Math.PI / 8, [71, 85, 105], { spec: 0.36 });
-    m.addBox(0, 0, -0.796, 0.09, 0.09, 0.014, sputter ? [251, 146, 60] : [56, 189, 248], {
+    // 7. Main Rear Thruster Nozzle Bell + Inner Reactor Glow flush behind AftRing & Nozzle
+    m.addPrism(0, 0, -0.78, -0.642, 0.155, 0.115, 8, Math.PI / 8, [71, 85, 105], { spec: 0.36 });
+    m.addBox(0, 0, -0.798, 0.09, 0.09, 0.014, sputter ? [251, 146, 60] : [56, 189, 248], {
       emissive: thr > 0 ? 0.92 : 0.28
     });
   }
