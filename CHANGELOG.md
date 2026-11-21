@@ -5,6 +5,15 @@ All notable changes to **Space Colonization: Idle** will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0-pre.1] - 2026-11-21
+
+### Fixed
+- **Watertight 3D Rendering & Angle-Independent Visibility Across All Game & Intro Models (`src/js/buildings.js`, `src/js/planets.js`, `src/js/intro.js`)**:
+  - Upgraded `createMeshCollector` in `src/js/buildings.js` with analytic outward surface normals (`dirToWorld` supporting non-uniform build/demolish squeeze scaling), near-plane clipping guards, degenerate-edge triangle fallbacks, closed watertight bottom/top end caps on `addPrism` (including inverted cones and `z1 < z0`) and `addDome`, grazing-angle culling tolerances, and exact 3D Newell's separating-plane sorting with cycle prevention.
+  - Eliminated intersecting, coplanar-fighting, uncapped, and buried geometry across procedural 3D models (`buildEscapeCraftModel`, `buildCrashBaseModel`, `buildRocketExhaust3D`, `buildSpaceRocket1Vessel3D`, `buildSpaceRocket2Vessel3D`, `buildTradeRocket1Vessel3D`–`3`, `buildSolarPanelModel`, `buildSolarArrayModel`, `buildSolarTowerModel`, `buildWindmillModel`, `buildWindTurbineModel`, `buildWindFarmModel`, `buildSmallHouseModel`, `buildBigHouseModel`, `buildVillaModel`, `buildResearchLabModel`, `buildResearchCenterModel`, `buildObservatoryModel`, `buildQuantumArrayModel`, `buildOreResearchStationModel`, and `buildUtopiaSpireModel`).
+  - Improved horizon building/trade-rocket visibility and grazing tile/side-wall culling in `src/js/planets.js` with protected perspective projection scaling.
+  - Fixed depth-sorted twin orbital rings, integrated the docked Escape Craft into Nova-7's depth-sorted tile pipeline, rendered solid glowing undersides on tumbling hex explosion shards, and replaced instant shard-building pop-out with smooth scaling in `src/js/intro.js`.
+
 ## [0.1.0-alpha.22] - 2026-11-21
 
 ### Changed

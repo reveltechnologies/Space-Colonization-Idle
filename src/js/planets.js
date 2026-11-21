@@ -1702,7 +1702,8 @@
   }
 
   function project(p, cx, cy, focalLength) {
-    const inv = focalLength / (CAM_DIST - p.z);
+    const denom = CAM_DIST - p.z;
+    const inv = focalLength / (denom < 0.30 ? 0.30 : denom);
     return {
       x: cx + p.x * inv,
       y: cy - p.y * inv
@@ -1813,7 +1814,15 @@
       tile.currentElev += (targetElev - tile.currentElev) * elevLerp;
 
       const rotCenter = rotatePoint(tile.center);
-      if (rotCenter.z <= -0.45) {
+      const placed = buildingsByPlanet[planet.id][tile.id] || null;
+      let effect = tileEffectsByPlanet[planet.id][tile.id] || null;
+      if (effect && time - effect.startTime >= effect.duration) {
+        delete tileEffectsByPlanet[planet.id][tile.id];
+        effect = null;
+      }
+      const hasBuilding = Boolean(placed);
+      const rimPass = rotCenter.z > -0.45;
+      if (!rimPass && ((!hasBuilding && !effect) || rotCenter.z <= -0.68)) {
         continue;
       }
 
@@ -1824,31 +1833,26 @@
       const elevPlaneCenter = scale(rotPlaneCenter, elev);
       const toCam = sub(CAM_VEC, elevPlaneCenter);
       const facing = dot(rotNormal, toCam);
-      const needsSides = elev > 1.003;
+      const needsSides = rimPass && elev > 1.003;
 
       const sides = tile.sides;
-      const rotBase = new Array(sides);
-      const topPts = new Array(sides);
+      const rotBase = rimPass ? new Array(sides) : null;
+      const topPts = rimPass ? new Array(sides) : null;
       const basePts = needsSides ? new Array(sides) : null;
 
-      for (let k = 0; k < sides; k++) {
-        const rc = rotatePoint(tile.outerCorners[k]);
-        rotBase[k] = rc;
-        topPts[k] = project(scale(rc, elev), cx, cy, focalLength);
-        if (needsSides) {
-          basePts[k] = project(rc, cx, cy, focalLength);
+      if (rimPass) {
+        for (let k = 0; k < sides; k++) {
+          const rc = rotatePoint(tile.outerCorners[k]);
+          rotBase[k] = rc;
+          topPts[k] = project(scale(rc, elev), cx, cy, focalLength);
+          if (needsSides) {
+            basePts[k] = project(rc, cx, cy, focalLength);
+          }
         }
       }
 
       // Front-facing polygons project CCW in 3D -> negative signed area in screen Y-down
-      const topVisible = facing > -0.05 && signedArea2D(topPts) < -0.25;
-      const placed = buildingsByPlanet[planet.id][tile.id] || null;
-      let effect = tileEffectsByPlanet[planet.id][tile.id] || null;
-      if (effect && time - effect.startTime >= effect.duration) {
-        delete tileEffectsByPlanet[planet.id][tile.id];
-        effect = null;
-      }
-      const hasBuilding = Boolean(placed);
+      const topVisible = rimPass && facing > -0.08 && signedArea2D(topPts) < -0.05;
       if (!topVisible && !needsSides && !hasBuilding && !effect) {
         continue;
       }
@@ -1902,9 +1906,9 @@
           const b0 = rotBase[k];
           const b1 = rotBase[next];
           const sideN = cross(sub(b1, b0), rotNormal);
-          const midB = scale(add(b0, b1), 0.5);
+          const midW = scale(add(b0, b1), 0.25 * (1 + elev));
 
-          if (dot(sideN, sub(CAM_VEC, midB)) <= 0) {
+          if (dot(sideN, sub(CAM_VEC, midW)) <= -0.002) {
             continue;
           }
 
@@ -3804,7 +3808,7 @@
         const turnT = 1.45 * tf.speedMult * p * p * p * unitScale;
         const worldOrigin = add(add(elevCenter, scale(rotNormal, climbN)), scale(rotT, turnT));
 
-        if (worldOrigin.z > -0.35 && worldOrigin.z < 2.55) {
+        if (worldOrigin.z > -0.85 && worldOrigin.z < CAM_DIST - 0.65) {
           const focalLength = tr.scaledRadius * Math.sqrt(CAM_DIST * CAM_DIST - 1);
           const basis = buildRotatedRocketBasis(rotT, rotB, rotNormal, Math.min(0.68, p * 0.85), p * Math.PI * 1.4);
           const vesselFrame = {

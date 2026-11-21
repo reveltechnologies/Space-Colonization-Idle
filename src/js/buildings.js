@@ -788,12 +788,6 @@
 
   function syncUnbuildableBanner(biome) {
     if (!unbuildableBannerEl) return;
-    if (isProtectedBuilding(currentPlacedId)) {
-      unbuildableBannerEl.textContent = t("build.protected_base_banner");
-      unbuildableBannerEl.classList.add("is-protected");
-      unbuildableBannerEl.classList.remove("is-hidden");
-      return;
-    }
     unbuildableBannerEl.classList.remove("is-protected");
     unbuildableBannerEl.classList.add("is-hidden");
   }
@@ -2252,8 +2246,8 @@
     const o = opts || {};
     const primitives = [];
     const baseS = frame.scale * Math.max(0.05, buildScale);
-    const sXY = baseS * (o.scaleXY !== undefined ? o.scaleXY : 1);
-    const sZ = baseS * (o.scaleZ !== undefined ? o.scaleZ : 1);
+    const sXY = Math.max(1e-4, baseS * (o.scaleXY !== undefined ? o.scaleXY : 1));
+    const sZ = Math.max(1e-4, baseS * (o.scaleZ !== undefined ? o.scaleZ : 1));
     const jx = o.jitterX || 0;
     const jy = o.jitterY || 0;
     const ox = frame.origin.x;
@@ -2266,6 +2260,9 @@
     const lightDir = frame.lightDir;
     const halfVec = frame.halfVec;
     const atmo = frame.atmo;
+    const viewAxis = norm3(sub3(camVec, { x: ox, y: oy, z: oz }));
+    const nearClipZ = camVec.z - 0.25;
+    let nextPid = 0;
 
     function toWorld(lx, ly, lz) {
       const wx = (lx + jx) * sXY;
@@ -2278,9 +2275,21 @@
       };
     }
 
+    function dirToWorld(dx, dy, dz) {
+      const nx = dx / sXY;
+      const ny = dy / sXY;
+      const nz = dz / sZ;
+      return norm3({
+        x: t.x * nx + b.x * ny + n.x * nz,
+        y: t.y * nx + b.y * ny + n.y * nz,
+        z: t.z * nx + b.z * ny + n.z * nz
+      });
+    }
+
     function addFace(localVerts, rgb, opts) {
       const o = opts || {};
       const count = localVerts.length;
+      if (count < 3) return;
       const wVerts = new Array(count);
       let cx = 0;
       let cy = 0;
@@ -2288,6 +2297,9 @@
 
       for (let i = 0; i < count; i++) {
         const w = toWorld(localVerts[i][0], localVerts[i][1], localVerts[i][2]);
+        if (w.z >= nearClipZ) {
+          return;
+        }
         wVerts[i] = w;
         cx += w.x;
         cy += w.y;
@@ -2298,9 +2310,29 @@
       cz /= count;
       const fc = { x: cx, y: cy, z: cz };
 
-      let fn = norm3(cross3(sub3(wVerts[1], wVerts[0]), sub3(wVerts[2], wVerts[0])));
+      let rawN = cross3(sub3(wVerts[1], wVerts[0]), sub3(wVerts[2], wVerts[0]));
+      let rawLenSq = dot3(rawN, rawN);
+      if (rawLenSq < 1e-18 && count >= 4) {
+        rawN = cross3(sub3(wVerts[2], wVerts[1]), sub3(wVerts[3], wVerts[1]));
+        rawLenSq = dot3(rawN, rawN);
+      }
+      if (rawLenSq < 1e-18) {
+        return;
+      }
+      const invRawLen = 1 / Math.sqrt(rawLenSq);
+      let fn = {
+        x: rawN.x * invRawLen,
+        y: rawN.y * invRawLen,
+        z: rawN.z * invRawLen
+      };
 
-      if (o.refWorld) {
+      if (o.outwardNormal) {
+        const hintW = dirToWorld(o.outwardNormal[0], o.outwardNormal[1], o.outwardNormal[2]);
+        if (dot3(fn, hintW) < 0) {
+          wVerts.reverse();
+          fn = { x: -fn.x, y: -fn.y, z: -fn.z };
+        }
+      } else if (o.refWorld) {
         if (dot3(fn, sub3(fc, o.refWorld)) < 0) {
           wVerts.reverse();
           fn = { x: -fn.x, y: -fn.y, z: -fn.z };
@@ -2310,25 +2342,57 @@
       const toCam = sub3(camVec, fc);
       const facing = dot3(fn, toCam);
 
-      if (!o.doubleSided && facing <= 0) {
+      if (!o.doubleSided && facing <= -1e-5) {
         return;
       }
 
-      const litNormal = facing < 0 ? { x: -fn.x, y: -fn.y, z: -fn.z } : fn;
-      const fill = shadeColor(rgb, litNormal, lightDir, halfVec, atmo, o);
+      const camNormal = facing < 0 ? { x: -fn.x, y: -fn.y, z: -fn.z } : fn;
+      const planeD = dot3(camNormal, fc);
+      const fill = shadeColor(rgb, camNormal, lightDir, halfVec, atmo, o);
+      const bias = o.depthBias || 0;
 
       const pts = new Array(count);
+      let minX = Infinity;
+      let maxX = -Infinity;
+      let minY = Infinity;
+      let maxY = -Infinity;
+      let minD = Infinity;
+      let maxD = -Infinity;
+      let sumD = 0;
+
       for (let i = 0; i < count; i++) {
-        pts[i] = frame.project(wVerts[i], frame.cx, frame.cy, frame.focalLength);
+        const w = wVerts[i];
+        const pt = frame.project(w, frame.cx, frame.cy, frame.focalLength);
+        pts[i] = pt;
+        if (pt.x < minX) minX = pt.x;
+        if (pt.x > maxX) maxX = pt.x;
+        if (pt.y < minY) minY = pt.y;
+        if (pt.y > maxY) maxY = pt.y;
+        const d = dot3(w, viewAxis);
+        if (d < minD) minD = d;
+        if (d > maxD) maxD = d;
+        sumD += d;
       }
 
       primitives.push({
+        pid: nextPid++,
         type: "poly",
         pts: pts,
+        wVerts: wVerts,
+        hasPlane: true,
+        camNormal: camNormal,
+        planeD: planeD,
+        minX: minX,
+        maxX: maxX,
+        minY: minY,
+        maxY: maxY,
+        minD: minD + bias,
+        maxD: maxD + bias,
+        depthZ: sumD / count + bias,
+        depthBias: bias,
         fill: fill,
         stroke: o.stroke || fill,
-        lineWidth: o.lineWidth || 0.7,
-        depthZ: cz + (o.depthBias || 0)
+        lineWidth: o.lineWidth || 0.7
       });
     }
 
@@ -2339,65 +2403,105 @@
     function addLine(a, bPt, stroke, lineWidth, depthBias) {
       const wa = toWorld(a[0], a[1], a[2]);
       const wb = toWorld(bPt[0], bPt[1], bPt[2]);
+      if (wa.z >= nearClipZ || wb.z >= nearClipZ) {
+        return;
+      }
+      const p0 = frame.project(wa, frame.cx, frame.cy, frame.focalLength);
+      const p1 = frame.project(wb, frame.cx, frame.cy, frame.focalLength);
+      const da = dot3(wa, viewAxis);
+      const db = dot3(wb, viewAxis);
+      const bias = depthBias || 0;
+      const lw = lineWidth || 1.2;
+      const pad = lw * 0.5;
       primitives.push({
+        pid: nextPid++,
         type: "line",
-        p0: frame.project(wa, frame.cx, frame.cy, frame.focalLength),
-        p1: frame.project(wb, frame.cx, frame.cy, frame.focalLength),
+        p0: p0,
+        p1: p1,
+        wVerts: [wa, wb],
+        hasPlane: false,
+        minX: Math.min(p0.x, p1.x) - pad,
+        maxX: Math.max(p0.x, p1.x) + pad,
+        minY: Math.min(p0.y, p1.y) - pad,
+        maxY: Math.max(p0.y, p1.y) + pad,
+        minD: Math.min(da, db) + bias,
+        maxD: Math.max(da, db) + bias,
+        depthZ: (da + db) * 0.5 + bias,
+        depthBias: bias,
         stroke: stroke,
-        lineWidth: lineWidth || 1.2,
-        depthZ: (wa.z + wb.z) * 0.5 + (depthBias || 0)
+        lineWidth: lw
       });
     }
 
     function addBox(cx, cy, cz, hx, hy, hz, rgb, opts) {
-      const refWorld = toWorld(cx, cy, cz);
-      const o = Object.assign({}, opts || {}, { refWorld: refWorld });
+      const baseOpt = opts || {};
       const x0 = cx - hx, x1 = cx + hx;
       const y0 = cy - hy, y1 = cy + hy;
       const z0 = cz - hz, z1 = cz + hz;
 
-      addFace([[x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1]], rgb, o);
-      addFace([[x0, y0, z0], [x0, y1, z0], [x1, y1, z0], [x1, y0, z0]], rgb, o);
-      addFace([[x0, y0, z0], [x1, y0, z0], [x1, y0, z1], [x0, y0, z1]], rgb, o);
-      addFace([[x0, y1, z0], [x0, y1, z1], [x1, y1, z1], [x1, y1, z0]], rgb, o);
-      addFace([[x1, y0, z0], [x1, y1, z0], [x1, y1, z1], [x1, y0, z1]], rgb, o);
-      addFace([[x0, y0, z0], [x0, y0, z1], [x0, y1, z1], [x0, y1, z0]], rgb, o);
+      addFace([[x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1]], rgb, Object.assign({}, baseOpt, { outwardNormal: [0, 0, 1] }));
+      addFace([[x0, y0, z0], [x0, y1, z0], [x1, y1, z0], [x1, y0, z0]], rgb, Object.assign({}, baseOpt, { outwardNormal: [0, 0, -1] }));
+      addFace([[x0, y0, z0], [x1, y0, z0], [x1, y0, z1], [x0, y0, z1]], rgb, Object.assign({}, baseOpt, { outwardNormal: [0, -1, 0] }));
+      addFace([[x0, y1, z0], [x0, y1, z1], [x1, y1, z1], [x1, y1, z0]], rgb, Object.assign({}, baseOpt, { outwardNormal: [0, 1, 0] }));
+      addFace([[x1, y0, z0], [x1, y1, z0], [x1, y1, z1], [x1, y0, z1]], rgb, Object.assign({}, baseOpt, { outwardNormal: [1, 0, 0] }));
+      addFace([[x0, y0, z0], [x0, y0, z1], [x0, y1, z1], [x0, y1, z0]], rgb, Object.assign({}, baseOpt, { outwardNormal: [-1, 0, 0] }));
     }
 
     function addPrism(cx, cy, z0, z1, r0, r1, sides, rotAngle, rgb, opts) {
-      const refWorld = toWorld(cx, cy, (z0 + z1) * 0.5);
-      const o = Object.assign({}, opts || {}, { refWorld: refWorld });
+      const baseOpt = opts || {};
+      const swapped = z1 < z0;
+      const zBot = swapped ? z1 : z0;
+      const zTop = swapped ? z0 : z1;
+      const rBot = swapped ? r1 : r0;
+      const rTop = swapped ? r0 : r1;
+      const h = zTop - zBot;
+      if (h < 1e-6) return;
+
       const angleOffset = rotAngle || 0;
-      const topVerts = [];
-      const botRing = [];
-      const topRing = [];
+      const step = (Math.PI * 2) / sides;
+      const cosHalf = Math.cos(Math.PI / sides);
+      const botRing = new Array(sides);
+      const topRing = new Array(sides);
 
       for (let i = 0; i < sides; i++) {
-        const a = angleOffset + (Math.PI * 2 * i) / sides;
+        const a = angleOffset + step * i;
         const ca = Math.cos(a);
         const sa = Math.sin(a);
-        botRing.push([cx + r0 * ca, cy + r0 * sa, z0]);
-        topRing.push([cx + r1 * ca, cy + r1 * sa, z1]);
-        topVerts.push([cx + r1 * ca, cy + r1 * sa, z1]);
+        botRing[i] = [cx + rBot * ca, cy + rBot * sa, zBot];
+        topRing[i] = [cx + rTop * ca, cy + rTop * sa, zTop];
       }
 
+      const dzSlope = (rBot - rTop) * cosHalf;
       for (let i = 0; i < sides; i++) {
         const next = (i + 1) % sides;
-        if (r1 > 0.002) {
-          addFace([botRing[i], botRing[next], topRing[next], topRing[i]], rgb, o);
-        } else {
-          addFace([botRing[i], botRing[next], [cx, cy, z1]], rgb, o);
+        const midA = angleOffset + step * (i + 0.5);
+        const sideOpt = Object.assign({}, baseOpt, {
+          outwardNormal: [Math.cos(midA) * h, Math.sin(midA) * h, dzSlope]
+        });
+
+        if (rBot > 0.002 && rTop > 0.002) {
+          addFace([botRing[i], botRing[next], topRing[next], topRing[i]], rgb, sideOpt);
+        } else if (rBot > 0.002) {
+          addFace([botRing[i], botRing[next], [cx, cy, zTop]], rgb, sideOpt);
+        } else if (rTop > 0.002) {
+          addFace([[cx, cy, zBot], topRing[next], topRing[i]], rgb, sideOpt);
         }
       }
 
-      if (r1 > 0.002) {
-        addFace(topVerts, rgb, o);
+      if (rTop > 0.002 && !baseOpt.openTop) {
+        addFace(topRing, rgb, Object.assign({}, baseOpt, { outwardNormal: [0, 0, 1] }));
+      }
+      if (rBot > 0.002 && !baseOpt.openBottom) {
+        addFace(botRing.slice().reverse(), rgb, Object.assign({}, baseOpt, { outwardNormal: [0, 0, -1] }));
       }
     }
 
     function addDome(cx, cy, zBase, rx, ry, rz, rings, segs, rgb, opts) {
-      const refWorld = toWorld(cx, cy, zBase);
-      const o = Object.assign({}, opts || {}, { refWorld: refWorld });
+      const baseOpt = opts || {};
+      const invRx = 1 / (rx || 1);
+      const invRy = 1 / (ry || 1);
+      const invRz = 1 / (rz || 1);
+      const baseRing = !baseOpt.openBottom && rx > 0.002 && ry > 0.002 ? new Array(segs) : null;
 
       for (let r = 0; r < rings; r++) {
         const phi0 = (Math.PI * 0.5 * r) / rings;
@@ -2406,31 +2510,123 @@
         const s0 = Math.sin(phi0);
         const c1 = Math.cos(phi1);
         const s1 = Math.sin(phi1);
+        const phiMid = (phi0 + phi1) * 0.5;
+        const cMid = Math.cos(phiMid);
+        const sMid = Math.sin(phiMid);
 
         for (let k = 0; k < segs; k++) {
           const t0 = (Math.PI * 2 * k) / segs;
           const t1 = (Math.PI * 2 * (k + 1)) / segs;
+          const tMid = (t0 + t1) * 0.5;
 
           const p00 = [cx + rx * c0 * Math.cos(t0), cy + ry * c0 * Math.sin(t0), zBase + rz * s0];
           const p01 = [cx + rx * c0 * Math.cos(t1), cy + ry * c0 * Math.sin(t1), zBase + rz * s0];
           const p11 = [cx + rx * c1 * Math.cos(t1), cy + ry * c1 * Math.sin(t1), zBase + rz * s1];
           const p10 = [cx + rx * c1 * Math.cos(t0), cy + ry * c1 * Math.sin(t0), zBase + rz * s1];
 
+          if (r === 0 && baseRing) {
+            baseRing[k] = p00;
+          }
+
+          const patchOpt = Object.assign({}, baseOpt, {
+            outwardNormal: [cMid * Math.cos(tMid) * invRx, cMid * Math.sin(tMid) * invRy, sMid * invRz]
+          });
+
           if (r === rings - 1) {
-            addFace([p00, p01, [cx, cy, zBase + rz]], rgb, o);
+            addFace([p00, p01, [cx, cy, zBase + rz]], rgb, patchOpt);
           } else {
-            addFace([p00, p01, p11, p10], rgb, o);
+            addFace([p00, p01, p11, p10], rgb, patchOpt);
           }
         }
       }
+
+      if (baseRing) {
+        addFace(baseRing.reverse(), rgb, Object.assign({}, baseOpt, { outwardNormal: [0, 0, -1] }));
+      }
+    }
+
+    function classifyVertsAgainstPlane(verts, normal, planeD, eps) {
+      let hasPos = false;
+      let hasNeg = false;
+      for (let k = 0; k < verts.length; k++) {
+        const d = dot3(normal, verts[k]) - planeD;
+        if (d > eps) {
+          if (hasNeg) return 2;
+          hasPos = true;
+        } else if (d < -eps) {
+          if (hasPos) return 2;
+          hasNeg = true;
+        }
+      }
+      if (!hasPos && !hasNeg) return 0;
+      return hasPos ? 1 : -1;
     }
 
     function drawAll(ctx) {
+      const count = primitives.length;
+      if (count === 0) return;
+
       primitives.sort(function (a, bItem) {
-        return a.depthZ - bItem.depthZ;
+        const dm = a.minD - bItem.minD;
+        return dm !== 0 ? dm : a.depthZ - bItem.depthZ;
       });
 
-      for (let i = 0; i < primitives.length; i++) {
+      if (count > 1) {
+        const EPS = 1e-4;
+        const moved = new Uint8Array(nextPid);
+        let guard = count * 4;
+        let i = 0;
+
+        while (i < count - 1 && guard > 0) {
+          const P = primitives[i];
+          let swapped = false;
+
+          for (let j = i + 1; j < count; j++) {
+            const Q = primitives[j];
+            if (Q.minD >= P.maxD - EPS) {
+              break;
+            }
+            if (
+              P.maxX <= Q.minX + 0.5 ||
+              Q.maxX <= P.minX + 0.5 ||
+              P.maxY <= Q.minY + 0.5 ||
+              Q.maxY <= P.minY + 0.5
+            ) {
+              continue;
+            }
+
+            const pSideQ = Q.hasPlane ? classifyVertsAgainstPlane(P.wVerts, Q.camNormal, Q.planeD, EPS) : 2;
+            if (pSideQ === -1) {
+              continue;
+            }
+
+            const qSideP = P.hasPlane ? classifyVertsAgainstPlane(Q.wVerts, P.camNormal, P.planeD, EPS) : 2;
+            if (qSideP === 1) {
+              continue;
+            }
+
+            const mustSwap =
+              pSideQ === 1 ||
+              qSideP === -1 ||
+              ((pSideQ === 0 || qSideP === 0) && P.depthBias > Q.depthBias);
+
+            if (mustSwap && !moved[Q.pid]) {
+              moved[Q.pid] = 1;
+              primitives.splice(j, 1);
+              primitives.splice(i, 0, Q);
+              guard--;
+              swapped = true;
+              break;
+            }
+          }
+
+          if (!swapped) {
+            i++;
+          }
+        }
+      }
+
+      for (let i = 0; i < count; i++) {
         const p = primitives[i];
         if (p.type === "line") {
           ctx.beginPath();
@@ -2457,6 +2653,7 @@
 
     return {
       toWorld: toWorld,
+      addFace: addFace,
       addQuad: addQuad,
       addLine: addLine,
       addBox: addBox,
@@ -2595,9 +2792,9 @@
     // Titanium hex foundation deck
     m.addPrism(0, 0, 0.0, 0.09, 0.58, 0.53, 6, 0, [100, 116, 139], { spec: 0.25 });
 
-    // Side cleanroom wing + glowing cyan viewport
+    // Side cleanroom wing + glowing cyan viewport mounted proud on exterior wall
     m.addBox(-0.24, 0.16, 0.19, 0.18, 0.15, 0.10, [226, 232, 240], { spec: 0.35 });
-    m.addBox(-0.24, 0.005, 0.19, 0.11, 0.02, 0.045, [56, 189, 248], { emissive: 0.72 });
+    m.addBox(-0.24, -0.002, 0.19, 0.11, 0.011, 0.045, [56, 189, 248], { emissive: 0.72 });
 
     // Shimmering geodesic cyan-indigo observatory dome
     const domePulse = 0.22 + 0.10 * Math.sin(time * 0.003 + phase);
@@ -2626,14 +2823,13 @@
       [rx + perpX * dHalf + dirX * 0.10, ry + perpY * dHalf + dirY * 0.10, dZ + 0.11],
       [rx - perpX * dHalf + dirX * 0.10, ry - perpY * dHalf + dirY * 0.10, dZ + 0.11],
       [241, 245, 249],
-      { doubleSided: true, spec: 0.45, depthBias: 0.004 }
+      { doubleSided: true, spec: 0.45 }
     );
     m.addLine(
-      [rx + dirX * 0.04, ry + dirY * 0.04, dZ + 0.03],
-      [rx + dirX * 0.14, ry + dirY * 0.14, dZ + 0.08],
+      [rx + dirX * 0.05, ry + dirY * 0.05, dZ + 0.04],
+      [rx + dirX * 0.15, ry + dirY * 0.15, dZ + 0.08],
       "#67e8f9",
-      Math.max(1.1, pxScale * 0.035),
-      0.006
+      Math.max(1.1, pxScale * 0.035)
     );
   }
 
@@ -2643,7 +2839,7 @@
     m.addBox(-0.34, 0.0, 0.19, 0.14, 0.22, 0.10, [226, 232, 240], { spec: 0.35 });
     m.addBox(0.34, 0.0, 0.19, 0.14, 0.22, 0.10, [226, 232, 240], { spec: 0.35 });
     m.addBox(0, -0.22, 0.22, 0.26, 0.14, 0.12, [241, 245, 249], { spec: 0.40 });
-    m.addBox(0, -0.365, 0.20, 0.10, 0.015, 0.08, [56, 189, 248], { emissive: 0.80 });
+    m.addBox(0, -0.372, 0.20, 0.10, 0.011, 0.08, [56, 189, 248], { emissive: 0.80 });
 
     // Glowing holographic violet dome
     const domePulse = 0.28 + 0.12 * Math.sin(time * 0.0035 + phase);
@@ -2672,8 +2868,7 @@
         [Math.cos(a0) * ringR, 0.03 + Math.sin(a0) * ringR, z0],
         [Math.cos(a1) * ringR, 0.03 + Math.sin(a1) * ringR, z1],
         "#38bdf8",
-        lw,
-        0.006
+        lw
       );
     }
   }
@@ -2686,13 +2881,13 @@
     // Observatory dome
     m.addDome(0, 0, 0.22, 0.38, 0.38, 0.36, 3, 8, [226, 232, 240], { spec: 0.55 });
 
-    // Slowly panning skyward telescope tube
+    // Slowly panning skyward telescope tube anchored cleanly at outer dome shell
     const pan = Math.sin(time * 0.0009 + phase) * 0.45 + 0.4;
     const dirX = Math.cos(pan);
     const dirY = Math.sin(pan);
-    const base = [dirX * 0.08, dirY * 0.08, 0.44];
-    const tip = [dirX * 0.48, dirY * 0.48, 0.80];
-    m.addLine(base, tip, "#4f46e5", Math.max(3.0, pxScale * 0.12), 0.008);
+    const base = [dirX * 0.24, dirY * 0.24, 0.49];
+    const tip = [dirX * 0.50, dirY * 0.50, 0.80];
+    m.addLine(base, tip, "#4f46e5", Math.max(3.0, pxScale * 0.12));
     m.addPrism(tip[0], tip[1], tip[2] - 0.02, tip[2] + 0.05, 0.075, 0.065, 6, 0, [103, 232, 249], {
       emissive: 0.72,
       spec: 0.65
@@ -2728,8 +2923,7 @@
         [Math.cos(a0) * 0.30, Math.sin(a0) * 0.30, hoverZ + Math.cos(a0) * 0.14],
         [Math.cos(a1) * 0.30, Math.sin(a1) * 0.30, hoverZ + Math.cos(a1) * 0.14],
         "#38bdf8",
-        lw,
-        0.008
+        lw
       );
       const b0 = spinB + (Math.PI * 2 * k) / 6;
       const b1 = spinB + (Math.PI * 2 * (k + 1)) / 6;
@@ -2737,8 +2931,7 @@
         [Math.cos(b0) * 0.30, Math.sin(b0) * 0.30, hoverZ - Math.sin(b0) * 0.14],
         [Math.cos(b1) * 0.30, Math.sin(b1) * 0.30, hoverZ - Math.sin(b1) * 0.14],
         "#f472b6",
-        lw,
-        0.008
+        lw
       );
     }
   }
@@ -2763,8 +2956,7 @@
         [px * 0.82, py * 0.82, 0.75],
         [0, 0, hoverZ],
         k === 1 ? "#ffc83a" : "#38bdf8",
-        beamLW,
-        0.006
+        beamLW
       );
     }
 
@@ -2789,8 +2981,7 @@
         [Math.cos(a0) * 0.28, Math.sin(a0) * 0.28, hoverZ + Math.sin(a0) * 0.11],
         [Math.cos(a1) * 0.28, Math.sin(a1) * 0.28, hoverZ + Math.sin(a1) * 0.11],
         k % 2 === 0 ? "#ffc83a" : "#38bdf8",
-        lw,
-        0.008
+        lw
       );
     }
   }
@@ -2804,22 +2995,22 @@
     m.addPrism(
       ox,
       oy,
-      zNozzle - totalLen * 0.62,
-      zNozzle - totalLen,
-      rNozzle * 0.72,
-      0.001,
-      6,
-      spin,
-      [255, 90, 77],
-      { emissive: 0.90, spec: 0.1 }
+      zNozzle,
+      zNozzle - totalLen * 0.34,
+      rNozzle * 0.92,
+      rNozzle * 0.78,
+      7,
+      spin * 0.5,
+      [255, 255, 255],
+      { emissive: 1.0, spec: 0.1 }
     );
     m.addPrism(
       ox,
       oy,
-      zNozzle - totalLen * 0.28,
-      zNozzle - totalLen * 0.70,
-      rNozzle * 1.08,
-      rNozzle * 0.42,
+      zNozzle - totalLen * 0.34,
+      zNozzle - totalLen * 0.68,
+      rNozzle * 0.96,
+      rNozzle * 0.50,
       7,
       -spin,
       [255, 200, 58],
@@ -2828,14 +3019,14 @@
     m.addPrism(
       ox,
       oy,
-      zNozzle,
-      zNozzle - totalLen * 0.34,
-      rNozzle * 0.92,
-      rNozzle * 0.62,
-      7,
-      spin * 0.5,
-      [255, 255, 255],
-      { emissive: 1.0, spec: 0.1 }
+      zNozzle - totalLen * 0.68,
+      zNozzle - totalLen,
+      rNozzle * 0.56,
+      0.001,
+      6,
+      spin,
+      [255, 90, 77],
+      { emissive: 0.90, spec: 0.1 }
     );
   }
 
@@ -2852,18 +3043,20 @@
 
     buildRocketExhaust3D(m, time, phase, jx, 0, z0, 0.11, 0.58, thrust);
 
-    // Thruster bell + crimson delta fins
+    // Thruster bell + 4 radial delta fins mounted flush outside fuselage
     m.addPrism(jx, 0, zAt(0.0), zAt(0.08), 0.12, 0.08, 8, 0, [255, 200, 58], {
       spec: 0.45,
       emissive: thrust > 0 ? 0.65 : 0
     });
-    m.addBox(jx, 0, zAt(0.14), 0.24, 0.04, 0.08 * sz, [255, 90, 77], { spec: 0.30 });
-    m.addBox(jx, 0, zAt(0.14), 0.04, 0.24, 0.08 * sz, [224, 62, 49], { spec: 0.30 });
+    m.addBox(jx - 0.175, 0, zAt(0.14), 0.052, 0.032, 0.08 * sz, [255, 90, 77], { spec: 0.30 });
+    m.addBox(jx + 0.175, 0, zAt(0.14), 0.052, 0.032, 0.08 * sz, [255, 90, 77], { spec: 0.30 });
+    m.addBox(jx, -0.175, zAt(0.14), 0.032, 0.052, 0.08 * sz, [224, 62, 49], { spec: 0.30 });
+    m.addBox(jx, 0.175, zAt(0.14), 0.032, 0.052, 0.08 * sz, [224, 62, 49], { spec: 0.30 });
 
-    // White orbital fuselage + crimson nose cone + glowing cyan porthole
+    // White orbital fuselage + crimson nose cone + glowing cyan porthole outside shell
     m.addPrism(jx, 0, zAt(0.08), zAt(0.60), 0.13, 0.12, 10, 0, [248, 250, 252], { spec: 0.48 });
     m.addPrism(jx, 0, zAt(0.60), zAt(0.82), 0.12, 0.015, 10, 0, [255, 90, 77], { spec: 0.40 });
-    m.addBox(jx, -0.12, zAt(0.42), 0.045, 0.02, 0.045 * sz, [56, 189, 248], { emissive: 0.72 });
+    m.addBox(jx, -0.142, zAt(0.42), 0.045, 0.014, 0.045 * sz, [56, 189, 248], { emissive: 0.72 });
   }
 
   function buildSpaceRocket2Vessel3D(m, time, phase, pxScale, opts) {
@@ -2903,7 +3096,7 @@
     });
     m.addPrism(jx, 0, zAt(0.08), zAt(0.67), 0.14, 0.13, 10, 0, [30, 41, 59], { spec: 0.50 });
     m.addPrism(jx, 0, zAt(0.67), zAt(0.91), 0.13, 0.018, 10, 0, [245, 158, 11], { spec: 0.48 });
-    m.addBox(jx, -0.13, zAt(0.49), 0.055, 0.02, 0.055 * sz, [56, 189, 248], { emissive: 0.80 });
+    m.addBox(jx, -0.156, zAt(0.49), 0.055, 0.014, 0.055 * sz, [56, 189, 248], { emissive: 0.80 });
   }
 
   function buildSpaceRocket1Model(m, time, phase, pxScale) {
@@ -2957,18 +3150,18 @@
       lineWidth: Math.max(0.6, pxScale * 0.015)
     });
 
-    // Warm golden lit viewport panels around the habitat
+    // Warm golden lit viewport pods outside biodome shell
     const winGlow = 0.65 + 0.12 * Math.sin(time * 0.002 + phase);
     for (let k = 0; k < 4; k++) {
       const ang = (Math.PI * 2 * k) / 4 + 0.45;
-      const wx = -0.04 + Math.cos(ang) * 0.34;
-      const wy = 0.04 + Math.sin(ang) * 0.34;
-      m.addBox(wx, wy, 0.20, 0.05, 0.05, 0.035, [253, 224, 71], { emissive: winGlow, depthBias: 0.004 });
+      const wx = -0.04 + Math.cos(ang) * 0.352;
+      const wy = 0.04 + Math.sin(ang) * 0.352;
+      m.addBox(wx, wy, 0.20, 0.032, 0.032, 0.035, [253, 224, 71], { emissive: winGlow });
     }
 
-    // Pressurized airlock entryway pod + warm lit door
+    // Pressurized airlock entryway pod + warm lit door outside front wall
     m.addBox(0.30, -0.18, 0.17, 0.14, 0.12, 0.09, [203, 213, 225], { spec: 0.28 });
-    m.addBox(0.39, -0.18, 0.16, 0.06, 0.06, 0.05, [251, 191, 36], { emissive: 0.72 });
+    m.addBox(0.452, -0.18, 0.16, 0.011, 0.06, 0.05, [251, 191, 36], { emissive: 0.72 });
 
     // Slim comms spire
     m.addLine([-0.04, 0.04, 0.45], [-0.04, 0.04, 0.66], "#e2e8f0", Math.max(1.1, pxScale * 0.035));
@@ -2982,7 +3175,7 @@
 
     // Ground floor wide warm-ivory residential block + terracotta mid-floor band
     m.addBox(0, 0, 0.25, 0.33, 0.25, 0.12, [241, 245, 249], { spec: 0.32 });
-    m.addBox(0, 0, 0.38, 0.35, 0.27, 0.025, [255, 138, 61], { spec: 0.25 });
+    m.addBox(0, 0, 0.382, 0.35, 0.27, 0.012, [255, 138, 61], { spec: 0.25 });
 
     // Second-story suite + pitched terracotta-orange pyramid roof
     m.addBox(-0.04, 0.02, 0.49, 0.24, 0.19, 0.095, [248, 250, 252], { spec: 0.35 });
@@ -2994,21 +3187,21 @@
       emissive: 0.22
     });
 
-    // Warm golden glowing windows & entryway door
+    // Warm golden glowing windows & entryway door mounted flush outside walls
     const winGlow = 0.66 + 0.12 * Math.sin(time * 0.002 + phase);
-    m.addBox(0, -0.245, 0.22, 0.065, 0.02, 0.085, [251, 191, 36], { emissive: 0.72, depthBias: 0.004 });
-    m.addBox(-0.18, -0.245, 0.24, 0.055, 0.02, 0.048, [253, 224, 71], { emissive: winGlow, depthBias: 0.004 });
-    m.addBox(0.18, -0.245, 0.24, 0.055, 0.02, 0.048, [253, 224, 71], { emissive: winGlow, depthBias: 0.004 });
-    m.addBox(-0.14, 0.245, 0.24, 0.055, 0.02, 0.048, [253, 224, 71], { emissive: winGlow, depthBias: 0.004 });
-    m.addBox(0.14, 0.245, 0.24, 0.055, 0.02, 0.048, [253, 224, 71], { emissive: winGlow, depthBias: 0.004 });
-    m.addBox(-0.325, 0, 0.24, 0.02, 0.075, 0.048, [253, 224, 71], { emissive: winGlow, depthBias: 0.004 });
+    m.addBox(0, -0.262, 0.22, 0.065, 0.011, 0.085, [251, 191, 36], { emissive: 0.72 });
+    m.addBox(-0.18, -0.262, 0.24, 0.055, 0.011, 0.048, [253, 224, 71], { emissive: winGlow });
+    m.addBox(0.18, -0.262, 0.24, 0.055, 0.011, 0.048, [253, 224, 71], { emissive: winGlow });
+    m.addBox(-0.14, 0.262, 0.24, 0.055, 0.011, 0.048, [253, 224, 71], { emissive: winGlow });
+    m.addBox(0.14, 0.262, 0.24, 0.055, 0.011, 0.048, [253, 224, 71], { emissive: winGlow });
+    m.addBox(-0.342, 0, 0.24, 0.011, 0.075, 0.048, [253, 224, 71], { emissive: winGlow });
 
-    // Second-story lit windows
-    m.addBox(-0.12, -0.165, 0.49, 0.048, 0.02, 0.042, [253, 224, 71], { emissive: winGlow, depthBias: 0.004 });
-    m.addBox(0.05, -0.165, 0.49, 0.048, 0.02, 0.042, [253, 224, 71], { emissive: winGlow, depthBias: 0.004 });
-    m.addBox(-0.04, 0.205, 0.49, 0.075, 0.02, 0.042, [253, 224, 71], { emissive: winGlow, depthBias: 0.004 });
-    m.addBox(-0.275, 0.02, 0.49, 0.02, 0.06, 0.042, [253, 224, 71], { emissive: winGlow, depthBias: 0.004 });
-    m.addBox(0.195, 0.02, 0.49, 0.02, 0.06, 0.042, [253, 224, 71], { emissive: winGlow, depthBias: 0.004 });
+    // Second-story lit windows outside upper walls
+    m.addBox(-0.12, -0.182, 0.49, 0.048, 0.011, 0.042, [253, 224, 71], { emissive: winGlow });
+    m.addBox(0.05, -0.182, 0.49, 0.048, 0.011, 0.042, [253, 224, 71], { emissive: winGlow });
+    m.addBox(-0.04, 0.222, 0.49, 0.075, 0.011, 0.042, [253, 224, 71], { emissive: winGlow });
+    m.addBox(-0.292, 0.02, 0.49, 0.011, 0.06, 0.042, [253, 224, 71], { emissive: winGlow });
+    m.addBox(0.212, 0.02, 0.49, 0.011, 0.06, 0.042, [253, 224, 71], { emissive: winGlow });
 
     // Slim rooftop beacon spire
     m.addLine([-0.04, 0.02, 0.72], [-0.04, 0.02, 0.85], "#e2e8f0", Math.max(1.1, pxScale * 0.035));
@@ -3021,11 +3214,10 @@
     m.addPrism(0, 0, 0.09, 0.115, 0.64, 0.62, 6, 0, [251, 191, 36], { spec: 0.50 });
     m.addPrism(0, 0, 0.115, 0.135, 0.58, 0.57, 6, 0, [16, 185, 129], { spec: 0.12 });
 
-    // Glowing cyan front courtyard infinity pool & flanking ornamental cypress cones
-    m.addBox(0, -0.34, 0.142, 0.23, 0.105, 0.015, [56, 189, 248], {
+    // Glowing cyan front courtyard infinity pool above lawn & flanking ornamental cypress cones
+    m.addBox(0, -0.34, 0.146, 0.23, 0.105, 0.010, [56, 189, 248], {
       emissive: 0.55,
-      spec: 0.85,
-      depthBias: 0.002
+      spec: 0.85
     });
     m.addPrism(-0.34, -0.30, 0.135, 0.30, 0.065, 0.01, 6, 0, [34, 197, 94], { spec: 0.12 });
     m.addPrism(0.34, -0.30, 0.135, 0.30, 0.065, 0.01, 6, 0, [34, 197, 94], { spec: 0.12 });
@@ -3036,9 +3228,10 @@
     m.addBox(0.31, 0.04, 0.24, 0.15, 0.20, 0.11, [255, 249, 238], { spec: 0.34 });
     m.addPrism(0.31, 0.04, 0.35, 0.45, 0.29, 0.05, 4, Math.PI / 4, [139, 92, 246], { spec: 0.35 });
 
-    // Grand central 2-story marble hall & golden balcony cornice
-    m.addBox(0, 0.10, 0.34, 0.21, 0.21, 0.205, [255, 252, 245], { spec: 0.38 });
+    // Grand central 2-story marble hall split cleanly around golden balcony cornice
+    m.addBox(0, 0.10, 0.2325, 0.21, 0.21, 0.0975, [255, 252, 245], { spec: 0.38 });
     m.addBox(0, 0.10, 0.35, 0.24, 0.24, 0.02, [251, 191, 36], { spec: 0.55 });
+    m.addBox(0, 0.10, 0.4575, 0.21, 0.21, 0.0875, [255, 252, 245], { spec: 0.38 });
 
     // Shimmering cyan glass cupola biodome & gleaming golden finial spire
     m.addDome(0, 0.10, 0.545, 0.21, 0.21, 0.21, 3, 8, [56, 189, 248], {
@@ -3049,19 +3242,19 @@
     });
     m.addPrism(0, 0.10, 0.75, 0.87, 0.038, 0.008, 6, 0, [251, 191, 36], { emissive: 0.72 });
 
-    // Warm golden glowing panoramic windows & grand entrance across hall and wings
+    // Warm golden glowing panoramic windows & grand entrance mounted flush outside walls
     const winGlow = 0.68 + 0.12 * Math.sin(time * 0.002 + phase);
-    m.addBox(0, -0.105, 0.23, 0.065, 0.02, 0.085, [251, 191, 36], { emissive: 0.75, depthBias: 0.004 });
-    m.addBox(-0.105, -0.105, 0.45, 0.038, 0.02, 0.042, [253, 224, 71], { emissive: winGlow, depthBias: 0.004 });
-    m.addBox(0, -0.105, 0.45, 0.038, 0.02, 0.042, [253, 224, 71], { emissive: winGlow, depthBias: 0.004 });
-    m.addBox(0.105, -0.105, 0.45, 0.038, 0.02, 0.042, [253, 224, 71], { emissive: winGlow, depthBias: 0.004 });
-    m.addBox(0, 0.305, 0.24, 0.09, 0.02, 0.052, [253, 224, 71], { emissive: winGlow, depthBias: 0.004 });
-    m.addBox(0, 0.305, 0.45, 0.11, 0.02, 0.042, [253, 224, 71], { emissive: winGlow, depthBias: 0.004 });
+    m.addBox(0, -0.122, 0.23, 0.065, 0.011, 0.085, [251, 191, 36], { emissive: 0.75 });
+    m.addBox(-0.105, -0.122, 0.45, 0.038, 0.011, 0.042, [253, 224, 71], { emissive: winGlow });
+    m.addBox(0, -0.122, 0.45, 0.038, 0.011, 0.042, [253, 224, 71], { emissive: winGlow });
+    m.addBox(0.105, -0.122, 0.45, 0.038, 0.011, 0.042, [253, 224, 71], { emissive: winGlow });
+    m.addBox(0, 0.322, 0.24, 0.09, 0.011, 0.052, [253, 224, 71], { emissive: winGlow });
+    m.addBox(0, 0.322, 0.45, 0.11, 0.011, 0.042, [253, 224, 71], { emissive: winGlow });
 
-    m.addBox(-0.31, -0.155, 0.245, 0.065, 0.02, 0.05, [253, 224, 71], { emissive: winGlow, depthBias: 0.004 });
-    m.addBox(0.31, -0.155, 0.245, 0.065, 0.02, 0.05, [253, 224, 71], { emissive: winGlow, depthBias: 0.004 });
-    m.addBox(-0.455, 0.04, 0.245, 0.02, 0.075, 0.05, [253, 224, 71], { emissive: winGlow, depthBias: 0.004 });
-    m.addBox(0.455, 0.04, 0.245, 0.02, 0.075, 0.05, [253, 224, 71], { emissive: winGlow, depthBias: 0.004 });
+    m.addBox(-0.31, -0.172, 0.245, 0.065, 0.011, 0.05, [253, 224, 71], { emissive: winGlow });
+    m.addBox(0.31, -0.172, 0.245, 0.065, 0.011, 0.05, [253, 224, 71], { emissive: winGlow });
+    m.addBox(-0.472, 0.04, 0.245, 0.011, 0.075, 0.05, [253, 224, 71], { emissive: winGlow });
+    m.addBox(0.472, 0.04, 0.245, 0.011, 0.075, 0.05, [253, 224, 71], { emissive: winGlow });
   }
 
   function buildWindmillModel(m, time, phase, pxScale) {
@@ -3072,21 +3265,22 @@
     // Tall tapered white pylon tower
     m.addPrism(0, 0, 0.12, 0.86, 0.11, 0.055, 8, 0, [241, 245, 249], { spec: 0.40 });
 
-    // Nacelle housing + cyan tail fin
+    // Nacelle housing + cyan tail fin flush behind nacelle
     m.addBox(0, 0.02, 0.87, 0.075, 0.15, 0.07, [226, 232, 240], { spec: 0.40 });
-    m.addQuad([0, 0.14, 0.87], [0, 0.25, 0.89], [0, 0.26, 1.00], [0, 0.14, 0.94], [56, 189, 248], {
+    m.addQuad([0, 0.17, 0.87], [0, 0.27, 0.89], [0, 0.28, 1.00], [0, 0.17, 0.94], [56, 189, 248], {
       doubleSided: true,
       emissive: 0.32
     });
 
-    // Rotor hub cone at front of nacelle
-    const hy = -0.14;
+    // Rotor hub cone in front of nacelle + blades clearing hub radius cleanly
+    const hy = -0.178;
     const hz = 0.87;
-    m.addBox(0, hy, hz, 0.06, 0.05, 0.06, [56, 189, 248], { emissive: 0.45, spec: 0.6 });
+    m.addBox(0, hy, hz, 0.048, 0.046, 0.048, [56, 189, 248], { emissive: 0.45, spec: 0.6 });
 
     // 3 spinning aerodynamic rotor blades
     const spin = time * 0.0032 + phase;
     const bladeLen = 0.56;
+    const bladeY = hy - 0.01;
     for (let k = 0; k < 3; k++) {
       const a = spin + (Math.PI * 2 * k) / 3;
       const ca = Math.cos(a);
@@ -3096,23 +3290,23 @@
 
       const rootW = 0.055;
       const tipW = 0.018;
+      const rootR = 0.072;
       const tipX = ca * bladeLen;
       const tipZ = hz + sa * bladeLen;
 
       m.addQuad(
-        [ca * 0.05 - px * rootW, hy - 0.03, hz + sa * 0.05 - pz * rootW],
-        [ca * 0.05 + px * rootW, hy - 0.03, hz + sa * 0.05 + pz * rootW],
-        [tipX + px * tipW, hy - 0.04, tipZ + pz * tipW],
-        [tipX - px * tipW, hy - 0.04, tipZ - pz * tipW],
+        [ca * rootR - px * rootW, bladeY, hz + sa * rootR - pz * rootW],
+        [ca * rootR + px * rootW, bladeY, hz + sa * rootR + pz * rootW],
+        [tipX + px * tipW, bladeY - 0.01, tipZ + pz * tipW],
+        [tipX - px * tipW, bladeY - 0.01, tipZ - pz * tipW],
         [248, 250, 252],
-        { doubleSided: true, spec: 0.55, depthBias: 0.008 }
+        { doubleSided: true, spec: 0.55 }
       );
       m.addLine(
-        [tipX * 0.72, hy - 0.045, hz + sa * bladeLen * 0.72],
-        [tipX, hy - 0.045, tipZ],
+        [tipX * 0.72, bladeY - 0.012, hz + sa * bladeLen * 0.72],
+        [tipX, bladeY - 0.014, tipZ],
         "#38bdf8",
-        Math.max(1.2, pxScale * 0.035),
-        0.010
+        Math.max(1.2, pxScale * 0.035)
       );
     }
   }
@@ -3125,46 +3319,61 @@
     const corePulse = 0.50 + 0.35 * Math.sin(time * 0.004 + phase);
     m.addPrism(0, 0, 0.20, 0.25, 0.08, 0.05, 6, 0, [251, 191, 36], { emissive: corePulse });
 
-    // Twin gimbal support masts
+    // Twin gimbal support masts terminating below panel frame
     const postLW = Math.max(1.4, pxScale * 0.05);
-    m.addLine([-0.30, 0, 0.06], [-0.30, 0, 0.34], "#cbd5e1", postLW);
-    m.addLine([0.30, 0, 0.06], [0.30, 0, 0.34], "#cbd5e1", postLW);
+    m.addLine([-0.30, 0, 0.06], [-0.30, 0, 0.32], "#cbd5e1", postLW);
+    m.addLine([0.30, 0, 0.06], [0.30, 0, 0.32], "#cbd5e1", postLW);
 
     // Two wide tilted cobalt photovoltaic wings catching specular sunlight
     const wings = [-0.31, 0.31];
     const gridStroke = "rgba(186, 230, 253, 0.78)";
     const gridLW = Math.max(0.7, pxScale * 0.018);
 
+    const hw = 0.21;
+    const hd = 0.26;
+    const zLow = 0.24;
+    const zHigh = 0.46;
+    const dz = zHigh - zLow;
+    const dy = hd * 2;
+    const nLen = Math.hypot(dz, dy);
+    const nY = -dz / nLen;
+    const nZ = dy / nLen;
+    const offY = nY * 0.012;
+    const offZ = nZ * 0.012;
+    const lineOffY = nY * 0.016;
+    const lineOffZ = nZ * 0.016;
+
     for (let w = 0; w < wings.length; w++) {
       const wx = wings[w];
-      const hw = 0.21;
-      const hd = 0.26;
-      const zLow = 0.24;
-      const zHigh = 0.46;
 
-      // Metallic rim frame slightly behind cells
+      // Metallic rim frame backing (double-sided for clean rear view)
       m.addQuad(
-        [wx - hw - 0.02, -hd - 0.02, zLow - 0.01],
-        [wx + hw + 0.02, -hd - 0.02, zLow - 0.01],
-        [wx + hw + 0.02, hd + 0.02, zHigh - 0.01],
-        [wx - hw - 0.02, hd + 0.02, zHigh - 0.01],
+        [wx - hw - 0.02, -hd - 0.02, zLow],
+        [wx + hw + 0.02, -hd - 0.02, zLow],
+        [wx + hw + 0.02, hd + 0.02, zHigh],
+        [wx - hw - 0.02, hd + 0.02, zHigh],
         [203, 213, 225],
         { doubleSided: true, spec: 0.45 }
       );
 
-      // Deep cobalt photovoltaic surface
+      // Single-sided deep cobalt photovoltaic surface offset strictly along panel normal
       m.addQuad(
-        [wx - hw, -hd, zLow],
-        [wx + hw, -hd, zLow],
-        [wx + hw, hd, zHigh],
-        [wx - hw, hd, zHigh],
+        [wx - hw, -hd + offY, zLow + offZ],
+        [wx + hw, -hd + offY, zLow + offZ],
+        [wx + hw, hd + offY, zHigh + offZ],
+        [wx - hw, hd + offY, zHigh + offZ],
         [29, 78, 216],
-        { doubleSided: true, spec: 0.90, emissive: 0.14, depthBias: 0.002 }
+        { outwardNormal: [0, nY, nZ], spec: 0.90, emissive: 0.14 }
       );
 
-      // Crisp photovoltaic cell grid lines
-      m.addLine([wx, -hd, zLow], [wx, hd, zHigh], gridStroke, gridLW, 0.004);
-      m.addLine([wx - hw, 0, (zLow + zHigh) * 0.5], [wx + hw, 0, (zLow + zHigh) * 0.5], gridStroke, gridLW, 0.004);
+      // Crisp photovoltaic cell grid lines offset strictly proud of cells
+      m.addLine([wx, -hd + lineOffY, zLow + lineOffZ], [wx, hd + lineOffY, zHigh + lineOffZ], gridStroke, gridLW);
+      m.addLine(
+        [wx - hw, lineOffY, (zLow + zHigh) * 0.5 + lineOffZ],
+        [wx + hw, lineOffY, (zLow + zHigh) * 0.5 + lineOffZ],
+        gridStroke,
+        gridLW
+      );
     }
   }
 
@@ -3194,30 +3403,50 @@
       const hw = 0.21;
       const hd = 0.16;
       const zMid = (p.zLow + p.zHigh) * 0.5;
+      const dz = p.zHigh - p.zLow;
+      const dy = hd * 2;
+      const nLen = Math.hypot(dz, dy);
+      const nY = -dz / nLen;
+      const nZ = dy / nLen;
+      const offY = nY * 0.012;
+      const offZ = nZ * 0.012;
+      const lineOffY = nY * 0.016;
+      const lineOffZ = nZ * 0.016;
+
       m.addLine([p.wx, p.wy, 0.09], [p.wx, p.wy, zMid - 0.02], "#cbd5e1", postLW);
 
       // Warm silver-gold trim frame
       m.addQuad(
-        [p.wx - hw - 0.02, p.wy - hd - 0.02, p.zLow - 0.01],
-        [p.wx + hw + 0.02, p.wy - hd - 0.02, p.zLow - 0.01],
-        [p.wx + hw + 0.02, p.wy + hd + 0.02, p.zHigh - 0.01],
-        [p.wx - hw - 0.02, p.wy + hd + 0.02, p.zHigh - 0.01],
+        [p.wx - hw - 0.02, p.wy - hd - 0.02, p.zLow],
+        [p.wx + hw + 0.02, p.wy - hd - 0.02, p.zLow],
+        [p.wx + hw + 0.02, p.wy + hd + 0.02, p.zHigh],
+        [p.wx - hw - 0.02, p.wy + hd + 0.02, p.zHigh],
         i >= 2 ? [251, 191, 36] : [226, 232, 240],
         { doubleSided: true, spec: 0.50 }
       );
 
-      // Deep cobalt photovoltaic wing
+      // Single-sided deep cobalt photovoltaic wing
       m.addQuad(
-        [p.wx - hw, p.wy - hd, p.zLow],
-        [p.wx + hw, p.wy - hd, p.zLow],
-        [p.wx + hw, p.wy + hd, p.zHigh],
-        [p.wx - hw, p.wy + hd, p.zHigh],
+        [p.wx - hw, p.wy - hd + offY, p.zLow + offZ],
+        [p.wx + hw, p.wy - hd + offY, p.zLow + offZ],
+        [p.wx + hw, p.wy + hd + offY, p.zHigh + offZ],
+        [p.wx - hw, p.wy + hd + offY, p.zHigh + offZ],
         [29, 78, 216],
-        { doubleSided: true, spec: 0.92, emissive: 0.16, depthBias: 0.002 }
+        { outwardNormal: [0, nY, nZ], spec: 0.92, emissive: 0.16 }
       );
 
-      m.addLine([p.wx, p.wy - hd, p.zLow], [p.wx, p.wy + hd, p.zHigh], gridStroke, gridLW, 0.004);
-      m.addLine([p.wx - hw, p.wy, zMid], [p.wx + hw, p.wy, zMid], gridStroke, gridLW, 0.004);
+      m.addLine(
+        [p.wx, p.wy - hd + lineOffY, p.zLow + lineOffZ],
+        [p.wx, p.wy + hd + lineOffY, p.zHigh + lineOffZ],
+        gridStroke,
+        gridLW
+      );
+      m.addLine(
+        [p.wx - hw, p.wy + lineOffY, zMid + lineOffZ],
+        [p.wx + hw, p.wy + lineOffY, zMid + lineOffZ],
+        gridStroke,
+        gridLW
+      );
     }
   }
 
@@ -3245,32 +3474,42 @@
       const outY = sa * hd;
       const zIn = 0.18;
       const zOut = 0.30;
+      const mDz = zOut - zIn;
+      const mDr = hd * 2;
+      const mLen = Math.hypot(mDz, mDr);
+      const mOutR = -mDz / mLen;
+      const mOutZ = mDr / mLen;
+      const offX = ca * mOutR * 0.012;
+      const offY = sa * mOutR * 0.012;
+      const offZ = mOutZ * 0.012;
 
       // Silver backing frame
       m.addQuad(
-        [mx - outX - tx * (hw + 0.015), my - outY - ty * (hw + 0.015), zIn - 0.01],
-        [mx - outX + tx * (hw + 0.015), my - outY + ty * (hw + 0.015), zIn - 0.01],
-        [mx + outX + tx * (hw + 0.015), my + outY + ty * (hw + 0.015), zOut - 0.01],
-        [mx + outX - tx * (hw + 0.015), my + outY - ty * (hw + 0.015), zOut - 0.01],
+        [mx - outX - tx * (hw + 0.015), my - outY - ty * (hw + 0.015), zIn],
+        [mx - outX + tx * (hw + 0.015), my - outY + ty * (hw + 0.015), zIn],
+        [mx + outX + tx * (hw + 0.015), my + outY + ty * (hw + 0.015), zOut],
+        [mx + outX - tx * (hw + 0.015), my + outY - ty * (hw + 0.015), zOut],
         [203, 213, 225],
         { doubleSided: true, spec: 0.45 }
       );
 
-      // Reflective cobalt-cyan mirror surface
+      // Single-sided reflective cobalt-cyan mirror surface
       m.addQuad(
-        [mx - outX - tx * hw, my - outY - ty * hw, zIn],
-        [mx - outX + tx * hw, my - outY + ty * hw, zIn],
-        [mx + outX + tx * hw, my + outY + ty * hw, zOut],
-        [mx + outX - tx * hw, my + outY - ty * hw, zOut],
+        [mx - outX - tx * hw + offX, my - outY - ty * hw + offY, zIn + offZ],
+        [mx - outX + tx * hw + offX, my - outY + ty * hw + offY, zIn + offZ],
+        [mx + outX + tx * hw + offX, my + outY + ty * hw + offY, zOut + offZ],
+        [mx + outX - tx * hw + offX, my + outY - ty * hw + offY, zOut + offZ],
         [37, 99, 235],
-        { doubleSided: true, spec: 0.92, emissive: 0.20, depthBias: 0.002 }
+        { outwardNormal: [ca * mOutR, sa * mOutR, mOutZ], spec: 0.92, emissive: 0.20 }
       );
     }
 
-    // Tall tapered central titanium receiver spire + two structural rings
-    m.addPrism(0, 0, 0.11, 0.64, 0.16, 0.095, 8, 0, [241, 245, 249], { spec: 0.40 });
+    // Tall tapered central titanium receiver spire split cleanly around its two structural collars
+    m.addPrism(0, 0, 0.11, 0.30, 0.16, 0.137, 8, 0, [241, 245, 249], { spec: 0.40 });
     m.addPrism(0, 0, 0.30, 0.34, 0.155, 0.148, 8, 0, [100, 116, 139], { spec: 0.32 });
+    m.addPrism(0, 0, 0.34, 0.50, 0.132, 0.112, 8, 0, [241, 245, 249], { spec: 0.40 });
     m.addPrism(0, 0, 0.50, 0.54, 0.132, 0.125, 8, 0, [100, 116, 139], { spec: 0.32 });
+    m.addPrism(0, 0, 0.54, 0.64, 0.107, 0.095, 8, 0, [241, 245, 249], { spec: 0.40 });
 
     // Blazing golden solar thermal receiver chamber + glowing summit orb + finial spire
     const solarPulse = 0.78 + 0.18 * Math.sin(time * 0.005 + phase);
@@ -3290,32 +3529,35 @@
     m.addPrism(0, 0, 0.10, 0.135, 0.28, 0.22, 8, 0, [56, 189, 248], { emissive: 0.42 });
     m.addBox(0.28, 0.14, 0.16, 0.12, 0.11, 0.08, [148, 163, 184], { spec: 0.30 });
     const cellPulse = 0.55 + 0.30 * Math.sin(time * 0.004 + phase);
-    m.addBox(0.28, 0.14, 0.25, 0.06, 0.055, 0.025, [251, 191, 36], { emissive: cellPulse });
+    m.addBox(0.28, 0.14, 0.265, 0.06, 0.055, 0.025, [251, 191, 36], { emissive: cellPulse });
 
-    // Tall sleek tapered aero-tower + two glowing cyan power collar rings
-    m.addPrism(0, 0, 0.13, 0.96, 0.135, 0.068, 8, 0, [241, 245, 249], { spec: 0.44 });
+    // Tall sleek tapered aero-tower split cleanly around two glowing cyan collar rings
+    m.addPrism(0, 0, 0.13, 0.40, 0.135, 0.113, 8, 0, [241, 245, 249], { spec: 0.44 });
     m.addPrism(0, 0, 0.40, 0.44, 0.128, 0.122, 8, 0, [56, 189, 248], { emissive: 0.52 });
+    m.addPrism(0, 0, 0.44, 0.70, 0.110, 0.089, 8, 0, [241, 245, 249], { spec: 0.44 });
     m.addPrism(0, 0, 0.70, 0.735, 0.102, 0.096, 8, 0, [56, 189, 248], { emissive: 0.52 });
+    m.addPrism(0, 0, 0.735, 0.96, 0.086, 0.068, 8, 0, [241, 245, 249], { spec: 0.44 });
 
-    // Futuristic nacelle + dual cyan tail fins
+    // Futuristic nacelle + dual cyan tail fins flush behind nacelle
     m.addBox(0, 0.02, 0.97, 0.09, 0.18, 0.08, [226, 232, 240], { spec: 0.42 });
-    m.addQuad([-0.03, 0.16, 0.97], [-0.03, 0.29, 0.99], [-0.03, 0.30, 1.12], [-0.03, 0.16, 1.05], [56, 189, 248], {
+    m.addQuad([-0.03, 0.20, 0.97], [-0.03, 0.30, 0.99], [-0.03, 0.31, 1.12], [-0.03, 0.20, 1.05], [56, 189, 248], {
       doubleSided: true,
       emissive: 0.38
     });
-    m.addQuad([0.03, 0.16, 0.97], [0.03, 0.29, 0.99], [0.03, 0.30, 1.12], [0.03, 0.16, 1.05], [56, 189, 248], {
+    m.addQuad([0.03, 0.20, 0.97], [0.03, 0.30, 0.99], [0.03, 0.31, 1.12], [0.03, 0.20, 1.05], [56, 189, 248], {
       doubleSided: true,
       emissive: 0.38
     });
 
-    // Glowing golden-cyan spinner cone
-    const hy = -0.17;
+    // Glowing golden-cyan spinner cone + blades clearing spinner bounds cleanly
+    const hy = -0.21;
     const hz = 0.97;
-    m.addBox(0, hy, hz, 0.07, 0.055, 0.07, [251, 191, 36], { emissive: 0.55, spec: 0.65 });
+    m.addBox(0, hy, hz, 0.055, 0.05, 0.055, [251, 191, 36], { emissive: 0.55, spec: 0.65 });
 
     // 3 longer, faster aerodynamic rotor blades with bright cyan & gold energized tips
     const spin = time * 0.0044 + phase;
     const bladeLen = 0.66;
+    const bladeY = hy - 0.01;
     for (let k = 0; k < 3; k++) {
       const a = spin + (Math.PI * 2 * k) / 3;
       const ca = Math.cos(a);
@@ -3325,30 +3567,29 @@
 
       const rootW = 0.062;
       const tipW = 0.020;
+      const rootR = 0.082;
       const tipX = ca * bladeLen;
       const tipZ = hz + sa * bladeLen;
 
       m.addQuad(
-        [ca * 0.055 - px * rootW, hy - 0.03, hz + sa * 0.055 - pz * rootW],
-        [ca * 0.055 + px * rootW, hy - 0.03, hz + sa * 0.055 + pz * rootW],
-        [tipX + px * tipW, hy - 0.04, tipZ + pz * tipW],
-        [tipX - px * tipW, hy - 0.04, tipZ - pz * tipW],
+        [ca * rootR - px * rootW, bladeY, hz + sa * rootR - pz * rootW],
+        [ca * rootR + px * rootW, bladeY, hz + sa * rootR + pz * rootW],
+        [tipX + px * tipW, bladeY - 0.01, tipZ + pz * tipW],
+        [tipX - px * tipW, bladeY - 0.01, tipZ - pz * tipW],
         [248, 250, 252],
-        { doubleSided: true, spec: 0.58, depthBias: 0.008 }
+        { doubleSided: true, spec: 0.58 }
       );
       m.addLine(
-        [tipX * 0.65, hy - 0.045, hz + sa * bladeLen * 0.65],
-        [tipX * 0.88, hy - 0.045, hz + sa * bladeLen * 0.88],
+        [tipX * 0.65, bladeY - 0.012, hz + sa * bladeLen * 0.65],
+        [tipX * 0.88, bladeY - 0.014, hz + sa * bladeLen * 0.88],
         "#38bdf8",
-        Math.max(1.3, pxScale * 0.038),
-        0.010
+        Math.max(1.3, pxScale * 0.038)
       );
       m.addLine(
-        [tipX * 0.88, hy - 0.046, hz + sa * bladeLen * 0.88],
-        [tipX, hy - 0.046, tipZ],
+        [tipX * 0.88, bladeY - 0.014, hz + sa * bladeLen * 0.88],
+        [tipX, bladeY - 0.015, tipZ],
         "#ffc83a",
-        Math.max(1.3, pxScale * 0.040),
-        0.011
+        Math.max(1.3, pxScale * 0.040)
       );
     }
   }
@@ -3357,16 +3598,18 @@
     // Grand hexagonal aero-platform + glowing cyan energy ring + central substation block
     m.addPrism(0, 0, 0.0, 0.09, 0.70, 0.66, 6, 0, [71, 85, 105], { spec: 0.26 });
     m.addPrism(0, 0, 0.09, 0.115, 0.63, 0.61, 6, 0, [56, 189, 248], { emissive: 0.44 });
-    m.addBox(0, -0.02, 0.16, 0.11, 0.09, 0.05, [203, 213, 225], { spec: 0.35 });
+    m.addBox(0, -0.02, 0.165, 0.11, 0.09, 0.05, [203, 213, 225], { spec: 0.35 });
     const subGlow = 0.58 + 0.30 * Math.sin(time * 0.005 + phase);
-    m.addPrism(0, -0.02, 0.21, 0.255, 0.05, 0.025, 6, 0, [251, 191, 36], { emissive: subGlow });
+    m.addPrism(0, -0.02, 0.215, 0.26, 0.05, 0.025, 6, 0, [251, 191, 36], { emissive: subGlow });
 
     function addMiniTurbine(ox, oy, zBase, topZ, rBot, rTop, bladeLen, spin) {
       m.addPrism(ox, oy, zBase, topZ, rBot, rTop, 6, 0, [241, 245, 249], { spec: 0.42 });
       m.addBox(ox, oy + 0.015, topZ + 0.01, rTop * 1.15, rTop * 2.1, rTop * 1.05, [226, 232, 240], { spec: 0.40 });
-      const hy = oy - rTop * 1.95;
+      const hy = oy - rTop * 2.65;
       const hz = topZ + 0.01;
-      m.addBox(ox, hy, hz, rTop * 0.85, rTop * 0.7, rTop * 0.85, [56, 189, 248], { emissive: 0.50 });
+      m.addBox(ox, hy, hz, rTop * 0.75, rTop * 0.65, rTop * 0.75, [56, 189, 248], { emissive: 0.50 });
+      const bladeY = hy - 0.006;
+      const rootR = rTop * 1.15;
 
       for (let k = 0; k < 3; k++) {
         const a = spin + (Math.PI * 2 * k) / 3;
@@ -3380,19 +3623,18 @@
         const tipZ = hz + sa * bladeLen;
 
         m.addQuad(
-          [ox + ca * 0.035 - px * rootW, hy - 0.025, hz + sa * 0.035 - pz * rootW],
-          [ox + ca * 0.035 + px * rootW, hy - 0.025, hz + sa * 0.035 + pz * rootW],
-          [tipX + px * tipW, hy - 0.032, tipZ + pz * tipW],
-          [tipX - px * tipW, hy - 0.032, tipZ - pz * tipW],
+          [ox + ca * rootR - px * rootW, bladeY, hz + sa * rootR - pz * rootW],
+          [ox + ca * rootR + px * rootW, bladeY, hz + sa * rootR + pz * rootW],
+          [tipX + px * tipW, bladeY - 0.008, tipZ + pz * tipW],
+          [tipX - px * tipW, bladeY - 0.008, tipZ - pz * tipW],
           [248, 250, 252],
-          { doubleSided: true, spec: 0.56, depthBias: 0.008 }
+          { doubleSided: true, spec: 0.56 }
         );
         m.addLine(
-          [ox + ca * bladeLen * 0.70, hy - 0.036, hz + sa * bladeLen * 0.70],
-          [tipX, hy - 0.036, tipZ],
+          [ox + ca * bladeLen * 0.70, bladeY - 0.010, hz + sa * bladeLen * 0.70],
+          [tipX, bladeY - 0.011, tipZ],
           "#38bdf8",
-          Math.max(1.0, pxScale * 0.028),
-          0.010
+          Math.max(1.0, pxScale * 0.028)
         );
       }
     }
@@ -3433,11 +3675,13 @@
     m.addPrism(jx, 0, zAt(0.0), zAt(0.075), 0.11, 0.075, 8, 0, [255, 200, 58], {
       emissive: thrust > 0 ? 0.65 : glow
     });
-    m.addBox(jx, 0, zAt(0.125), 0.22, 0.04, 0.075 * sz, [16, 185, 129], { spec: 0.30 });
-    m.addBox(jx, 0, zAt(0.125), 0.04, 0.22, 0.075 * sz, [5, 150, 105], { spec: 0.30 });
+    m.addBox(jx - 0.165, 0, zAt(0.125), 0.048, 0.032, 0.075 * sz, [16, 185, 129], { spec: 0.30 });
+    m.addBox(jx + 0.165, 0, zAt(0.125), 0.048, 0.032, 0.075 * sz, [16, 185, 129], { spec: 0.30 });
+    m.addBox(jx, -0.165, zAt(0.125), 0.032, 0.048, 0.075 * sz, [5, 150, 105], { spec: 0.30 });
+    m.addBox(jx, 0.165, zAt(0.125), 0.032, 0.048, 0.075 * sz, [5, 150, 105], { spec: 0.30 });
     m.addPrism(jx, 0, zAt(0.075), zAt(0.555), 0.125, 0.115, 10, 0, [248, 250, 252], { spec: 0.48 });
     m.addPrism(jx, 0, zAt(0.555), zAt(0.755), 0.115, 0.015, 10, 0, [255, 177, 41], { spec: 0.45 });
-    m.addBox(jx, -0.115, zAt(0.355), 0.05, 0.02, 0.05 * sz, [255, 216, 77], { emissive: 0.55 });
+    m.addBox(jx, -0.136, zAt(0.355), 0.05, 0.014, 0.05 * sz, [255, 216, 77], { emissive: 0.55 });
   }
 
   function buildTradeRocket2Vessel3D(m, time, phase, pxScale, opts) {
@@ -3473,7 +3717,7 @@
     });
     m.addPrism(jx, 0, zAt(0.075), zAt(0.605), 0.13, 0.12, 10, 0, [248, 250, 252], { spec: 0.48 });
     m.addPrism(jx, 0, zAt(0.605), zAt(0.825), 0.12, 0.016, 10, 0, [6, 182, 212], { spec: 0.45 });
-    m.addBox(jx, -0.125, zAt(0.385), 0.055, 0.02, 0.055 * sz, [255, 216, 77], { emissive: 0.62 });
+    m.addBox(jx, -0.142, zAt(0.385), 0.055, 0.014, 0.055 * sz, [255, 216, 77], { emissive: 0.62 });
   }
 
   function buildTradeRocket3Vessel3D(m, time, phase, pxScale, opts) {
@@ -3492,7 +3736,8 @@
     buildRocketExhaust3D(m, time, phase + 1.1, jx + 0.22, 0, z0, 0.068, 0.48, thrust);
     buildRocketExhaust3D(m, time, phase, jx, 0, z0, 0.118, 0.70, thrust);
 
-    m.addBox(jx, 0, zAt(0.145), 0.32, 0.04, 0.09 * sz, [56, 189, 248], { spec: 0.42 });
+    m.addBox(jx - 0.335, 0, zAt(0.145), 0.042, 0.032, 0.09 * sz, [56, 189, 248], { spec: 0.42 });
+    m.addBox(jx + 0.335, 0, zAt(0.145), 0.042, 0.032, 0.09 * sz, [56, 189, 248], { spec: 0.42 });
     m.addPrism(jx - 0.22, 0, zAt(0.0), zAt(0.055), 0.068, 0.048, 8, 0, [255, 90, 77], {
       emissive: thrust > 0 ? 0.65 : glow
     });
@@ -3510,7 +3755,7 @@
     });
     m.addPrism(jx, 0, zAt(0.085), zAt(0.665), 0.145, 0.135, 10, 0, [30, 41, 59], { spec: 0.52 });
     m.addPrism(jx, 0, zAt(0.665), zAt(0.905), 0.135, 0.018, 10, 0, [255, 216, 77], { spec: 0.55 });
-    m.addBox(jx, -0.138, zAt(0.425), 0.06, 0.02, 0.06 * sz, [56, 189, 248], { emissive: 0.82 });
+    m.addBox(jx, -0.156, zAt(0.425), 0.06, 0.014, 0.06 * sz, [56, 189, 248], { emissive: 0.82 });
   }
 
   function buildTradeRocket1Model(m, time, phase, pxScale, opts) {
@@ -3604,50 +3849,69 @@
     m.addBox(0.35, -0.17, 0.08, 0.13, 0.10, 0.05, [86, 98, 118], { spec: 0.12 });
     m.addBox(-0.40, 0.22, 0.07, 0.10, 0.09, 0.04, [92, 104, 122], { spec: 0.12 });
 
-    // Tilted nose-down escape craft fuselage buried at front (+x) and raised toward rear (-x)
-    const fusRef = m.toWorld(-0.04, 0, 0.22);
-    const hullOpt = { spec: 0.45, refWorld: fusRef };
-    const bellyOpt = { spec: 0.22, refWorld: fusRef };
-    const stripeOpt = { spec: 0.32, refWorld: fusRef };
-
-    // Top fuselage deck
-    m.addQuad([0.30, -0.09, 0.13], [0.30, 0.09, 0.13], [-0.40, 0.11, 0.41], [-0.40, -0.11, 0.41], [238, 243, 249], hullOpt);
-    // Belly plate
-    m.addQuad([0.28, -0.11, 0.04], [-0.40, -0.11, 0.25], [-0.40, 0.11, 0.25], [0.28, 0.11, 0.04], [96, 110, 128], bellyOpt);
-    // Side hull + crimson accent stripe (left & right flanks)
-    m.addQuad([0.30, 0.09, 0.13], [0.28, 0.11, 0.04], [-0.40, 0.11, 0.25], [-0.40, 0.11, 0.41], [220, 228, 238], hullOpt);
-    m.addQuad([0.30, -0.09, 0.13], [-0.40, -0.11, 0.41], [-0.40, -0.11, 0.25], [0.28, -0.11, 0.04], [190, 202, 218], hullOpt);
-    m.addQuad([0.20, 0.102, 0.12], [0.20, 0.106, 0.08], [-0.36, 0.114, 0.29], [-0.36, 0.114, 0.35], [255, 90, 77], stripeOpt);
-    m.addQuad([0.20, -0.102, 0.12], [-0.36, -0.114, 0.35], [-0.36, -0.114, 0.29], [0.20, -0.106, 0.08], [224, 62, 49], stripeOpt);
-    // Buried nose wedge + rear bulkhead
-    m.addQuad([0.38, -0.05, 0.06], [0.38, 0.05, 0.06], [0.30, 0.09, 0.13], [0.30, -0.09, 0.13], [255, 90, 77], hullOpt);
-    m.addQuad([-0.40, -0.11, 0.25], [-0.40, -0.11, 0.41], [-0.40, 0.11, 0.41], [-0.40, 0.11, 0.25], [71, 85, 105], bellyOpt);
-
-    // Glowing cyan cockpit canopy on top forward slope
-    m.addQuad([0.22, -0.075, 0.16], [0.22, 0.075, 0.16], [-0.02, 0.088, 0.31], [-0.02, -0.088, 0.31], [56, 189, 248], {
-      emissive: 0.38,
-      spec: 0.65,
-      refWorld: fusRef
+    // Tilted nose-down escape craft fuselage closed on all faces with explicit outward normals
+    m.addQuad([0.30, -0.09, 0.13], [0.30, 0.09, 0.13], [-0.40, 0.11, 0.41], [-0.40, -0.11, 0.41], [238, 243, 249], {
+      spec: 0.45,
+      outwardNormal: [0.37, 0, 0.93]
+    });
+    m.addQuad([0.28, -0.11, 0.04], [-0.40, -0.11, 0.25], [-0.40, 0.11, 0.25], [0.28, 0.11, 0.04], [96, 110, 128], {
+      spec: 0.22,
+      outwardNormal: [-0.29, 0, -0.96]
+    });
+    m.addQuad([0.30, 0.09, 0.13], [0.28, 0.11, 0.04], [-0.40, 0.11, 0.25], [-0.40, 0.11, 0.41], [220, 228, 238], {
+      spec: 0.45,
+      outwardNormal: [0, 1, 0]
+    });
+    m.addQuad([0.30, -0.09, 0.13], [-0.40, -0.11, 0.41], [-0.40, -0.11, 0.25], [0.28, -0.11, 0.04], [190, 202, 218], {
+      spec: 0.45,
+      outwardNormal: [0, -1, 0]
+    });
+    m.addQuad([0.20, 0.114, 0.135], [0.20, 0.118, 0.095], [-0.36, 0.122, 0.29], [-0.36, 0.122, 0.35], [255, 90, 77], {
+      spec: 0.32,
+      outwardNormal: [0, 1, 0]
+    });
+    m.addQuad([0.20, -0.114, 0.135], [-0.36, -0.122, 0.35], [-0.36, -0.122, 0.29], [0.20, -0.118, 0.095], [224, 62, 49], {
+      spec: 0.32,
+      outwardNormal: [0, -1, 0]
+    });
+    m.addQuad([0.38, -0.05, 0.06], [0.38, 0.05, 0.06], [0.30, 0.09, 0.13], [0.30, -0.09, 0.13], [255, 90, 77], {
+      spec: 0.45,
+      outwardNormal: [0.66, 0, 0.75]
+    });
+    m.addQuad([0.38, -0.05, 0.06], [0.38, 0.05, 0.06], [0.28, 0.11, 0.04], [0.28, -0.11, 0.04], [190, 62, 52], {
+      spec: 0.22,
+      outwardNormal: [0, 0, -1]
+    });
+    m.addQuad([-0.40, -0.11, 0.25], [-0.40, -0.11, 0.41], [-0.40, 0.11, 0.41], [-0.40, 0.11, 0.25], [71, 85, 105], {
+      spec: 0.22,
+      outwardNormal: [-1, 0, 0]
     });
 
-    // Intact swept left wing (+y) + deployed blue mini solar panel flap
+    // Glowing cyan cockpit canopy lifted cleanly above top deck slope
+    m.addQuad([0.22, -0.075, 0.178], [0.22, 0.075, 0.178], [-0.02, 0.088, 0.328], [-0.02, -0.088, 0.328], [56, 189, 248], {
+      emissive: 0.38,
+      spec: 0.65,
+      outwardNormal: [0.37, 0, 0.93]
+    });
+
+    // Intact swept left wing (+y) + single-sided blue mini solar panel flap on dorsal surface
     m.addQuad([-0.02, 0.11, 0.24], [-0.28, 0.11, 0.33], [-0.36, 0.46, 0.44], [-0.12, 0.42, 0.36], [226, 232, 240], {
       doubleSided: true,
       spec: 0.42
     });
-    m.addQuad([-0.08, 0.16, 0.27], [-0.26, 0.16, 0.34], [-0.32, 0.41, 0.44], [-0.14, 0.38, 0.37], [37, 99, 235], {
-      doubleSided: true,
+    m.addQuad([-0.08, 0.16, 0.286], [-0.26, 0.16, 0.356], [-0.32, 0.41, 0.456], [-0.14, 0.38, 0.386], [37, 99, 235], {
+      outwardNormal: [0.28, -0.25, 0.92],
       spec: 0.58
     });
     const lw = Math.max(1.0, pxScale * 0.032);
-    m.addLine([-0.14, 0.21, 0.30], [-0.22, 0.40, 0.40], "#93c5fd", lw);
+    m.addLine([-0.14, 0.21, 0.322], [-0.22, 0.40, 0.422], "#93c5fd", lw);
 
-    // Snapped right wing stub (-y) + detached broken wing shard resting in dirt
+    // Snapped right wing stub (-y) + detached broken wing shard resting cleanly above dirt
     m.addQuad([-0.04, -0.11, 0.25], [-0.24, -0.11, 0.33], [-0.26, -0.26, 0.34], [-0.08, -0.25, 0.27], [148, 163, 184], {
       doubleSided: true,
       spec: 0.28
     });
-    m.addQuad([0.06, -0.34, 0.068], [-0.08, -0.48, 0.072], [-0.16, -0.39, 0.066], [0.00, -0.28, 0.065], [203, 213, 225], {
+    m.addQuad([0.06, -0.34, 0.072], [-0.08, -0.48, 0.076], [-0.16, -0.39, 0.070], [0.00, -0.28, 0.069], [203, 213, 225], {
       doubleSided: true,
       spec: 0.25
     });
@@ -3663,8 +3927,8 @@
     });
 
     // Exhaust nozzle + subtle warm residual ember + rising cel smoke orbs
-    m.addBox(-0.44, 0, 0.32, 0.05, 0.07, 0.07, [71, 85, 105], { spec: 0.32 });
-    m.addBox(-0.49, 0, 0.32, 0.015, 0.045, 0.045, [245, 158, 11], { emissive: 0.55 });
+    m.addBox(-0.45, 0, 0.32, 0.05, 0.07, 0.07, [71, 85, 105], { spec: 0.32 });
+    m.addBox(-0.51, 0, 0.32, 0.012, 0.045, 0.045, [245, 158, 11], { emissive: 0.55 });
     for (let k = 0; k < 3; k++) {
       const sp = (time * 0.0005 + k * 0.333 + phase * 0.1) % 1;
       const smZ = 0.42 + sp * 0.38;
@@ -3680,23 +3944,23 @@
   }
 
   function buildUtopiaSpireModel(m, time, phase, pxScale) {
-    // Grand hexagonal alabaster-and-gold podium
+    // Grand hexagonal alabaster-and-gold podium + sky-blue energy ring flush atop podium
     m.addPrism(0, 0, 0.0, 0.10, 0.66, 0.60, 6, 0, [226, 232, 240], { spec: 0.36 });
     m.addPrism(0, 0, 0.10, 0.13, 0.58, 0.55, 6, 0, [251, 191, 36], { spec: 0.58 });
     m.addPrism(0, 0, 0.13, 0.15, 0.42, 0.38, 6, 0, [56, 189, 248], { emissive: 0.55 });
 
     // Tall central futuristic ivory-pearl arcology spire
-    m.addPrism(0, 0, 0.14, 0.54, 0.23, 0.16, 6, 0, [248, 250, 252], { spec: 0.52 });
+    m.addPrism(0, 0, 0.15, 0.54, 0.23, 0.16, 6, 0, [248, 250, 252], { spec: 0.52 });
     m.addPrism(0, 0, 0.54, 0.58, 0.19, 0.18, 6, 0, [251, 191, 36], { spec: 0.62 });
     m.addPrism(0, 0, 0.58, 0.94, 0.15, 0.085, 6, Math.PI / 6, [241, 245, 249], { spec: 0.56 });
     m.addPrism(0, 0, 0.94, 0.98, 0.11, 0.095, 6, Math.PI / 6, [251, 191, 36], { spec: 0.65 });
     m.addPrism(0, 0, 0.98, 1.24, 0.075, 0.02, 6, 0, [255, 252, 240], { spec: 0.60 });
 
-    // Glowing cyan architectural window strips on spire core
+    // Glowing cyan architectural window strips proud outside spire core
     const winPulse = 0.68 + 0.20 * Math.sin(time * 0.004 + phase);
-    m.addBox(0, -0.19, 0.35, 0.055, 0.02, 0.14, [56, 189, 248], { emissive: winPulse, depthBias: 0.003 });
-    m.addBox(0, 0.19, 0.35, 0.055, 0.02, 0.14, [56, 189, 248], { emissive: winPulse, depthBias: 0.003 });
-    m.addBox(0, -0.125, 0.74, 0.04, 0.02, 0.11, [103, 232, 249], { emissive: winPulse, depthBias: 0.003 });
+    m.addBox(0, -0.205, 0.35, 0.055, 0.012, 0.14, [56, 189, 248], { emissive: winPulse });
+    m.addBox(0, 0.205, 0.35, 0.055, 0.012, 0.14, [56, 189, 248], { emissive: winPulse });
+    m.addBox(0, -0.152, 0.74, 0.04, 0.012, 0.11, [103, 232, 249], { emissive: winPulse });
 
     // Twin sleek flanking glass towers
     m.addPrism(-0.33, 0.12, 0.14, 0.68, 0.13, 0.075, 6, 0, [224, 242, 254], { spec: 0.65, emissive: 0.18 });
@@ -3716,8 +3980,7 @@
         [Math.cos(a0) * 0.28, Math.sin(a0) * 0.28, 0.88 + Math.sin(a0) * 0.05],
         [Math.cos(a1) * 0.28, Math.sin(a1) * 0.28, 0.88 + Math.sin(a1) * 0.05],
         k % 2 === 0 ? "#ffc83a" : "#67e8f9",
-        lw,
-        0.008
+        lw
       );
     }
   }
@@ -3794,101 +4057,117 @@
     const beacon = o.beacon !== false;
     const sputter = Boolean(o.sputter);
 
-    // 1. 3D Re-entry Atmospheric Bow-Shock Plasma Cone & Streaming Ribs (when diving into atmosphere)
+    // 1. 3D Re-entry Atmospheric Bow-Shock Plasma Cone & Streaming Ribs (ahead of crimson nose)
     if (reentry > 0.02) {
       const flick = 0.88 + 0.18 * Math.sin(time * 0.065 + phase);
-      const shockTip = 1.18 + 0.16 * reentry * flick;
-      // Blazing incandescent nose shock cap
-      m.addPrism(0, 0, shockTip - 0.22, shockTip + 0.08, 0.20, 0.02, 6, Math.PI / 6, [255, 252, 224], {
+      const shockTip = 1.24 + 0.16 * reentry * flick;
+      // Blazing incandescent nose shock cap strictly ahead of nose cone
+      m.addPrism(0, 0, 1.09, Math.max(1.22, shockTip + 0.08), 0.20, 0.02, 6, Math.PI / 6, [255, 252, 224], {
         emissive: 1.0,
-        spec: 0.2,
-        depthBias: 0.012
+        spec: 0.2
       });
-      // 6 sweeping 3D plasma bow-shock ribbons arcing back past wings & tail
+      // 6 sweeping 3D plasma bow-shock ribbons arcing cleanly outside wings & tail
       for (let k = 0; k < 6; k++) {
         const ang = (Math.PI * 2 * k) / 6 + time * 0.008;
         const ca = Math.cos(ang);
         const sa = Math.sin(ang);
         const tx = -sa;
         const ty = ca;
-        const rMid = (k % 2 === 0 ? 0.56 : 0.44) * (0.75 + 0.30 * reentry) * flick;
-        const rBack = rMid * 1.38;
+        const rMid = (k % 2 === 0 ? 0.62 : 0.50) * (0.78 + 0.28 * reentry) * flick;
+        const rBack = rMid * 1.42;
         const zBack = -0.35 - 0.55 * reentry * flick;
         const wFront = 0.06;
         const wBack = 0.14;
         const pCol = k % 2 === 0 ? [255, 200, 58] : [255, 90, 77];
 
         m.addQuad(
-          [ca * 0.16 - tx * wFront, sa * 0.16 - ty * wFront, shockTip - 0.14],
-          [ca * 0.16 + tx * wFront, sa * 0.16 + ty * wFront, shockTip - 0.14],
+          [ca * 0.18 - tx * wFront, sa * 0.18 - ty * wFront, shockTip - 0.12],
+          [ca * 0.18 + tx * wFront, sa * 0.18 + ty * wFront, shockTip - 0.12],
           [ca * rBack + tx * wBack, sa * rBack + ty * wBack, zBack],
           [ca * rBack - tx * wBack, sa * rBack - ty * wBack, zBack],
           pCol,
-          { doubleSided: true, emissive: 0.96, spec: 0.1, depthBias: -0.006 }
+          { doubleSided: true, emissive: 0.96, spec: 0.1 }
         );
       }
     }
 
-    // 2. Layered 3D Exhaust Plumes (when engine thrust > 0)
+    // 2. Layered 3D Exhaust Plumes (stacked non-overlapping segments behind nozzle)
     if (thr > 0.02) {
       const flicker = 0.86 + 0.24 * Math.sin(time * 0.055 + phase);
       const exLen = (0.48 + 0.72 * thr) * flicker;
       const spin = time * 0.016 + phase;
-      const zNoz = -0.78;
+      const zNoz = -0.80;
       const outerCol = sputter ? [255, 90, 77] : [56, 189, 248];
       const midCol = sputter ? [251, 146, 60] : [186, 230, 253];
 
-      m.addPrism(0, 0, zNoz - exLen * 0.58, zNoz - exLen, 0.105, 0.002, 5, spin, outerCol, {
-        emissive: 0.92,
+      m.addPrism(0, 0, zNoz, zNoz - exLen * 0.32, 0.125, 0.105, 5, spin * 0.5, [255, 255, 255], {
+        emissive: 1.0,
         spec: 0.1
       });
-      m.addPrism(0, 0, zNoz - exLen * 0.22, zNoz - exLen * 0.72, 0.138, 0.055, 5, -spin, midCol, {
+      m.addPrism(0, 0, zNoz - exLen * 0.32, zNoz - exLen * 0.66, 0.132, 0.068, 5, -spin, midCol, {
         emissive: 0.98,
         spec: 0.1
       });
-      m.addPrism(0, 0, zNoz, zNoz - exLen * 0.34, 0.125, 0.085, 5, spin * 0.5, [255, 255, 255], {
-        emissive: 1.0,
+      m.addPrism(0, 0, zNoz - exLen * 0.66, zNoz - exLen, 0.075, 0.002, 5, spin, outerCol, {
+        emissive: 0.92,
         spec: 0.1
       });
     }
 
-    // 3. 3D Swept Fuselage (crimson nose cone, forward fuselage, mid-aft hull, dark thermal belly, red flank stripes)
+    // 3. 3D Swept Fuselage (crimson nose cone, forward fuselage, mid-aft hull, thermal belly keel, flank stripes)
     m.addPrism(0, 0, 0.56, 1.06, 0.19, 0.022, 6, Math.PI / 6, [255, 90, 77], { spec: 0.48 });
     m.addPrism(0, 0, 0.14, 0.56, 0.245, 0.19, 6, Math.PI / 6, [248, 250, 252], { spec: 0.52 });
     m.addPrism(0, 0, -0.58, 0.14, 0.215, 0.245, 6, Math.PI / 6, [232, 238, 248], { spec: 0.46 });
     m.addPrism(0, 0, -0.64, -0.58, 0.19, 0.215, 6, Math.PI / 6, [71, 85, 105], { spec: 0.30 });
-    m.addBox(0, -0.17, -0.06, 0.145, 0.05, 0.52, [68, 82, 104], { spec: 0.24 });
+    m.addBox(0, -0.236, -0.20, 0.115, 0.020, 0.34, [68, 82, 104], { spec: 0.24 });
 
-    // Crimson racing stripes along port & starboard flanks
-    m.addBox(-0.225, 0.01, -0.05, 0.026, 0.052, 0.50, [224, 62, 49], { spec: 0.36 });
-    m.addBox(0.225, 0.01, -0.05, 0.026, 0.052, 0.50, [255, 90, 77], { spec: 0.36 });
+    // Crimson racing stripes mounted flush outside port & starboard flank flats
+    m.addBox(-0.228, 0.0, -0.21, 0.015, 0.045, 0.33, [224, 62, 49], { spec: 0.36 });
+    m.addBox(0.228, 0.0, -0.21, 0.015, 0.045, 0.33, [255, 90, 77], { spec: 0.36 });
 
-    // 4. 3D Cockpit Canopy & Inner Pilot Visor Glow
-    m.addBox(0, 0.19, 0.26, 0.105, 0.072, 0.22, [56, 189, 248], { emissive: 0.48, spec: 0.85 });
-    m.addPrism(0, 0.185, 0.44, 0.62, 0.105, 0.02, 6, 0, [56, 189, 248], { emissive: 0.45, spec: 0.82 });
-    m.addBox(0, 0.23, 0.28, 0.07, 0.04, 0.11, [253, 224, 71], { emissive: 0.72, depthBias: 0.002 });
+    // 4. 3D Cockpit Canopy & Inner Pilot Visor Glow cleanly seated atop dorsal fuselage
+    m.addBox(0, 0.252, 0.22, 0.10, 0.040, 0.18, [56, 189, 248], { emissive: 0.48, spec: 0.85 });
+    m.addPrism(0, 0.245, 0.40, 0.56, 0.095, 0.02, 6, 0, [56, 189, 248], { emissive: 0.45, spec: 0.82 });
+    m.addBox(0, 0.304, 0.24, 0.068, 0.011, 0.095, [253, 224, 71], { emissive: 0.72 });
 
-    // 5. Solid 3D Swept Delta Wings (Starboard +X & Port -X) with Embedded Blue Solar Arrays & Nav Lights
+    // 5. Watertight 6-Face Swept Delta Wings (Starboard +X & Port -X) with Dorsal Solar Arrays & Nav Lights
     const lw = Math.max(0.9, pxScale * 0.025);
     for (let s = -1; s <= 1; s += 2) {
-      const rx0 = s * 0.19;
+      const rx0 = s * 0.218;
       const rx1 = s * 0.88;
       const yTop = 0.025;
       const yBot = -0.045;
-      const wingRef = m.toWorld(s * 0.48, -0.01, -0.24);
-      const wingOpt = { spec: 0.42, refWorld: wingRef };
       const topCol = s > 0 ? [226, 232, 240] : [206, 216, 230];
       const sideCol = [148, 163, 184];
 
-      // Top, bottom, leading edge, trailing edge, and tip cap
-      m.addQuad([rx0, yTop, 0.22], [rx0, yTop, -0.48], [rx1, yTop, -0.56], [rx1, yTop, -0.18], topCol, wingOpt);
-      m.addQuad([rx0, yBot, 0.22], [rx1, yBot, -0.18], [rx1, yBot, -0.56], [rx0, yBot, -0.48], sideCol, wingOpt);
-      m.addQuad([rx0, yTop, 0.22], [rx1, yTop, -0.18], [rx1, yBot, -0.18], [rx0, yBot, 0.22], [241, 245, 249], wingOpt);
-      m.addQuad([rx0, yTop, -0.48], [rx0, yBot, -0.48], [rx1, yBot, -0.56], [rx1, yTop, -0.56], sideCol, wingOpt);
-      m.addQuad([rx1, yTop, -0.18], [rx1, yTop, -0.56], [rx1, yBot, -0.56], [rx1, yBot, -0.18], [255, 90, 77], wingOpt);
+      // Top, bottom, leading edge, trailing edge, tip cap, and inboard root cap
+      m.addQuad([rx0, yTop, 0.22], [rx0, yTop, -0.48], [rx1, yTop, -0.56], [rx1, yTop, -0.18], topCol, {
+        spec: 0.42,
+        outwardNormal: [0, 1, 0]
+      });
+      m.addQuad([rx0, yBot, 0.22], [rx1, yBot, -0.18], [rx1, yBot, -0.56], [rx0, yBot, -0.48], sideCol, {
+        spec: 0.42,
+        outwardNormal: [0, -1, 0]
+      });
+      m.addQuad([rx0, yTop, 0.22], [rx1, yTop, -0.18], [rx1, yBot, -0.18], [rx0, yBot, 0.22], [241, 245, 249], {
+        spec: 0.42,
+        outwardNormal: [s * 0.40, 0, 0.69]
+      });
+      m.addQuad([rx0, yTop, -0.48], [rx0, yBot, -0.48], [rx1, yBot, -0.56], [rx1, yTop, -0.56], sideCol, {
+        spec: 0.42,
+        outwardNormal: [s * 0.08, 0, -0.69]
+      });
+      m.addQuad([rx1, yTop, -0.18], [rx1, yTop, -0.56], [rx1, yBot, -0.56], [rx1, yBot, -0.18], [255, 90, 77], {
+        spec: 0.42,
+        outwardNormal: [s, 0, 0]
+      });
+      m.addQuad([rx0, yTop, 0.22], [rx0, yBot, 0.22], [rx0, yBot, -0.48], [rx0, yTop, -0.48], sideCol, {
+        spec: 0.35,
+        outwardNormal: [-s, 0, 0]
+      });
 
-      // Cobalt solar wing array mounted flush on dorsal surface (matches crash_base solar wing)
-      const sx0 = s * 0.26;
+      // Single-sided cobalt solar wing array mounted flush above dorsal surface (matches crash_base solar wing)
+      const sx0 = s * 0.28;
       const sx1 = s * 0.72;
       m.addQuad(
         [sx0, yTop + 0.012, 0.04],
@@ -3896,48 +4175,64 @@
         [sx1, yTop + 0.012, -0.47],
         [sx1, yTop + 0.012, -0.20],
         [37, 99, 235],
-        { refWorld: wingRef, spec: 0.90, emissive: 0.16, depthBias: 0.003 }
+        { outwardNormal: [0, 1, 0], spec: 0.90, emissive: 0.16 }
       );
       m.addLine(
         [(sx0 + sx1) * 0.5, yTop + 0.018, -0.08],
         [(sx0 + sx1) * 0.5, yTop + 0.018, -0.425],
         "rgba(186, 230, 253, 0.82)",
-        lw,
-        0.002
+        lw
       );
 
-      // Wingtip navigation beacon pod (red port, cyan-green starboard)
-      m.addBox(s * 0.89, -0.005, -0.37, 0.038, 0.045, 0.14, s < 0 ? [255, 90, 77] : [52, 211, 153], {
+      // Wingtip navigation beacon pod flush outside tip cap
+      m.addBox(s * 0.916, -0.01, -0.37, 0.036, 0.040, 0.14, s < 0 ? [255, 90, 77] : [52, 211, 153], {
         emissive: 0.72,
         spec: 0.5
       });
 
-      // Twin wing-root auxiliary thruster pods
-      m.addPrism(s * 0.29, -0.025, -0.66, -0.34, 0.058, 0.068, 6, 0, [100, 116, 139], { spec: 0.38 });
-      m.addBox(s * 0.29, -0.025, -0.67, 0.036, 0.036, 0.018, sputter ? [251, 146, 60] : [56, 189, 248], {
+      // Twin wing-root auxiliary thruster pods mounted cleanly below ventral wing surface
+      m.addPrism(s * 0.31, -0.098, -0.66, -0.34, 0.050, 0.052, 6, 0, [100, 116, 139], { spec: 0.38 });
+      m.addBox(s * 0.31, -0.098, -0.674, 0.034, 0.034, 0.014, sputter ? [251, 146, 60] : [56, 189, 248], {
         emissive: thr > 0 ? 0.85 : 0.15
       });
     }
 
-    // 6. Solid 3D Vertical Crimson Tail Fin & Blinking Red Distress Beacon
-    const finRef = m.toWorld(0, 0.40, -0.46);
-    const finOpt = { spec: 0.38, refWorld: finRef };
-    m.addQuad([-0.026, 0.18, -0.14], [-0.026, 0.18, -0.62], [-0.026, 0.66, -0.60], [-0.026, 0.60, -0.42], [224, 62, 49], finOpt);
-    m.addQuad([0.026, 0.18, -0.14], [0.026, 0.60, -0.42], [0.026, 0.66, -0.60], [0.026, 0.18, -0.62], [255, 90, 77], finOpt);
-    m.addQuad([-0.026, 0.18, -0.14], [-0.026, 0.60, -0.42], [0.026, 0.60, -0.42], [0.026, 0.18, -0.14], [255, 135, 115], finOpt);
-    m.addQuad([-0.026, 0.18, -0.62], [0.026, 0.18, -0.62], [0.026, 0.66, -0.60], [-0.026, 0.66, -0.60], [190, 48, 38], finOpt);
-    m.addQuad([-0.026, 0.60, -0.42], [-0.026, 0.66, -0.60], [0.026, 0.66, -0.60], [0.026, 0.60, -0.42], [255, 120, 100], finOpt);
+    // 6. Watertight 6-Face Vertical Crimson Tail Fin atop aft hull & Blinking Red Distress Beacon
+    m.addQuad([-0.026, 0.22, -0.18], [-0.026, 0.22, -0.60], [-0.026, 0.66, -0.58], [-0.026, 0.60, -0.42], [224, 62, 49], {
+      spec: 0.38,
+      outwardNormal: [-1, 0, 0]
+    });
+    m.addQuad([0.026, 0.22, -0.18], [0.026, 0.60, -0.42], [0.026, 0.66, -0.58], [0.026, 0.22, -0.60], [255, 90, 77], {
+      spec: 0.38,
+      outwardNormal: [1, 0, 0]
+    });
+    m.addQuad([-0.026, 0.22, -0.18], [-0.026, 0.60, -0.42], [0.026, 0.60, -0.42], [0.026, 0.22, -0.18], [255, 135, 115], {
+      spec: 0.38,
+      outwardNormal: [0, 0.24, 0.38]
+    });
+    m.addQuad([-0.026, 0.22, -0.60], [0.026, 0.22, -0.60], [0.026, 0.66, -0.58], [-0.026, 0.66, -0.58], [190, 48, 38], {
+      spec: 0.38,
+      outwardNormal: [0, 0.02, -0.44]
+    });
+    m.addQuad([-0.026, 0.60, -0.42], [-0.026, 0.66, -0.58], [0.026, 0.66, -0.58], [0.026, 0.60, -0.42], [255, 120, 100], {
+      spec: 0.38,
+      outwardNormal: [0, 0.16, -0.06]
+    });
+    m.addQuad([-0.026, 0.22, -0.18], [0.026, 0.22, -0.18], [0.026, 0.22, -0.60], [-0.026, 0.22, -0.60], [168, 42, 34], {
+      spec: 0.30,
+      outwardNormal: [0, -1, 0]
+    });
 
     if (beacon) {
       const pulse = 0.5 + 0.5 * Math.sin(time * 0.009 + phase);
-      m.addDome(0, 0.65, -0.53, 0.055, 0.065, 0.055, 2, 6, pulse > 0.45 ? [255, 90, 77] : [140, 32, 32], {
+      m.addDome(0, 0.65, -0.51, 0.055, 0.065, 0.055, 2, 6, pulse > 0.45 ? [255, 90, 77] : [140, 32, 32], {
         emissive: 0.25 + 0.75 * pulse
       });
     }
 
-    // 7. Main Rear Thruster Nozzle Bell + Inner Reactor Glow
-    m.addPrism(0, 0, -0.78, -0.62, 0.155, 0.115, 8, Math.PI / 8, [71, 85, 105], { spec: 0.36 });
-    m.addBox(0, 0, -0.785, 0.09, 0.09, 0.02, sputter ? [251, 146, 60] : [56, 189, 248], {
+    // 7. Main Rear Thruster Nozzle Bell + Inner Reactor Glow flush behind nozzle
+    m.addPrism(0, 0, -0.78, -0.64, 0.155, 0.115, 8, Math.PI / 8, [71, 85, 105], { spec: 0.36 });
+    m.addBox(0, 0, -0.796, 0.09, 0.09, 0.014, sputter ? [251, 146, 60] : [56, 189, 248], {
       emissive: thr > 0 ? 0.92 : 0.28
     });
   }

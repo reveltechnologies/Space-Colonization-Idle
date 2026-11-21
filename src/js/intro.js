@@ -200,7 +200,6 @@
   const ctx = canvasEl ? canvasEl.getContext("2d") : null;
   const alarmOverlayEl = document.getElementById("intro-alarm-overlay");
   const flashOverlayEl = document.getElementById("intro-flash-overlay");
-  const chapterPillEl = document.getElementById("intro-chapter-pill");
   const portraitFrameEl = document.getElementById("intro-portrait-frame");
   const portraitIconEl = document.getElementById("intro-portrait-icon");
   const speakerNameEl = document.getElementById("intro-speaker-name");
@@ -213,7 +212,6 @@
   const continueIconEl = document.getElementById("intro-continue-icon");
   const continueLabelEl = document.getElementById("intro-continue-label");
   const tapHintEl = document.getElementById("intro-tap-hint");
-  const stepDotEls = Array.from(document.querySelectorAll("#intro-step-dots .intro-step-dot"));
 
   // --- 8 Interactive Steps Configuration ---
 
@@ -685,6 +683,7 @@
     ctx.save();
     ctx.globalAlpha *= alphaFade;
 
+    const ringItems = [];
     for (let i = 0; i < segs.length; i++) {
       const seg = segs[i];
       const angShift = spinOffset * (seg.ringIdx === 0 ? 1 : -1.25);
@@ -701,6 +700,25 @@
       if (pass === "back" && dispCenter.z >= 0.15) continue;
       if (pass === "front" && dispCenter.z < 0.15) continue;
       if (dispCenter.z > CAM_DIST - 0.65) continue;
+
+      ringItems.push({
+        seg: seg,
+        angShift: angShift,
+        worldMid: worldMid,
+        dispCenter: dispCenter
+      });
+    }
+
+    ringItems.sort(function (a, b) {
+      return a.dispCenter.z - b.dispCenter.z;
+    });
+
+    for (let j = 0; j < ringItems.length; j++) {
+      const item = ringItems[j];
+      const seg = item.seg;
+      const angShift = item.angShift;
+      const worldMid = item.worldMid;
+      const dispCenter = item.dispCenter;
 
       const a0 = seg.a0 + angShift;
       const a1 = seg.a1 + angShift;
@@ -731,7 +749,7 @@
       ctx.stroke();
 
       if (seg.hasSatellite && exT <= 0.02) {
-        const sp = project3D(worldMid, cx, cy, focalLength);
+        const sp = project3D(dispCenter, cx, cy, focalLength);
         const satR = clamp(r * 0.025, 2.5, 5.2);
         ctx.beginPath();
         ctx.arc(sp.x, sp.y, satR, 0, Math.PI * 2);
@@ -746,7 +764,7 @@
     ctx.restore();
   }
 
-  function drawNova7Planet3D(cx, cy, r, spinY, pitchX, roll, time, stress, explosionT, alpha) {
+  function drawNova7Planet3D(cx, cy, r, spinY, pitchX, roll, time, stress, explosionT, alpha, padCraftThrust) {
     if (!nova7Planet || r < 14 || alpha <= 0.01) return;
 
     const exT = clamp01(explosionT || 0);
@@ -827,7 +845,13 @@
       for (let i = 0; i < nova7Planet.tiles.length; i++) {
         const tile = nova7Planet.tiles[i];
         const rotCenterBase = baseRotate(tile.center);
-        if (exT <= 0 && rotCenterBase.z <= -0.40) continue;
+        const bId = nova7Planet.buildings[tile.id] || null;
+        const isLaunch = Boolean(nova7Planet.launchTile && tile.id === nova7Planet.launchTile.id);
+        const hasMount = Boolean(
+          bId || (isLaunch && exT <= 0 && padCraftThrust !== undefined && padCraftThrust >= 0)
+        );
+        const rimPass = exT > 0 || rotCenterBase.z > -0.45;
+        if (exT <= 0 && (hasMount ? rotCenterBase.z <= -0.68 : !rimPass)) continue;
 
         const localFaultHeat = exT > 0 ? 1 : clamp01(stress * 1.15 - (1 - tile.faultWeight) * 0.55);
         const buck = exT <= 0 ? localFaultHeat * 0.042 * (0.6 + 0.4 * Math.sin(time * 0.012 + tile.phase)) : 0;
@@ -859,24 +883,30 @@
         const toCam = sub(CAM_VEC, worldCenter);
         const facing = dot(rotNormal, toCam);
         const sides = tile.sides;
-        const rotBase = new Array(sides);
-        const topPts = new Array(sides);
-        const basePts = new Array(sides);
+        let rotBase = null;
+        let topPts = null;
+        let basePts = null;
+        let topVisible = false;
 
-        for (let k = 0; k < sides; k++) {
-          let rc = baseRotate(tile.outerCorners[k]);
-          if (localExT > 0) {
-            rc = rotateAroundAxis(rc, tile.tumbleAxis, exAng);
+        if (rimPass) {
+          rotBase = new Array(sides);
+          topPts = new Array(sides);
+          basePts = new Array(sides);
+
+          for (let k = 0; k < sides; k++) {
+            let rc = baseRotate(tile.outerCorners[k]);
+            if (localExT > 0) {
+              rc = rotateAroundAxis(rc, tile.tumbleAxis, exAng);
+            }
+            rotBase[k] = add(dispWorld, rc);
+            topPts[k] = project3D(add(dispWorld, scale(rc, elev)), cx, cy, focalLength);
+            basePts[k] = project3D(rotBase[k], cx, cy, focalLength);
           }
-          rotBase[k] = add(dispWorld, rc);
-          topPts[k] = project3D(add(dispWorld, scale(rc, elev)), cx, cy, focalLength);
-          basePts[k] = project3D(rotBase[k], cx, cy, focalLength);
-        }
 
-        const topVisible =
-          exT > 0 ? signedArea2D(topPts) < -0.25 : facing > -0.05 && signedArea2D(topPts) < -0.25;
-        const bId = nova7Planet.buildings[tile.id] || null;
-        if (!topVisible && !bId && exT <= 0) continue;
+          topVisible =
+            exT > 0 ? signedArea2D(topPts) < -0.05 : facing > -0.08 && signedArea2D(topPts) < -0.05;
+        }
+        if (!topVisible && !hasMount && exT <= 0) continue;
 
         const toCamLen = len(toCam) || 1;
         visibleTiles.push({
@@ -892,7 +922,9 @@
           elev: elev,
           depthZ: worldCenter.z,
           facingDot: Math.max(0, facing / toCamLen),
+          rimPass: rimPass,
           topVisible: topVisible,
+          isLaunch: isLaunch,
           rotBase: rotBase,
           topPts: topPts,
           basePts: basePts,
@@ -902,7 +934,7 @@
       }
 
       visibleTiles.sort(function (a, b) {
-        return a.depthZ - b.depthZ;
+        return exT <= 0 ? a.rotCenterZ - b.rotCenterZ : a.depthZ - b.depthZ;
       });
 
       const lineUnit = Math.max(0.9, r / 170);
@@ -914,29 +946,35 @@
         const tile = entry.tile;
         const sides = tile.sides;
 
-        for (let k = 0; k < sides; k++) {
-          const next = (k + 1) % sides;
-          const b0 = entry.rotBase[k];
-          const b1 = entry.rotBase[next];
-          const sideN = cross(sub(b1, b0), entry.rotNormal);
-          const midB = scale(add(b0, b1), 0.5);
-          if (dot(sideN, sub(CAM_VEC, midB)) <= 0) continue;
+        if (entry.rimPass) {
+          for (let k = 0; k < sides; k++) {
+            const next = (k + 1) % sides;
+            const b0 = entry.rotBase[k];
+            const b1 = entry.rotBase[next];
+            const sideN = cross(sub(b1, b0), entry.rotNormal);
+            const midB = scale(add(b0, b1), 0.5);
+            const midW =
+              exT > 0
+                ? add(midB, scale(sub(midB, entry.dispWorld), (entry.elev - 1) * 0.5))
+                : scale(midB, 0.5 * (1 + entry.elev));
+            if (dot(sideN, sub(CAM_VEC, midW)) <= -0.002) continue;
 
-          const sideNormUnit = normalize(sideN);
-          const sideNdotL = Math.max(0, dot(sideNormUnit, LIGHT_DIR));
-          const sideLight = 0.54 * (0.30 + 0.70 * sideNdotL) + tile.emissive * 0.35;
-          const sr = clamp(Math.round(lerp(tile.rgb[0] * sideLight, 255, entry.faultHeat * 0.85)), 0, 255);
-          const sg = clamp(Math.round(lerp(tile.rgb[1] * sideLight, 110, entry.faultHeat * 0.80)), 0, 255);
-          const sb = clamp(Math.round(lerp(tile.rgb[2] * sideLight, 45, entry.faultHeat * 0.80)), 0, 255);
+            const sideNormUnit = normalize(sideN);
+            const sideNdotL = Math.max(0, dot(sideNormUnit, LIGHT_DIR));
+            const sideLight = 0.54 * (0.30 + 0.70 * sideNdotL) + tile.emissive * 0.35;
+            const sr = clamp(Math.round(lerp(tile.rgb[0] * sideLight, 255, entry.faultHeat * 0.85)), 0, 255);
+            const sg = clamp(Math.round(lerp(tile.rgb[1] * sideLight, 110, entry.faultHeat * 0.80)), 0, 255);
+            const sb = clamp(Math.round(lerp(tile.rgb[2] * sideLight, 45, entry.faultHeat * 0.80)), 0, 255);
 
-          ctx.beginPath();
-          ctx.moveTo(entry.basePts[k].x, entry.basePts[k].y);
-          ctx.lineTo(entry.basePts[next].x, entry.basePts[next].y);
-          ctx.lineTo(entry.topPts[next].x, entry.topPts[next].y);
-          ctx.lineTo(entry.topPts[k].x, entry.topPts[k].y);
-          ctx.closePath();
-          ctx.fillStyle = "rgb(" + sr + "," + sg + "," + sb + ")";
-          ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(entry.basePts[k].x, entry.basePts[k].y);
+            ctx.lineTo(entry.basePts[next].x, entry.basePts[next].y);
+            ctx.lineTo(entry.topPts[next].x, entry.topPts[next].y);
+            ctx.lineTo(entry.topPts[k].x, entry.topPts[k].y);
+            ctx.closePath();
+            ctx.fillStyle = "rgb(" + sr + "," + sg + "," + sb + ")";
+            ctx.fill();
+          }
         }
 
         if (entry.topVisible) {
@@ -970,26 +1008,35 @@
           }
 
           const rimFade = clamp(entry.facingDot * 1.45, 0.34, 1.0);
-          const isLaunch = nova7Planet.launchTile && tile.id === nova7Planet.launchTile.id;
+          const isLaunchTile = entry.isLaunch;
 
           tracePolygon(innerPts);
-          if (isLaunch) {
+          if (isLaunchTile) {
             ctx.fillStyle = "rgba(255, 200, 58, 0.28)";
             ctx.fill();
           }
-          ctx.lineWidth = isLaunch ? Math.max(2.0, lineUnit * 1.8) : Math.max(1.1, lineUnit * 1.05);
-          ctx.strokeStyle = isLaunch
+          ctx.lineWidth = isLaunchTile ? Math.max(2.0, lineUnit * 1.8) : Math.max(1.1, lineUnit * 1.05);
+          ctx.strokeStyle = isLaunchTile
             ? "#fff8d6"
             : entry.faultHeat > 0.35
               ? "rgba(255, 160, 75, " + (0.85 * rimFade).toFixed(2) + ")"
               : "rgba(255, 255, 255, " + (0.82 * rimFade).toFixed(2) + ")";
           ctx.stroke();
+        } else if (exT > 0 && entry.basePts && signedArea2D(entry.basePts) > 0.05) {
+          const magR = Math.round(lerp(185, 255, entry.faultHeat));
+          const magG = Math.round(lerp(62, 125, entry.faultHeat));
+          const magB = Math.round(lerp(32, 48, entry.faultHeat));
+          tracePolygon(entry.basePts);
+          ctx.fillStyle = "rgb(" + magR + "," + magG + "," + magB + ")";
+          ctx.fill();
+          ctx.lineWidth = Math.max(1.0, lineUnit * 0.95);
+          ctx.strokeStyle = "rgba(255, 195, 105, 0.72)";
+          ctx.stroke();
         }
 
         if (entry.bId && window.GameBuildings && typeof window.GameBuildings.renderBuilding3D === "function") {
-          const skipExplodingBld =
-            exT > 0 && (entry.localExT > 0.45 || entry.rotCenterZ < -0.20 || entry.idx % 3 !== 0);
-          if (!skipExplodingBld) {
+          const bScale = entry.localExT > 0 ? clamp01(1 - entry.localExT * 1.35) : 1;
+          if (bScale > 0.04) {
             const bldFrame = {
               origin: entry.worldCenter,
               rotT: entry.rotT,
@@ -1007,9 +1054,26 @@
               isSelected: false,
               project: project3D
             };
-            const bScale = entry.localExT > 0 ? clamp01(1 - entry.localExT * 0.7) : 1;
             window.GameBuildings.renderBuilding3D(ctx, entry.bId, bldFrame, time, bScale);
           }
+        }
+
+        if (entry.isLaunch && exT <= 0 && padCraftThrust !== undefined && padCraftThrust >= 0) {
+          const shipPos = add(entry.worldCenter, scale(entry.rotNormal, 0.14));
+          const shipForward = normalize(add(entry.rotT, scale(entry.rotNormal, 0.56)));
+          drawEscapeCraftScreen3D(
+            shipPos,
+            shipForward,
+            entry.rotNormal,
+            0.18,
+            tile.hexScale * 0.72,
+            cx,
+            cy,
+            focalLength,
+            time,
+            { thrust: padCraftThrust, beacon: true },
+            1
+          );
         }
       }
 
@@ -1090,7 +1154,7 @@
         }
       }
 
-      const topVisible = facing > -0.05 && signedArea2D(topPts) < -0.25;
+      const topVisible = facing > -0.08 && signedArea2D(topPts) < -0.05;
       if (!topVisible && !needsSides) continue;
       const toCamLen = len(toCam) || 1;
 
@@ -1124,8 +1188,8 @@
           const b0 = entry.rotBase[k];
           const b1 = entry.rotBase[next];
           const sideN = cross(sub(b1, b0), entry.rotNormal);
-          const midB = scale(add(b0, b1), 0.5);
-          if (dot(sideN, sub(CAM_VEC, midB)) <= 0) continue;
+          const midW = scale(add(b0, b1), 0.25 * (1 + entry.elev));
+          if (dot(sideN, sub(CAM_VEC, midW)) <= -0.002) continue;
 
           const sideNormUnit = normalize(sideN);
           const sideNdotL = Math.max(0, dot(sideNormUnit, LIGHT_DIR));
@@ -1186,31 +1250,6 @@
     };
   }
 
-  function drawNova7EscapeCraftOnPad(cx, cy, r, spinY, pitchX, roll, elapsed, thrustLevel) {
-    if (!nova7Planet || !nova7Planet.launchTile) return;
-    const rot = createRotator(spinY, pitchX, roll);
-    const lTile = nova7Planet.launchTile;
-    const rotNormal = rot(lTile.normal);
-    const rotCenter = scale(rot(lTile.planeCenter), lTile.baseElev);
-    if (rotNormal.z <= -0.1) return;
-    const focalLength = r * Math.sqrt(CAM_DIST * CAM_DIST - 1);
-    const shipPos = add(rotCenter, scale(rotNormal, 0.14));
-    const forward = normalize(add(rot(lTile.tangentT), scale(rotNormal, 0.56)));
-    drawEscapeCraftScreen3D(
-      shipPos,
-      forward,
-      rotNormal,
-      0.18,
-      lTile.hexScale * 0.72,
-      cx,
-      cy,
-      focalLength,
-      elapsed,
-      { thrust: thrustLevel, beacon: true },
-      1
-    );
-  }
-
   // --- 8 Step Canvas Renderers ---
 
   function renderStep0GoldenAge(sMs, elapsed) {
@@ -1222,8 +1261,7 @@
     nova7AngleSnapshot = spinY;
     nova7PitchSnapshot = pitchX;
 
-    drawNova7Planet3D(geo.cx, geo.cy, geo.r, spinY, pitchX, roll, elapsed, 0, 0, 1);
-    drawNova7EscapeCraftOnPad(geo.cx, geo.cy, geo.r, spinY, pitchX, roll, elapsed, 0);
+    drawNova7Planet3D(geo.cx, geo.cy, geo.r, spinY, pitchX, roll, elapsed, 0, 0, 1, 0);
 
     setAlarmActive(false);
   }
@@ -1241,8 +1279,7 @@
     const pitchX = nova7PitchSnapshot + pointerTiltX * 0.18;
     const roll = 0.12;
 
-    drawNova7Planet3D(geo.cx + sx, geo.cy + sy, geo.r, spinY, pitchX, roll, elapsed, stress, 0, 1);
-    drawNova7EscapeCraftOnPad(geo.cx + sx, geo.cy + sy, geo.r, spinY, pitchX, roll, elapsed, 0.15);
+    drawNova7Planet3D(geo.cx + sx, geo.cy + sy, geo.r, spinY, pitchX, roll, elapsed, stress, 0, 1, 0.15);
 
     setAlarmActive(true);
   }
@@ -1261,9 +1298,8 @@
     const cx = geo.cx - pushP * width * 0.06 + sx;
     const cy = geo.cy + pushP * height * 0.02 + sy;
 
-    drawNova7Planet3D(cx, cy, geo.r, spinY, pitchX, roll, elapsed, 0.92, 0, 1);
     const spool = 0.35 + 0.55 * easeOutCubic(clamp01(sMs / 1000)) + 0.10 * Math.sin(elapsed * 0.03);
-    drawNova7EscapeCraftOnPad(cx, cy, geo.r, spinY, pitchX, roll, elapsed, spool);
+    drawNova7Planet3D(cx, cy, geo.r, spinY, pitchX, roll, elapsed, 0.92, 0, 1, spool);
 
     setAlarmActive(true);
   }
@@ -1295,7 +1331,7 @@
     const pitchX = 0.30 + pointerTiltX * 0.12;
     const roll = 0.12;
 
-    drawNova7Planet3D(px, py, geo.r, spinY, pitchX, roll, elapsed, 1.0, postEx, 1);
+    drawNova7Planet3D(px, py, geo.r, spinY, pitchX, roll, elapsed, 1.0, postEx, 1, -1);
 
     // 3D Escape Craft blasts off pad -> foreground right
     const flyEase = easeInOutCubic(escT);
@@ -1807,14 +1843,6 @@
 
     const cfg = STEPS[sceneIndex];
     const pName = getDisplayPlayerName();
-
-    if (chapterPillEl) {
-      chapterPillEl.textContent = t("intro.step_counter", { curr: sceneIndex + 1, total: STEP_COUNT });
-    }
-    for (let i = 0; i < stepDotEls.length; i++) {
-      stepDotEls[i].classList.toggle("is-done", i < sceneIndex);
-      stepDotEls[i].classList.toggle("is-active", i === sceneIndex);
-    }
 
     if (speakerNameEl) {
       speakerNameEl.textContent =

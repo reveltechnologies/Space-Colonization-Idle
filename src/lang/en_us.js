@@ -250,7 +250,6 @@
       confirm_build: "Confirm Build",
       built_badge: "BUILT",
       permanent_badge: "PERMANENT",
-      protected_base_banner: "Permanent Crash Base — Provides +1 Citizen, +1 Energy & +1 Brick/min. Cannot be destroyed or replaced.",
       max_per_planet: "Max {limit} / Planet",
       owned_scaling_chip: "Owned: {count} (Scales)",
       requires_research_chip: "To Be Researched",
@@ -470,7 +469,6 @@
       gain_sep: ", "
     },
     intro: {
-      step_counter: "{curr} / {total}",
       tap_to_finish: "Tap to complete text",
       tap_to_continue: "Tap to continue",
       default_pioneer: "Pioneer",

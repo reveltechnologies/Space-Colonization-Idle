@@ -4848,30 +4848,6 @@ body.intro-active .view-controls {
   border-top: 2px solid rgba(255, 255, 255, 0.08);
 }
 
-/* Top-Right Step Counter */
-.intro-top-right {
-  position: absolute;
-  top: calc(env(safe-area-inset-top, 10px) + 18px);
-  right: calc(env(safe-area-inset-right, 10px) + 18px);
-  z-index: 4;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.intro-chapter-pill {
-  padding: 6px 12px;
-  border-radius: 999px;
-  background: var(--purple-deep);
-  border: 3px solid var(--ink);
-  box-shadow: inset 0 3px 0 rgba(0, 0, 0, 0.32), 0 4px 0 var(--ink);
-  color: #ffc83a;
-  font-size: 12.5px;
-  font-weight: 900;
-  font-variant-numeric: tabular-nums;
-  text-shadow: 0 2px 0 var(--ink);
-}
-
 /* Bottom Studio Dialogue Command Deck (Matches .build-drawer & .rocket-cargo-panel) */
 .intro-dialogue-deck {
   position: absolute;
@@ -5192,33 +5168,9 @@ body.intro-active .view-controls {
 .intro-deck-footer {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 10px;
   padding: 0 2px;
-}
-
-.intro-step-dots {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.intro-step-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  border: 2px solid var(--ink);
-  background: rgba(16, 10, 44, 0.55);
-  transition: width 0.22s ease, background 0.22s ease;
-}
-
-.intro-step-dot.is-done {
-  background: #38bdf8;
-}
-
-.intro-step-dot.is-active {
-  width: 22px;
-  background: #ffc83a;
 }
 
 .intro-tap-hint {
@@ -5252,10 +5204,6 @@ body.intro-active .view-controls {
 @media (max-height: 520px) {
   .intro-letterbox {
     height: 8px;
-  }
-  .intro-top-right {
-    top: calc(env(safe-area-inset-top, 6px) + 10px);
-    right: calc(env(safe-area-inset-right, 8px) + 12px);
   }
   .intro-dialogue-deck {
     bottom: calc(env(safe-area-inset-bottom, 4px) + 10px);
@@ -5319,12 +5267,6 @@ body.intro-active .view-controls {
   .intro-tap-hint {
     display: none;
   }
-}
-
-.build-unbuildable-banner.is-protected {
-  background: linear-gradient(180deg, #3b2a78 0%, #241854 100%);
-  border-color: #ff9c5a;
-  color: #fff3d6;
 }
 
 .build-drawer.is-protected-tile .build-categories {
