@@ -5,6 +5,23 @@ All notable changes to **Space Colonization: Idle** will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0-pre.3] - 2026-11-22
+
+### Changed
+- **Planet-Native Biome Restriction for Geo-Terraformer (`src/js/planets.js`)**:
+  - Scoped Geo-Terraformer target terrain choices (`PLANET_TERRAFORM_BIOMES` / `getPlanetAllowedTerraformBiomes`) to biomes native to the current planet type (`rocky`: `glacier`, `mountains`, `highlands`, `crater`; `oceanic`: `glacier`, `mountains`, `forest`, `plains`, `ocean`; `volcanic`: `volcano`, `canyon`, `ashlands`, `lava`) in both the modal grid and `executeTerraform` validation.
+
+### Fixed
+- **Reliable Single-Click Selection & Purchase in Research Menu (`src/js/research.js`)**:
+  - Fixed dropped clicks in the Research Tree modal caused by `tick()` and `addPoints()` calling `renderTree()` and `renderDetailPanel()` on every Research Points integer increment (which destroyed and recreated button DOM nodes between `mousedown` and `mouseup`).
+  - Replaced full DOM rebuilds on RP ticks with in-place `syncAffordabilityState()` class (`is-ready`, `is-unaffordable`, `is-short`) and `aria-disabled` updates.
+- **Trading Rocket 3D Model, Opaque Flight Rendering & Depth-Sorting (`src/js/buildings.js`, `src/js/planets.js`)**:
+  - Split active trade rocket flights in `drawPlanet()` by hemisphere (`worldOrigin.z < 0` rendered behind the opaque planet core sphere; `worldOrigin.z >= 0` inserted into `visibleTiles` and depth-sorted by `depthZ` alongside tiles and buildings) so flying trade rockets are properly occluded by the planet and closer models.
+  - Removed `fadeAlpha` and duplicate `transform.alpha` multiplication in `drawTradeRocketInFlight3D()` (and liftoff smoke) so flying trade rockets remain 100% opaque and smoothly scale down via `departShrink` as they leave orbit, with quadratic liftoff pitch and ramped exhaust thrust.
+  - Applied uniform X/Y/Z reload scaling (`easeOutCubic`) and separated overlapping fins, side boosters, portholes, gantry arms, and telemetry pylons across `buildTradeRocket1Vessel3D`–`3` and `buildTradeRocket1Model`–`3`.
+- **Uncut Tile Biome Icon Badge in Build Menu Header (`src/css/style.css`)**:
+  - Removed clipping on `.build-title-stack` so `#build-biome-badge`'s bottom border and drop shadow render cleanly without being cut off by the purple header background.
+
 ## [0.2.0-pre.2] - 2026-11-21
 
 ### Added

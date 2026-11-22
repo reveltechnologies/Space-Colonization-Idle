@@ -1108,6 +1108,60 @@
     return modalOpen;
   }
 
+  function syncAffordabilityState() {
+    if (treeBodyEl) {
+      const nodeBtns = treeBodyEl.querySelectorAll("[data-research]");
+      for (let i = 0; i < nodeBtns.length; i++) {
+        const nodeBtn = nodeBtns[i];
+        const node = getNode(nodeBtn.getAttribute("data-research"));
+        if (!node) continue;
+
+        const done = isResearched(node.id);
+        const prereqMet = !node.prereq || isResearched(node.prereq);
+        const planetMet =
+          !node.requiredPlanetType ||
+          (openedFromPlanet && openedFromPlanet.typeId === node.requiredPlanetType);
+        const affordable = researchPoints >= node.cost;
+
+        nodeBtn.classList.toggle("is-ready", !done && prereqMet && planetMet && affordable);
+        nodeBtn.classList.toggle("is-unaffordable", !done && prereqMet && planetMet && !affordable);
+
+        const costChip = nodeBtn.querySelector(".research-icon-cost");
+        if (costChip) {
+          costChip.classList.toggle("is-short", !done && !affordable);
+        }
+      }
+    }
+
+    if (detailPanelEl && selectedNodeId) {
+      const node = getNode(selectedNodeId);
+      if (!node) return;
+
+      const done = isResearched(node.id);
+      const prereqMet = !node.prereq || isResearched(node.prereq);
+      const planetMet =
+        !node.requiredPlanetType ||
+        (openedFromPlanet && openedFromPlanet.typeId === node.requiredPlanetType);
+      const affordable = researchPoints >= node.cost;
+      const canBuy = !done && prereqMet && planetMet && affordable;
+
+      const card = detailPanelEl.querySelector(".research-detail-card");
+      if (card) {
+        card.classList.toggle("is-unaffordable", !done && prereqMet && planetMet && !affordable);
+      }
+
+      const costWrap = detailPanelEl.querySelector(".research-node-cost");
+      if (costWrap) {
+        costWrap.classList.toggle("is-short", !done && !affordable);
+      }
+
+      const btn = detailPanelEl.querySelector(".research-node-btn");
+      if (btn) {
+        btn.setAttribute("aria-disabled", canBuy || done ? "false" : "true");
+      }
+    }
+  }
+
   function tick(dtSec, rpPerSec) {
     const rate = Math.max(0, Number(rpPerSec) || 0);
     currentRpPerSec = rate;
@@ -1117,8 +1171,7 @@
     if (modalOpen) {
       const updated = syncRpHeader(false);
       if (updated) {
-        renderTree();
-        renderDetailPanel();
+        syncAffordabilityState();
       }
     }
   }
@@ -1130,8 +1183,7 @@
     if (modalOpen) {
       const updated = syncRpHeader(false);
       if (updated) {
-        renderTree();
-        renderDetailPanel();
+        syncAffordabilityState();
       }
     }
     return researchPoints;

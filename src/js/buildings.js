@@ -4501,22 +4501,28 @@
     const jx = o.jx || 0;
     const thrust = o.thrust || 0;
     const glow = o.preLaunchGlow !== undefined ? o.preLaunchGlow : 0.25;
+    function xAt(dx) {
+      return jx + dx * sz;
+    }
+    function yAt(dy) {
+      return dy * sz;
+    }
     function zAt(dz) {
       return z0 + dz * sz;
     }
 
-    buildRocketExhaust3D(m, time, phase, jx, 0, z0, 0.105, 0.55, thrust);
+    buildRocketExhaust3D(m, time, phase, jx, 0, z0, 0.105 * sz, 0.55 * sz, thrust);
 
-    m.addPrism(jx, 0, zAt(0.0), zAt(0.075), 0.11, 0.075, 8, 0, [255, 200, 58], {
+    m.addPrism(jx, 0, zAt(0.0), zAt(0.075), 0.11 * sz, 0.075 * sz, 8, 0, [255, 200, 58], {
       emissive: thrust > 0 ? 0.65 : glow
     });
-    m.addBox(jx - 0.165, 0, zAt(0.125), 0.048, 0.032, 0.075 * sz, [16, 185, 129], { spec: 0.30 });
-    m.addBox(jx + 0.165, 0, zAt(0.125), 0.048, 0.032, 0.075 * sz, [16, 185, 129], { spec: 0.30 });
-    m.addBox(jx, -0.165, zAt(0.125), 0.032, 0.048, 0.075 * sz, [5, 150, 105], { spec: 0.30 });
-    m.addBox(jx, 0.165, zAt(0.125), 0.032, 0.048, 0.075 * sz, [5, 150, 105], { spec: 0.30 });
-    m.addPrism(jx, 0, zAt(0.075), zAt(0.555), 0.125, 0.115, 10, 0, [248, 250, 252], { spec: 0.48 });
-    m.addPrism(jx, 0, zAt(0.555), zAt(0.755), 0.115, 0.015, 10, 0, [255, 177, 41], { spec: 0.45 });
-    m.addBox(jx, -0.136, zAt(0.355), 0.05, 0.014, 0.05 * sz, [255, 216, 77], { emissive: 0.55 });
+    m.addBox(xAt(-0.174), 0, zAt(0.125), 0.044 * sz, 0.030 * sz, 0.075 * sz, [16, 185, 129], { spec: 0.30 });
+    m.addBox(xAt(0.174), 0, zAt(0.125), 0.044 * sz, 0.030 * sz, 0.075 * sz, [16, 185, 129], { spec: 0.30 });
+    m.addBox(jx, yAt(-0.174), zAt(0.125), 0.030 * sz, 0.044 * sz, 0.075 * sz, [5, 150, 105], { spec: 0.30 });
+    m.addBox(jx, yAt(0.174), zAt(0.125), 0.030 * sz, 0.044 * sz, 0.075 * sz, [5, 150, 105], { spec: 0.30 });
+    m.addPrism(jx, 0, zAt(0.075), zAt(0.555), 0.125 * sz, 0.115 * sz, 10, 0, [248, 250, 252], { spec: 0.48 });
+    m.addPrism(jx, 0, zAt(0.555), zAt(0.755), 0.115 * sz, 0.015 * sz, 10, 0, [255, 177, 41], { spec: 0.45 });
+    m.addBox(jx, yAt(-0.138), zAt(0.355), 0.05 * sz, 0.012 * sz, 0.05 * sz, [255, 216, 77], { emissive: 0.55 });
   }
 
   function buildTradeRocket2Vessel3D(m, time, phase, pxScale, opts) {
@@ -4527,32 +4533,38 @@
     const jx = o.jx || 0;
     const thrust = o.thrust || 0;
     const glow = o.preLaunchGlow !== undefined ? o.preLaunchGlow : 0.25;
+    function xAt(dx) {
+      return jx + dx * sz;
+    }
+    function yAt(dy) {
+      return dy * sz;
+    }
     function zAt(dz) {
       return z0 + dz * sz;
     }
 
-    buildRocketExhaust3D(m, time, phase + 0.6, jx - 0.19, 0, z0, 0.062, 0.42, thrust);
-    buildRocketExhaust3D(m, time, phase + 1.2, jx + 0.19, 0, z0, 0.062, 0.42, thrust);
-    buildRocketExhaust3D(m, time, phase, jx, 0, z0, 0.105, 0.60, thrust);
+    buildRocketExhaust3D(m, time, phase + 0.6, xAt(-0.212), 0, z0, 0.062 * sz, 0.42 * sz, thrust);
+    buildRocketExhaust3D(m, time, phase + 1.2, xAt(0.212), 0, z0, 0.062 * sz, 0.42 * sz, thrust);
+    buildRocketExhaust3D(m, time, phase, jx, 0, z0, 0.105 * sz, 0.60 * sz, thrust);
 
-    m.addPrism(jx - 0.19, 0, zAt(0.0), zAt(0.055), 0.065, 0.045, 8, 0, [255, 200, 58], {
+    m.addPrism(xAt(-0.212), 0, zAt(0.0), zAt(0.055), 0.065 * sz, 0.045 * sz, 8, 0, [255, 200, 58], {
       emissive: thrust > 0 ? 0.62 : glow
     });
-    m.addPrism(jx - 0.19, 0, zAt(0.055), zAt(0.425), 0.075, 0.07, 8, 0, [6, 182, 212], { spec: 0.42 });
-    m.addPrism(jx - 0.19, 0, zAt(0.425), zAt(0.545), 0.07, 0.012, 8, 0, [255, 216, 77], { spec: 0.42 });
+    m.addPrism(xAt(-0.212), 0, zAt(0.055), zAt(0.425), 0.075 * sz, 0.07 * sz, 8, 0, [6, 182, 212], { spec: 0.42 });
+    m.addPrism(xAt(-0.212), 0, zAt(0.425), zAt(0.545), 0.07 * sz, 0.012 * sz, 8, 0, [255, 216, 77], { spec: 0.42 });
 
-    m.addPrism(jx + 0.19, 0, zAt(0.0), zAt(0.055), 0.065, 0.045, 8, 0, [255, 200, 58], {
+    m.addPrism(xAt(0.212), 0, zAt(0.0), zAt(0.055), 0.065 * sz, 0.045 * sz, 8, 0, [255, 200, 58], {
       emissive: thrust > 0 ? 0.62 : glow
     });
-    m.addPrism(jx + 0.19, 0, zAt(0.055), zAt(0.425), 0.075, 0.07, 8, 0, [8, 145, 178], { spec: 0.42 });
-    m.addPrism(jx + 0.19, 0, zAt(0.425), zAt(0.545), 0.07, 0.012, 8, 0, [255, 216, 77], { spec: 0.42 });
+    m.addPrism(xAt(0.212), 0, zAt(0.055), zAt(0.425), 0.075 * sz, 0.07 * sz, 8, 0, [8, 145, 178], { spec: 0.42 });
+    m.addPrism(xAt(0.212), 0, zAt(0.425), zAt(0.545), 0.07 * sz, 0.012 * sz, 8, 0, [255, 216, 77], { spec: 0.42 });
 
-    m.addPrism(jx, 0, zAt(0.0), zAt(0.075), 0.115, 0.085, 8, 0, [255, 200, 58], {
+    m.addPrism(jx, 0, zAt(0.0), zAt(0.075), 0.115 * sz, 0.085 * sz, 8, 0, [255, 200, 58], {
       emissive: thrust > 0 ? 0.65 : glow
     });
-    m.addPrism(jx, 0, zAt(0.075), zAt(0.605), 0.13, 0.12, 10, 0, [248, 250, 252], { spec: 0.48 });
-    m.addPrism(jx, 0, zAt(0.605), zAt(0.825), 0.12, 0.016, 10, 0, [6, 182, 212], { spec: 0.45 });
-    m.addBox(jx, -0.142, zAt(0.385), 0.055, 0.014, 0.055 * sz, [255, 216, 77], { emissive: 0.62 });
+    m.addPrism(jx, 0, zAt(0.075), zAt(0.605), 0.13 * sz, 0.12 * sz, 10, 0, [248, 250, 252], { spec: 0.48 });
+    m.addPrism(jx, 0, zAt(0.605), zAt(0.825), 0.12 * sz, 0.016 * sz, 10, 0, [6, 182, 212], { spec: 0.45 });
+    m.addBox(jx, yAt(-0.145), zAt(0.385), 0.055 * sz, 0.012 * sz, 0.055 * sz, [255, 216, 77], { emissive: 0.62 });
   }
 
   function buildTradeRocket3Vessel3D(m, time, phase, pxScale, opts) {
@@ -4563,34 +4575,40 @@
     const jx = o.jx || 0;
     const thrust = o.thrust || 0;
     const glow = o.preLaunchGlow !== undefined ? o.preLaunchGlow : 0.25;
+    function xAt(dx) {
+      return jx + dx * sz;
+    }
+    function yAt(dy) {
+      return dy * sz;
+    }
     function zAt(dz) {
       return z0 + dz * sz;
     }
 
-    buildRocketExhaust3D(m, time, phase + 0.5, jx - 0.22, 0, z0, 0.068, 0.48, thrust);
-    buildRocketExhaust3D(m, time, phase + 1.1, jx + 0.22, 0, z0, 0.068, 0.48, thrust);
-    buildRocketExhaust3D(m, time, phase, jx, 0, z0, 0.118, 0.70, thrust);
+    buildRocketExhaust3D(m, time, phase + 0.5, xAt(-0.232), 0, z0, 0.068 * sz, 0.48 * sz, thrust);
+    buildRocketExhaust3D(m, time, phase + 1.1, xAt(0.232), 0, z0, 0.068 * sz, 0.48 * sz, thrust);
+    buildRocketExhaust3D(m, time, phase, jx, 0, z0, 0.118 * sz, 0.70 * sz, thrust);
 
-    m.addBox(jx - 0.335, 0, zAt(0.145), 0.042, 0.032, 0.09 * sz, [56, 189, 248], { spec: 0.42 });
-    m.addBox(jx + 0.335, 0, zAt(0.145), 0.042, 0.032, 0.09 * sz, [56, 189, 248], { spec: 0.42 });
-    m.addPrism(jx - 0.22, 0, zAt(0.0), zAt(0.055), 0.068, 0.048, 8, 0, [255, 90, 77], {
+    m.addBox(xAt(-0.354), 0, zAt(0.145), 0.038 * sz, 0.032 * sz, 0.09 * sz, [56, 189, 248], { spec: 0.42 });
+    m.addBox(xAt(0.354), 0, zAt(0.145), 0.038 * sz, 0.032 * sz, 0.09 * sz, [56, 189, 248], { spec: 0.42 });
+    m.addPrism(xAt(-0.232), 0, zAt(0.0), zAt(0.055), 0.068 * sz, 0.048 * sz, 8, 0, [255, 90, 77], {
       emissive: thrust > 0 ? 0.65 : glow
     });
-    m.addPrism(jx - 0.22, 0, zAt(0.055), zAt(0.465), 0.08, 0.075, 8, 0, [255, 216, 77], { spec: 0.50 });
-    m.addPrism(jx - 0.22, 0, zAt(0.465), zAt(0.595), 0.075, 0.014, 8, 0, [245, 158, 11], { spec: 0.45 });
+    m.addPrism(xAt(-0.232), 0, zAt(0.055), zAt(0.465), 0.08 * sz, 0.075 * sz, 8, 0, [255, 216, 77], { spec: 0.50 });
+    m.addPrism(xAt(-0.232), 0, zAt(0.465), zAt(0.595), 0.075 * sz, 0.014 * sz, 8, 0, [245, 158, 11], { spec: 0.45 });
 
-    m.addPrism(jx + 0.22, 0, zAt(0.0), zAt(0.055), 0.068, 0.048, 8, 0, [255, 90, 77], {
+    m.addPrism(xAt(0.232), 0, zAt(0.0), zAt(0.055), 0.068 * sz, 0.048 * sz, 8, 0, [255, 90, 77], {
       emissive: thrust > 0 ? 0.65 : glow
     });
-    m.addPrism(jx + 0.22, 0, zAt(0.055), zAt(0.465), 0.08, 0.075, 8, 0, [245, 158, 11], { spec: 0.50 });
-    m.addPrism(jx + 0.22, 0, zAt(0.465), zAt(0.595), 0.075, 0.014, 8, 0, [217, 119, 6], { spec: 0.45 });
+    m.addPrism(xAt(0.232), 0, zAt(0.055), zAt(0.465), 0.08 * sz, 0.075 * sz, 8, 0, [245, 158, 11], { spec: 0.50 });
+    m.addPrism(xAt(0.232), 0, zAt(0.465), zAt(0.595), 0.075 * sz, 0.014 * sz, 8, 0, [217, 119, 6], { spec: 0.45 });
 
-    m.addPrism(jx, 0, zAt(0.0), zAt(0.085), 0.125, 0.09, 8, 0, [255, 200, 58], {
+    m.addPrism(jx, 0, zAt(0.0), zAt(0.085), 0.125 * sz, 0.09 * sz, 8, 0, [255, 200, 58], {
       emissive: thrust > 0 ? 0.70 : glow
     });
-    m.addPrism(jx, 0, zAt(0.085), zAt(0.665), 0.145, 0.135, 10, 0, [30, 41, 59], { spec: 0.52 });
-    m.addPrism(jx, 0, zAt(0.665), zAt(0.905), 0.135, 0.018, 10, 0, [255, 216, 77], { spec: 0.55 });
-    m.addBox(jx, -0.156, zAt(0.425), 0.06, 0.014, 0.06 * sz, [56, 189, 248], { emissive: 0.82 });
+    m.addPrism(jx, 0, zAt(0.085), zAt(0.665), 0.145 * sz, 0.135 * sz, 10, 0, [30, 41, 59], { spec: 0.52 });
+    m.addPrism(jx, 0, zAt(0.665), zAt(0.905), 0.135 * sz, 0.018 * sz, 10, 0, [255, 216, 77], { spec: 0.55 });
+    m.addBox(jx, yAt(-0.160), zAt(0.425), 0.06 * sz, 0.012 * sz, 0.06 * sz, [56, 189, 248], { emissive: 0.82 });
   }
 
   function buildTradeRocket1Model(m, time, phase, pxScale, opts) {
@@ -4606,12 +4624,12 @@
     // Telemetry service tower + active/stopped status beacon
     const lw = Math.max(1.2, pxScale * 0.05);
     m.addBox(0.28, 0.10, 0.36, 0.055, 0.055, 0.27, [148, 163, 184], { spec: 0.32 });
-    m.addLine([0.22, 0.10, 0.52], [0.09, 0.02, 0.52], "#10b981", lw);
+    m.addLine([0.225, 0.10, 0.52], [0.132, 0.04, 0.52], "#10b981", lw);
     m.addPrism(0.28, 0.10, 0.63, 0.70, 0.04, 0.015, 6, 0, st.beaconCol, { emissive: st.beaconGlow });
 
     const fp = opts && opts.flightProgress !== undefined ? opts.flightProgress : null;
     if (fp === null || fp >= 0.68) {
-      const reloadScale = fp !== null ? clamp01((fp - 0.68) / 0.32) : 1;
+      const reloadScale = fp !== null ? easeOutCubic(clamp01((fp - 0.68) / 0.32)) : 1;
       const jx = st.active && st.prog > 0.78 && fp === null ? Math.sin(time * 0.07 + phase) * 0.02 : 0;
       buildTradeRocket1Vessel3D(m, time, phase, pxScale, {
         zOffset: 0.125,
@@ -4631,15 +4649,15 @@
 
     // Cargo gantry & crates
     const lw = Math.max(1.3, pxScale * 0.055);
-    m.addBox(-0.36, 0.0, 0.42, 0.055, 0.055, 0.32, [100, 116, 139], { spec: 0.35 });
-    m.addLine([-0.30, 0.0, 0.62], [-0.14, 0.0, 0.62], "#06b6d4", lw);
-    m.addPrism(-0.36, 0.0, 0.74, 0.81, 0.045, 0.015, 6, 0, st.beaconCol, { emissive: st.beaconGlow });
+    m.addBox(-0.38, 0.0, 0.42, 0.055, 0.055, 0.32, [100, 116, 139], { spec: 0.35 });
+    m.addLine([-0.325, 0.0, 0.50], [-0.288, 0.0, 0.50], "#06b6d4", lw);
+    m.addPrism(-0.38, 0.0, 0.74, 0.81, 0.045, 0.015, 6, 0, st.beaconCol, { emissive: st.beaconGlow });
     m.addBox(0.32, -0.20, 0.16, 0.095, 0.08, 0.06, [232, 93, 63], { spec: 0.18 });
     m.addBox(-0.28, -0.26, 0.15, 0.085, 0.075, 0.05, [245, 158, 11], { spec: 0.35 });
 
     const fp = opts && opts.flightProgress !== undefined ? opts.flightProgress : null;
     if (fp === null || fp >= 0.68) {
-      const reloadScale = fp !== null ? clamp01((fp - 0.68) / 0.32) : 1;
+      const reloadScale = fp !== null ? easeOutCubic(clamp01((fp - 0.68) / 0.32)) : 1;
       const jx = st.active && st.prog > 0.78 && fp === null ? Math.sin(time * 0.08 + phase) * 0.022 : 0;
       buildTradeRocket2Vessel3D(m, time, phase, pxScale, {
         zOffset: 0.135,
@@ -4658,14 +4676,14 @@
     m.addPrism(0, 0, 0.10, 0.135, 0.56, 0.52, 6, 0, [245, 158, 11], { emissive: st.active ? 0.50 : 0.14 });
 
     // Flanking active/stopped telemetry pylons
-    m.addBox(-0.40, 0, 0.44, 0.05, 0.05, 0.30, [148, 163, 184], { spec: 0.35 });
-    m.addBox(0.40, 0, 0.44, 0.05, 0.05, 0.30, [148, 163, 184], { spec: 0.35 });
-    m.addPrism(-0.40, 0, 0.74, 0.81, 0.04, 0.015, 6, 0, st.beaconCol, { emissive: st.beaconGlow });
-    m.addPrism(0.40, 0, 0.74, 0.81, 0.04, 0.015, 6, 0, st.beaconCol, { emissive: st.beaconGlow });
+    m.addBox(-0.445, 0, 0.44, 0.048, 0.05, 0.30, [148, 163, 184], { spec: 0.35 });
+    m.addBox(0.445, 0, 0.44, 0.048, 0.05, 0.30, [148, 163, 184], { spec: 0.35 });
+    m.addPrism(-0.445, 0, 0.74, 0.81, 0.04, 0.015, 6, 0, st.beaconCol, { emissive: st.beaconGlow });
+    m.addPrism(0.445, 0, 0.74, 0.81, 0.04, 0.015, 6, 0, st.beaconCol, { emissive: st.beaconGlow });
 
     const fp = opts && opts.flightProgress !== undefined ? opts.flightProgress : null;
     if (fp === null || fp >= 0.68) {
-      const reloadScale = fp !== null ? clamp01((fp - 0.68) / 0.32) : 1;
+      const reloadScale = fp !== null ? easeOutCubic(clamp01((fp - 0.68) / 0.32)) : 1;
       const jx = st.active && st.prog > 0.78 && fp === null ? Math.sin(time * 0.09 + phase) * 0.024 : 0;
       buildTradeRocket3Vessel3D(m, time, phase, pxScale, {
         zOffset: 0.135,

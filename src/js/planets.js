@@ -473,16 +473,46 @@
     ashlands:  { rgb: [59, 24, 18],    baseElev: 1.016, spec: 0.15, emissive: 0.02 }
   };
 
-  const TERRAFORM_TARGET_BIOMES = [
-    "plains",
-    "forest",
-    "highlands",
-    "mountains",
-    "crater",
-    "glacier",
-    "ashlands",
-    "volcano"
-  ];
+  const PLANET_TERRAFORM_BIOMES = {
+    rocky: [
+      "glacier",
+      "mountains",
+      "highlands",
+      "crater"
+    ],
+    oceanic: [
+      "glacier",
+      "mountains",
+      "forest",
+      "plains",
+      "ocean"
+    ],
+    volcanic: [
+      "volcano",
+      "canyon",
+      "ashlands",
+      "lava"
+    ]
+  };
+
+  function getPlanetAllowedTerraformBiomes(planet) {
+    if (!planet) return [];
+    if (planet.typeId && PLANET_TERRAFORM_BIOMES[planet.typeId]) {
+      return PLANET_TERRAFORM_BIOMES[planet.typeId];
+    }
+    // Fallback if custom or unknown planet type: collect unique biomes existing on its tiles
+    if (Array.isArray(planet.tiles)) {
+      const set = [];
+      for (let i = 0; i < planet.tiles.length; i++) {
+        const b = planet.tiles[i].biome;
+        if (b && set.indexOf(b) === -1 && BIOME_VISUAL_PRESETS[b]) {
+          set.push(b);
+        }
+      }
+      return set;
+    }
+    return [];
+  }
 
   function applyTileBiomeStyle(tile, biomeId, snapElev) {
     const preset = BIOME_VISUAL_PRESETS[biomeId];
@@ -1989,6 +2019,56 @@
     ctx.arc(cx, cy, haloRadius, 0, Math.PI * 2);
     ctx.fill();
 
+    const pitchX = clamp(planet.basePitch + planet.pitchOffset, -MAX_PITCH, MAX_PITCH);
+    const rotatePoint = createRotator(planet.spinY, pitchX, planet.roll);
+
+    // Pre-compute active trade flights for this planet so back-hemisphere flights render behind the planet core and front-hemisphere flights depth-sort with tiles/buildings
+    const backTradeFlights = [];
+    const frontTradeFlights = [];
+    for (let f = 0; f < activeTradeFlights.length; f++) {
+      const tf = activeTradeFlights[f];
+      if (tf.planetIdx !== planet.id || !tf.tile) continue;
+      const fp = clamp01((time - tf.startTime) / tf.duration);
+      if (fp >= 0.78) continue;
+
+      const rotNormal = rotatePoint(tf.tile.normal);
+      const rotT = rotatePoint(tf.tile.tangentT);
+      const rotB = rotatePoint(tf.tile.tangentB);
+      const rotPlaneCenter = rotatePoint(tf.tile.planeCenter);
+      const elev = tf.tile.currentElev || tf.tile.baseElev || 1.02;
+      const elevCenter = scale(rotPlaneCenter, elev);
+      const unitScale = tf.tile.hexScale * elev;
+      const climbN = (0.56 + 6.2 * tf.speedMult * fp * fp) * unitScale;
+      const turnT = 1.45 * tf.speedMult * fp * fp * fp * unitScale;
+      const worldOrigin = add(add(elevCenter, scale(rotNormal, climbN)), scale(rotT, turnT));
+
+      if (worldOrigin.z >= CAM_DIST - 0.65) continue;
+
+      const flightData = {
+        tf: tf,
+        p: fp,
+        rotNormal: rotNormal,
+        rotT: rotT,
+        rotB: rotB,
+        unitScale: unitScale,
+        worldOrigin: worldOrigin
+      };
+      if (worldOrigin.z < 0) {
+        backTradeFlights.push(flightData);
+      } else {
+        frontTradeFlights.push(flightData);
+      }
+    }
+
+    if (backTradeFlights.length > 0) {
+      backTradeFlights.sort(function (a, b) {
+        return a.worldOrigin.z - b.worldOrigin.z;
+      });
+      for (let f = 0; f < backTradeFlights.length; f++) {
+        drawTradeRocketInFlight3D(ctx, backTradeFlights[f], planet, transform, time);
+      }
+    }
+
     // 2. Dark Inner Core Sphere
     const coreRadius = r * planet.coreScale;
     const coreGrad = ctx.createRadialGradient(
@@ -2008,8 +2088,6 @@
     ctx.fill();
 
     // 3. Collect, Backface-Cull, and Depth-Sort Visible 3D Tiles
-    const pitchX = clamp(planet.basePitch + planet.pitchOffset, -MAX_PITCH, MAX_PITCH);
-    const rotatePoint = createRotator(planet.spinY, pitchX, planet.roll);
     const visibleTiles = [];
 
     for (let i = 0; i < planet.tiles.length; i++) {
@@ -2084,6 +2162,14 @@
       });
     }
 
+    for (let f = 0; f < frontTradeFlights.length; f++) {
+      visibleTiles.push({
+        isTradeFlight: true,
+        flight: frontTradeFlights[f],
+        depthZ: frontTradeFlights[f].worldOrigin.z
+      });
+    }
+
     visibleTiles.sort(function (a, b) {
       return a.depthZ - b.depthZ;
     });
@@ -2095,6 +2181,10 @@
     // 4. Draw Sorted 3D Tiles (Side Extrusion Walls + Top Face + Glowing White Hex Frame)
     for (let i = 0; i < visibleTiles.length; i++) {
       const entry = visibleTiles[i];
+      if (entry.isTradeFlight) {
+        drawTradeRocketInFlight3D(ctx, entry.flight, planet, transform, time);
+        continue;
+      }
       const tile = entry.tile;
       const rotNormal = entry.rotNormal;
       const elev = entry.elev;
@@ -2374,7 +2464,7 @@
           }
 
           if (activeFp !== null && activeFp < 0.55 && entry.topVisible) {
-            drawTradeRocketLiftoffSmoke(ctx, buildingFrame, activeFp, transform.alpha);
+            drawTradeRocketLiftoffSmoke(ctx, buildingFrame, activeFp, 1);
           }
 
           if ((isEnergyBlocked || isCitizenBlocked || isBricksBlocked) && (!eff || eff.type !== "demolish")) {
@@ -2507,17 +2597,6 @@
     ctx.beginPath();
     ctx.arc(cx, cy, r * 1.01, 0, Math.PI * 2);
     ctx.fill();
-
-    // Draw active trade flights in flight above this planet
-    for (let f = 0; f < activeTradeFlights.length; f++) {
-      const tf = activeTradeFlights[f];
-      if (tf.planetIdx === planet.id) {
-        const fp = clamp01((time - tf.startTime) / tf.duration);
-        if (fp < 0.78) {
-          drawTradeRocketInFlight3D(ctx, tf, planet, transform, time, fp);
-        }
-      }
-    }
 
     if (!planet.unlocked && !planet.unlockVfx) {
       drawPlanetLockOverlay(ctx, cx, cy, r, planet.requiredRocketTier || 1, transform.alpha, time);
@@ -3097,37 +3176,34 @@
     return tf ? clamp01((time - tf.startTime) / tf.duration) : null;
   }
 
-  function drawTradeRocketInFlight3D(ctx, tf, planet, transform, time, p) {
-    if (p >= 0.78 || !window.GameBuildings || typeof window.GameBuildings.renderRocketVessel3D !== "function" || !tf.tile) {
+  function drawTradeRocketInFlight3D(ctx, flightData, planet, transform, time) {
+    if (!flightData || !window.GameBuildings || typeof window.GameBuildings.renderRocketVessel3D !== "function") {
       return;
     }
-    const pitchX = clamp(planet.basePitch + planet.pitchOffset, -MAX_PITCH, MAX_PITCH);
-    const rotatePoint = createRotator(planet.spinY, pitchX, planet.roll);
-    const rotNormal = rotatePoint(tf.tile.normal);
-    const rotT = rotatePoint(tf.tile.tangentT);
-    const rotB = rotatePoint(tf.tile.tangentB);
-    const rotPlaneCenter = rotatePoint(tf.tile.planeCenter);
-    const elev = tf.tile.currentElev || tf.tile.baseElev || 1.02;
-    const elevCenter = scale(rotPlaneCenter, elev);
-    const unitScale = tf.tile.hexScale * elev;
+    const tf = flightData.tf;
+    const p = flightData.p;
+    const departShrink = p > 0.56 ? 1 - Math.pow((p - 0.56) / 0.22, 2) : 1;
+    if (departShrink <= 0.03) return;
 
-    const climbN = (0.56 + 6.2 * tf.speedMult * p * p) * unitScale;
-    const turnT = 1.45 * tf.speedMult * p * p * p * unitScale;
-    const worldOrigin = add(add(elevCenter, scale(rotNormal, climbN)), scale(rotT, turnT));
-
-    // Rocket is in front of the planet sphere / horizon and visible from an unblocked perspective
+    const worldOrigin = flightData.worldOrigin;
     const rocketDistSq = worldOrigin.x * worldOrigin.x + worldOrigin.y * worldOrigin.y;
     const isAbovePlanetSphere = worldOrigin.z >= 0 || rocketDistSq >= 1.00;
 
     if (isAbovePlanetSphere && worldOrigin.z > -0.85 && worldOrigin.z < CAM_DIST - 0.65) {
       const focalLength = transform.scaledRadius * Math.sqrt(CAM_DIST * CAM_DIST - 1);
-      const basis = buildRotatedRocketBasis(rotT, rotB, rotNormal, Math.min(0.68, p * 0.85), p * Math.PI * 1.4);
+      const basis = buildRotatedRocketBasis(
+        flightData.rotT,
+        flightData.rotB,
+        flightData.rotNormal,
+        Math.min(0.68, p * p * 1.35),
+        p * Math.PI * 1.4
+      );
       const vesselFrame = {
         origin: worldOrigin,
         rotT: basis.rotT,
         rotB: basis.rotB,
         rotN: basis.rotN,
-        scale: unitScale * lerp(1, 0.72, p),
+        scale: flightData.unitScale * lerp(1, 0.72, p) * departShrink,
         phase: tf.tile.phase || 0,
         cx: transform.x,
         cy: transform.y,
@@ -3139,14 +3215,11 @@
         isSelected: false,
         project: project
       };
-      const fadeAlpha = p > 0.56 ? 1 - (p - 0.56) / 0.22 : 1;
-      ctx.save();
-      ctx.globalAlpha *= clamp01(transform.alpha * fadeAlpha);
+      const thrustRamp = p < 0.14 ? lerp(0.15, 1.15, p / 0.14) : 1.15;
       window.GameBuildings.renderRocketVessel3D(ctx, tf.rocketId, vesselFrame, time, 1, {
-        thrust: 1.15,
+        thrust: thrustRamp * departShrink,
         zOffset: -0.44
       });
-      ctx.restore();
     }
   }
 
@@ -4138,9 +4211,10 @@
     const planet = planets[pId];
     const tile = planet && planet.tileById ? planet.tileById[tId] : null;
     const currentBiomeId = tile ? tile.biome : null;
+    const targetBiomes = getPlanetAllowedTerraformBiomes(planet);
 
-    for (let i = 0; i < TERRAFORM_TARGET_BIOMES.length; i++) {
-      const bId = TERRAFORM_TARGET_BIOMES[i];
+    for (let i = 0; i < targetBiomes.length; i++) {
+      const bId = targetBiomes[i];
       const biome = window.GameBuildings.getBiome(bId);
       const isCurrent = bId === currentBiomeId;
       const isSelected = terraformModalState.selectedBiome === bId && !isCurrent;
@@ -4202,9 +4276,10 @@
     terraformModalState.planetId = planetId;
     terraformModalState.tileId = tileId;
     terraformModalState.selectedBiome = null;
-    for (let i = 0; i < TERRAFORM_TARGET_BIOMES.length; i++) {
-      if (TERRAFORM_TARGET_BIOMES[i] !== tile.biome) {
-        terraformModalState.selectedBiome = TERRAFORM_TARGET_BIOMES[i];
+    const allowedBiomes = getPlanetAllowedTerraformBiomes(planet);
+    for (let i = 0; i < allowedBiomes.length; i++) {
+      if (allowedBiomes[i] !== tile.biome) {
+        terraformModalState.selectedBiome = allowedBiomes[i];
         break;
       }
     }
@@ -4273,7 +4348,8 @@
       return false;
     }
 
-    if (!targetBiomeId || targetBiomeId === tile.biome || !BIOME_VISUAL_PRESETS[targetBiomeId]) {
+    const allowedBiomes = getPlanetAllowedTerraformBiomes(planet);
+    if (!targetBiomeId || targetBiomeId === tile.biome || !BIOME_VISUAL_PRESETS[targetBiomeId] || allowedBiomes.indexOf(targetBiomeId) === -1) {
       const curBiome = window.GameBuildings.getBiome(tile.biome);
       showGameToast("<span>" + t("toast.terraform_same_biome", { biome: '<strong class="game-toast-strong">' + curBiome.name + "</strong>" }) + "</span>");
       return false;
