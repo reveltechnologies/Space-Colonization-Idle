@@ -27,8 +27,8 @@
       : null;
 
   const STARTING_AMOUNTS = {
-    credits: econCredits && econCredits.startingAmount !== undefined ? Number(econCredits.startingAmount) || 0 : 500,
-    ore: econOre && econOre.startingAmount !== undefined ? Number(econOre.startingAmount) || 0 : 100
+    credits: econCredits && econCredits.startingAmount !== undefined ? Number(econCredits.startingAmount) || 0 : 0,
+    ore: econOre && econOre.startingAmount !== undefined ? Number(econOre.startingAmount) || 0 : 0
   };
   const STARTING_RATES = {
     credits: econCredits && econCredits.baseRatePerSec ? Number(econCredits.baseRatePerSec) || 0 : 0,

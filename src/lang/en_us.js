@@ -140,28 +140,28 @@
       },
       flywheel_dynamo: {
         name: "Kinetic Flywheel",
-        description: "Upgraded vacuum-sealed flywheel generator. Click to spin up +5m of +8 Energy, stacking up to 1 hour max."
+        description: "Upgraded vacuum-sealed flywheel generator. Click to spin up +4m of +7 Energy, stacking up to 1 hour max."
       },
       capacitor_core: {
         name: "Overdrive Core",
-        description: "Late-game manual hyper-capacitor spire. Click to inject +7.5m of +25 Energy per click, stacking up to 1 hour max."
+        description: "Late-game manual hyper-capacitor spire. Click to inject +5m of +22 Energy per click, stacking up to 1 hour max."
       },
       cargo_trampoline: {
         name: "Space Trampoline",
-        description: "Spring-loaded orbital bounce pad. Click to fling crates of 5 Construction Bricks into space for +20 Space Credits with a short cooldown."
+        description: "Spring-loaded orbital bounce pad. Click to fling crates of 4 Construction Bricks into space for +12 Space Credits with a short cooldown."
       },
       spring_catapult: {
         name: "Coil Trampoline",
-        description: "Upgraded twin-coil trampoline pad that launches heavier 15-Brick crates into space for +75 Space Credits on every click."
+        description: "Upgraded twin-coil trampoline pad that launches heavier 12-Brick crates into space for +48 Space Credits on every click."
       },
       orbital_bouncer: {
         name: "Grav-Trampoline",
-        description: "Late-game gravimetric bounce array that hurls massive 40-Brick cargo crates into orbit for +240 Space Credits per click."
+        description: "Late-game gravimetric bounce array that hurls massive 30-Brick cargo crates into orbit for +150 Space Credits per click."
       },
       crash_base: {
         name: "Crash Base",
         specialty: "Permanent Pioneer Shelter",
-        description: "The wreckage of your escape craft, repurposed into an emergency shelter. Supplies 1 permanent Citizen (you), 1 emergency Energy, and slowly salvages +1 Construction Brick/min. Cannot be destroyed or replaced."
+        description: "The wreckage of your escape craft, repurposed into an emergency shelter. Supplies 1 permanent Citizen (you), 1 emergency Energy, and salvages +12 Construction Bricks/min. Cannot be destroyed or replaced."
       },
       mine: {
         name: "Mine",
@@ -284,17 +284,17 @@
       trade_rocket_1: {
         name: "Trade Rocket I",
         specialty: "Tier I Brick Trader",
-        description: "Automated commercial launchpad that regularly launches cargo shuttles to space, selling 5 Construction Bricks for 20 Space Credits every 6 seconds. Auto-stops if the planet runs out of Bricks."
+        description: "Automated commercial launchpad that regularly launches cargo shuttles to space, selling 5 Construction Bricks for 15 Space Credits every 8 seconds. Auto-stops if the planet runs out of Bricks."
       },
       trade_rocket_2: {
         name: "Trade Rocket II",
         specialty: "Tier II Express Trader",
-        description: "Upgraded twin-booster freighter terminal with faster turnaround and higher trade rates, selling 12 Construction Bricks for 60 Space Credits every 4 seconds."
+        description: "Upgraded twin-booster freighter terminal with faster turnaround and higher trade rates, selling 12 Construction Bricks for 48 Space Credits every 6 seconds."
       },
       trade_rocket_3: {
         name: "Trade Rocket III",
         specialty: "Tier III Heavy Starliner",
-        description: "High-velocity orbital trade port that rapidly dispatches heavy cargo starliners, selling 25 Construction Bricks for 150 Space Credits every 2.5 seconds."
+        description: "High-velocity orbital trade port that rapidly dispatches heavy cargo starliners, selling 25 Construction Bricks for 125 Space Credits every 4 seconds."
       }
     },
     trade: {
@@ -664,7 +664,7 @@
       hint_ready_launch: "Engines unlocked — press Launch!",
       salvage_citizen: "+1 Citizen",
       salvage_energy: "+1 Energy",
-      salvage_bricks: "+1/m Bricks",
+      salvage_bricks: "+12/m Bricks",
       steps: [
         {
           beats: [
