@@ -352,6 +352,8 @@
       demolish: "Demolish",
       cancel: "Cancel",
       confirm_build: "Confirm Build",
+      confirm_demolish: "Confirm Demolish",
+      demolish_notice: "Permanently demolishes {building} on this tile. Construction costs are not refunded.",
       built_badge: "BUILT",
       landed_badge: "LANDED",
       permanent_badge: "PERMANENT",

@@ -1030,6 +1030,7 @@
   const confirmCostsEl = document.getElementById("build-confirm-costs");
   const confirmCancelBtn = document.getElementById("btn-confirm-cancel");
   const confirmBuildBtn = document.getElementById("btn-confirm-build");
+  const confirmBuildLabelEl = confirmBuildBtn ? confirmBuildBtn.querySelector(".build-confirm-btn-label") : null;
 
   let activeCategory = "all";
   let currentPlanetId = 0;
@@ -1039,6 +1040,7 @@
   let currentPlacedLanded = false;
   let currentBiomeId = null;
   let pendingConfirmBuildingId = null;
+  let pendingDemolishConfirm = false;
   let menuOpen = false;
   let callbacks = {
     onPlace: null,
@@ -1890,6 +1892,7 @@
   }
 
   function syncConfirmState() {
+    if (pendingDemolishConfirm) return;
     const b = pendingConfirmBuildingId ? getBuilding(pendingConfirmBuildingId) : null;
     if (!b) return;
     if (confirmCostsEl) {
@@ -1903,6 +1906,10 @@
       confirmCostsEl.classList.toggle("is-hidden", confirmCostsEl.childNodes.length === 0);
     }
     if (confirmBuildBtn) {
+      confirmBuildBtn.classList.remove("is-demolish");
+      if (confirmBuildLabelEl) {
+        confirmBuildLabelEl.textContent = t("build.confirm_build");
+      }
       const canConfirm =
         !isBuildingResearchLocked(b.id) &&
         !isBuildingPlanetLimitReached(b.id, currentPlanetId, currentPlacedId) &&
@@ -1912,22 +1919,7 @@
     }
   }
 
-  function openConfirmScene(buildingId) {
-    if (isProtectedBuilding(currentPlacedId)) {
-      showProtectedToast(currentPlacedId, "toast.cannot_replace_protected");
-      return;
-    }
-    if (currentPlacedLanded && currentPlacedId) {
-      showProtectedToast(currentPlacedId, "toast.cannot_replace_landed");
-      return;
-    }
-    const b = getBuilding(buildingId);
-    if (!b || b.hiddenFromBuildMenu) return;
-
-    pendingConfirmBuildingId = b.id;
-    if (listDragScroller) listDragScroller.cancel();
-    if (catDragScroller) catDragScroller.cancel();
-
+  function populateConfirmCardDetails(b) {
     const cat = getCategory(b.category);
     const terrain = getTerrainGroup(b.terrain);
 
@@ -2278,8 +2270,29 @@
     if (confirmDescEl) {
       confirmDescEl.textContent = b.description || "";
     }
+  }
+
+  function openConfirmScene(buildingId) {
+    if (isProtectedBuilding(currentPlacedId)) {
+      showProtectedToast(currentPlacedId, "toast.cannot_replace_protected");
+      return;
+    }
+    if (currentPlacedLanded && currentPlacedId) {
+      showProtectedToast(currentPlacedId, "toast.cannot_replace_landed");
+      return;
+    }
+    const b = getBuilding(buildingId);
+    if (!b || b.hiddenFromBuildMenu) return;
+
+    pendingDemolishConfirm = false;
+    pendingConfirmBuildingId = b.id;
+    if (listDragScroller) listDragScroller.cancel();
+    if (catDragScroller) catDragScroller.cancel();
+
+    populateConfirmCardDetails(b);
 
     if (confirmReplaceEl) {
+      confirmReplaceEl.classList.remove("is-demolish");
       if (currentPlacedId && currentPlacedId !== b.id) {
         const existing = getBuilding(currentPlacedId);
         confirmReplaceEl.textContent = t("build.replace_notice", {
@@ -2292,6 +2305,12 @@
       }
     }
 
+    if (confirmBuildBtn) {
+      confirmBuildBtn.classList.remove("is-demolish");
+      if (confirmBuildLabelEl) {
+        confirmBuildLabelEl.textContent = t("build.confirm_build");
+      }
+    }
     syncConfirmState();
 
     if (drawerEl) {
@@ -2304,11 +2323,75 @@
     }
   }
 
+  function openDemolishConfirmScene() {
+    if (!currentPlacedId) return;
+    if (isProtectedBuilding(currentPlacedId)) {
+      showProtectedToast(currentPlacedId, "toast.cannot_demolish_protected");
+      return;
+    }
+    const b = getBuilding(currentPlacedId);
+    if (!b) return;
+
+    pendingConfirmBuildingId = null;
+    pendingDemolishConfirm = true;
+    if (listDragScroller) listDragScroller.cancel();
+    if (catDragScroller) catDragScroller.cancel();
+
+    populateConfirmCardDetails(b);
+    if (currentPlacedLanded && confirmBadgesEl && b.rocketCitizens > 0) {
+      confirmBadgesEl.appendChild(
+        createCardInfoChip(
+          "build-citizen-chip",
+          "build-citizen-icon",
+          STAT_ICONS.citizens,
+          "build-citizen-label",
+          formatCitizenGain(b.rocketCitizens)
+        )
+      );
+    }
+
+    if (confirmReplaceEl) {
+      confirmReplaceEl.textContent = t("build.demolish_notice", { building: b.name });
+      confirmReplaceEl.classList.add("is-demolish");
+      confirmReplaceEl.classList.remove("is-hidden");
+    }
+    if (confirmCostsEl) {
+      confirmCostsEl.innerHTML = "";
+      confirmCostsEl.classList.add("is-hidden");
+    }
+    if (confirmBuildBtn) {
+      confirmBuildBtn.classList.remove("is-disabled");
+      confirmBuildBtn.classList.add("is-demolish");
+      if (confirmBuildLabelEl) {
+        confirmBuildLabelEl.textContent = t("build.confirm_demolish");
+      }
+    }
+
+    if (drawerEl) {
+      drawerEl.classList.add("is-confirming");
+      drawerEl.setAttribute("data-confirm-building", b.id);
+    }
+    if (confirmSceneEl) {
+      confirmSceneEl.classList.remove("is-hidden");
+      confirmSceneEl.setAttribute("aria-hidden", "false");
+    }
+  }
+
   function closeConfirmScene() {
-    if (!pendingConfirmBuildingId && (!drawerEl || !drawerEl.classList.contains("is-confirming"))) {
+    if (!pendingConfirmBuildingId && !pendingDemolishConfirm && (!drawerEl || !drawerEl.classList.contains("is-confirming"))) {
       return;
     }
     pendingConfirmBuildingId = null;
+    pendingDemolishConfirm = false;
+    if (confirmReplaceEl) {
+      confirmReplaceEl.classList.remove("is-demolish");
+    }
+    if (confirmBuildBtn) {
+      confirmBuildBtn.classList.remove("is-demolish");
+      if (confirmBuildLabelEl) {
+        confirmBuildLabelEl.textContent = t("build.confirm_build");
+      }
+    }
     if (drawerEl) {
       drawerEl.classList.remove("is-confirming");
       drawerEl.removeAttribute("data-confirm-building");
@@ -2488,13 +2571,7 @@
 
   if (removeBtn) {
     removeBtn.addEventListener("click", function () {
-      if (isProtectedBuilding(currentPlacedId)) {
-        showProtectedToast(currentPlacedId, "toast.cannot_demolish_protected");
-        return;
-      }
-      if (typeof callbacks.onRemove === "function") {
-        callbacks.onRemove();
-      }
+      openDemolishConfirmScene();
     });
   }
 
@@ -2506,6 +2583,18 @@
 
   if (confirmBuildBtn) {
     confirmBuildBtn.addEventListener("click", function () {
+      if (pendingDemolishConfirm) {
+        if (isProtectedBuilding(currentPlacedId)) {
+          showProtectedToast(currentPlacedId, "toast.cannot_demolish_protected");
+          closeConfirmScene();
+          return;
+        }
+        closeConfirmScene();
+        if (typeof callbacks.onRemove === "function") {
+          callbacks.onRemove();
+        }
+        return;
+      }
       if (isProtectedBuilding(currentPlacedId)) {
         showProtectedToast(currentPlacedId, "toast.cannot_replace_protected");
         closeConfirmScene();
@@ -2890,15 +2979,16 @@
     }
   });
 
+  function refreshAffordability() {
+    if (!menuOpen) return;
+    syncBuildingCardAffordability();
+    if (pendingConfirmBuildingId) {
+      syncConfirmState();
+    }
+  }
+
   if (window.GameCurrencies && typeof window.GameCurrencies.onChange === "function") {
-    window.GameCurrencies.onChange(function () {
-      if (menuOpen) {
-        syncBuildingCardAffordability();
-        if (pendingConfirmBuildingId) {
-          syncConfirmState();
-        }
-      }
-    });
+    window.GameCurrencies.onChange(refreshAffordability);
   }
 
   if (window.GameResearch && typeof window.GameResearch.onChange === "function") {
@@ -7217,10 +7307,11 @@
     openConfirmForBuilding: openConfirmScene,
     updateCurrentBuilding: updateCurrentBuilding,
     refreshTileState: refreshTileState,
+    refreshAffordability: refreshAffordability,
     close: close,
     isOpen: isOpen,
     isConfirming: function () {
-      return Boolean(pendingConfirmBuildingId);
+      return Boolean(pendingConfirmBuildingId || pendingDemolishConfirm);
     },
     cancelConfirm: closeConfirmScene,
     getLayoutBounds: getLayoutBounds,

@@ -1483,11 +1483,11 @@
     const shownAmount = Math.floor(bricksByPlanet[activeIdx] || 0);
     const netRate = calculatePlanetNetBrickRate(activeIdx);
     const rateText = formatPlanetBrickRate(netRate);
-    const changed =
+    const amountChanged =
       force ||
       activeIdx !== bricksHudState.planet ||
-      shownAmount !== bricksHudState.amount ||
-      rateText !== bricksHudState.rateText;
+      shownAmount !== bricksHudState.amount;
+    const changed = amountChanged || rateText !== bricksHudState.rateText;
     if (!changed) return;
 
     const hadPrior = bricksHudState.planet !== -1 && bricksHudState.planet === activeIdx;
@@ -1521,6 +1521,10 @@
           bricksHudState.bumpTimer = 0;
         }, 160);
       }
+    }
+
+    if (amountChanged && window.GameBuildings && typeof window.GameBuildings.refreshAffordability === "function") {
+      window.GameBuildings.refreshAffordability();
     }
   }
 
@@ -2271,6 +2275,8 @@
       project: project
     };
 
+    const deferredDemolishEffects = [];
+
     // 4. Draw Sorted 3D Tiles (Side Extrusion Walls + Top Face + Glowing White Hex Frame)
     for (let i = 0; i < visibleTiles.length; i++) {
       const entry = visibleTiles[i];
@@ -2592,7 +2598,20 @@
         }
 
         if (eff && typeof window.GameBuildings.renderTileEffect === "function") {
-          window.GameBuildings.renderTileEffect(ctx, eff, buildingFrame, time);
+          if (eff.type === "demolish") {
+            deferredDemolishEffects.push({
+              eff: eff,
+              origin: entry.elevPlaneCenter,
+              rotT: rotT,
+              rotB: rotB,
+              rotN: rotNormal,
+              scale: tile.hexScale * elev,
+              phase: tile.phase,
+              isSelected: isSelected
+            });
+          } else {
+            window.GameBuildings.renderTileEffect(ctx, eff, buildingFrame, time);
+          }
         }
 
         const needsTileActionBounds =
@@ -2680,6 +2699,20 @@
             }
           }
         }
+      }
+    }
+
+    if (deferredDemolishEffects.length > 0 && window.GameBuildings && typeof window.GameBuildings.renderTileEffect === "function") {
+      for (let dIdx = 0; dIdx < deferredDemolishEffects.length; dIdx++) {
+        const d = deferredDemolishEffects[dIdx];
+        buildingFrame.origin = d.origin;
+        buildingFrame.rotT = d.rotT;
+        buildingFrame.rotB = d.rotB;
+        buildingFrame.rotN = d.rotN;
+        buildingFrame.scale = d.scale;
+        buildingFrame.phase = d.phase;
+        buildingFrame.isSelected = d.isSelected;
+        window.GameBuildings.renderTileEffect(ctx, d.eff, buildingFrame, time);
       }
     }
 

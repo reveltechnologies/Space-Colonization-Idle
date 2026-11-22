@@ -2045,6 +2045,12 @@ img {
   display: none;
 }
 
+.build-confirm-replace.is-demolish {
+  background: rgba(239, 68, 68, 0.18);
+  border-color: #f87171;
+  color: #fecaca;
+}
+
 .build-confirm-actions {
   display: flex;
   align-items: center;
@@ -2084,6 +2090,10 @@ img {
 .build-confirm-btn--confirm.is-disabled {
   --b: linear-gradient(180deg, #5c566c 0%, #464054 100%);
   color: #d4cfe0;
+}
+
+.build-confirm-btn--confirm.is-demolish {
+  --b: linear-gradient(180deg, #ff8426 0%, #dc2626 100%);
 }
 
 .build-confirm-costs .build-cost-item.is-short .build-cost-val {
