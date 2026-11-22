@@ -813,21 +813,24 @@
   }
 
   function formatProductionRate(perSec) {
-    const r = Math.max(0, Number(perSec) || 0);
-    if (r <= 0) return "";
+    const raw = Number(perSec) || 0;
+    if (Math.abs(raw) < 1e-6) return "";
+    const isNeg = raw < 0;
+    const r = Math.abs(raw);
+    const prefix = isNeg ? "rates.loss_" : "rates.";
     if (r >= 1) {
-      return t("rates.per_second", { rate: formatRateNumber(r) });
+      return t(prefix + "per_second", { rate: formatRateNumber(r) });
     }
     const perMin = r * 60;
     if (perMin >= 1) {
-      return t("rates.per_minute", { rate: formatRateNumber(perMin) });
+      return t(prefix + "per_minute", { rate: formatRateNumber(perMin) });
     }
     const perHour = r * 3600;
     if (perHour >= 1) {
-      return t("rates.per_hour", { rate: formatRateNumber(perHour) });
+      return t(prefix + "per_hour", { rate: formatRateNumber(perHour) });
     }
     const perDay = Math.max(0.1, r * 86400);
-    return t("rates.per_day", { rate: formatRateNumber(perDay) });
+    return t(prefix + "per_day", { rate: formatRateNumber(perDay) });
   }
 
   function renderCostItems(containerEl, cost, planetId, isDiscounted) {

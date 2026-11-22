@@ -689,9 +689,9 @@
   let lastInteractionTime = 0;
   let lastZoomLabel = "";
   let lastZoomGaugeKey = -1;
-  const citizensHudState = { planet: -1, max: -1, curr: -1, bumpTimer: 0 };
-  const energyHudState = { planet: -1, max: -1, curr: -1, bumpTimer: 0 };
-  const bricksHudState = { planet: -1, amount: -1, rateText: "", bumpTimer: 0 };
+  const citizensHudState = { planet: -1, max: -1, curr: -1, text: "", bumpTimer: 0 };
+  const energyHudState = { planet: -1, max: -1, curr: -1, text: "", bumpTimer: 0 };
+  const bricksHudState = { planet: -1, amount: -1, text: "", rateText: "", bumpTimer: 0 };
   const researchButtonAnchor = {
     visible: false,
     x: 0,
@@ -1005,14 +1005,19 @@
     if (!changed) return;
 
     const hadPrior = hudState.planet !== -1 && hudState.planet === activeIdx;
-    const valueChanged = hadPrior && (maxCap !== hudState.max || currCount !== hudState.curr);
 
     hudState.planet = activeIdx;
     hudState.max = maxCap;
     hudState.curr = currCount;
 
-    currEl.textContent = formatPlanetStat(currCount);
-    maxEl.textContent = formatPlanetStat(maxCap);
+    const currText = formatPlanetStat(currCount);
+    const maxText = formatPlanetStat(maxCap);
+    const combinedText = currText + "/" + maxText;
+    const textChanged = hadPrior && hudState.text !== "" && combinedText !== hudState.text;
+    hudState.text = combinedText;
+
+    currEl.textContent = currText;
+    maxEl.textContent = maxText;
 
     if (statBar) {
       statBar.classList.toggle("is-empty", maxCap <= 0);
@@ -1022,7 +1027,7 @@
       meterFillEl.style.width = ratio.toFixed(1) + "%";
     }
 
-    if (valueChanged && statBar) {
+    if (textChanged && statBar) {
       const valWrap = statBar.querySelector(".planet-stat-value");
       if (valWrap) {
         valWrap.classList.remove("is-bumped");
@@ -1331,6 +1336,31 @@
     return rate;
   }
 
+  function calculatePlanetBrickDemandRate(planetIdx) {
+    const buildings = buildingsByPlanet[planetIdx];
+    if (!buildings || !window.GameBuildings) return 0;
+    const power = getPlanetPowerStatus(planetIdx);
+    const cit = getPlanetCitizenStatus(planetIdx);
+    let demand = 0;
+    const keys = Object.keys(buildings);
+    for (let i = 0; i < keys.length; i++) {
+      const tileId = keys[i];
+      const bInfo = buildings[tileId];
+      if (!bInfo || !bInfo.id || !bInfo.tradeEnabled) continue;
+      const bDef = window.GameBuildings.getBuilding(bInfo.id);
+      if (!bDef || !bDef.tradeVariant || !bDef.tradeIntervalSec || !bDef.bricksPerLaunch) continue;
+      if (!isTileOperational(tileId, bDef, power, cit)) continue;
+      demand += bDef.bricksPerLaunch / bDef.tradeIntervalSec;
+    }
+    return demand;
+  }
+
+  function calculatePlanetNetBrickRate(planetIdx) {
+    const prod = calculatePlanetBrickRate(planetIdx);
+    const demand = calculatePlanetBrickDemandRate(planetIdx);
+    return prod - demand;
+  }
+
   function calculatePlanetResearchRate(planetIdx) {
     const buildings = buildingsByPlanet[planetIdx];
     if (!buildings || !window.GameBuildings) return 0;
@@ -1422,7 +1452,8 @@
     if (!bricksValEl) return;
     const activeIdx = activeDotIndex;
     const shownAmount = Math.floor(bricksByPlanet[activeIdx] || 0);
-    const rateText = formatPlanetBrickRate(calculatePlanetBrickRate(activeIdx));
+    const netRate = calculatePlanetNetBrickRate(activeIdx);
+    const rateText = formatPlanetBrickRate(netRate);
     const changed =
       force ||
       activeIdx !== bricksHudState.planet ||
@@ -1431,21 +1462,25 @@
     if (!changed) return;
 
     const hadPrior = bricksHudState.planet !== -1 && bricksHudState.planet === activeIdx;
-    const gained = hadPrior && shownAmount > bricksHudState.amount;
 
     bricksHudState.planet = activeIdx;
     bricksHudState.amount = shownAmount;
     bricksHudState.rateText = rateText;
 
-    bricksValEl.textContent = formatPlanetStat(shownAmount);
+    const valText = formatPlanetStat(shownAmount);
+    const textChanged = hadPrior && bricksHudState.text !== "" && valText !== bricksHudState.text;
+    bricksHudState.text = valText;
+
+    bricksValEl.textContent = valText;
     if (bricksRateEl) {
       bricksRateEl.textContent = rateText;
+      bricksRateEl.classList.toggle("is-negative", netRate < 0);
     }
     if (bricksStatBar) {
       bricksStatBar.classList.toggle("is-empty", shownAmount <= 0 && !rateText);
     }
 
-    if (gained && bricksStatBar) {
+    if (textChanged && bricksStatBar) {
       const valWrap = bricksStatBar.querySelector(".planet-stat-value");
       if (valWrap) {
         valWrap.classList.remove("is-bumped");
@@ -1541,7 +1576,7 @@
         }
       } else if (key === "bricks") {
         const amt = Math.floor(bricksByPlanet[activeDotIndex] || 0);
-        const rateText = formatPlanetBrickRate(calculatePlanetBrickRate(activeDotIndex));
+        const rateText = formatPlanetBrickRate(calculatePlanetNetBrickRate(activeDotIndex));
         statText = t("resource_tooltips.current_label", { val: formatPlanetStat(amt) });
         if (rateText) {
           statText += t("resource_tooltips.rate_suffix", { rate: rateText });
@@ -2338,6 +2373,10 @@
             window.GameBuildings.renderBuilding3D(ctx, entry.placed.id, buildingFrame, time, buildScale, bOpts);
           }
 
+          if (activeFp !== null && activeFp < 0.55 && entry.topVisible) {
+            drawTradeRocketLiftoffSmoke(ctx, buildingFrame, activeFp, transform.alpha);
+          }
+
           if ((isEnergyBlocked || isCitizenBlocked || isBricksBlocked) && (!eff || eff.type !== "demolish")) {
             const badgeWorld = add(entry.elevPlaneCenter, scale(rotNormal, tile.hexScale * elev * 0.92));
             const badgePt = project(badgeWorld, cx, cy, focalLength);
@@ -2468,6 +2507,17 @@
     ctx.beginPath();
     ctx.arc(cx, cy, r * 1.01, 0, Math.PI * 2);
     ctx.fill();
+
+    // Draw active trade flights in flight above this planet
+    for (let f = 0; f < activeTradeFlights.length; f++) {
+      const tf = activeTradeFlights[f];
+      if (tf.planetIdx === planet.id) {
+        const fp = clamp01((time - tf.startTime) / tf.duration);
+        if (fp < 0.78) {
+          drawTradeRocketInFlight3D(ctx, tf, planet, transform, time, fp);
+        }
+      }
+    }
 
     if (!planet.unlocked && !planet.unlockVfx) {
       drawPlanetLockOverlay(ctx, cx, cy, r, planet.requiredRocketTier || 1, transform.alpha, time);
@@ -3019,14 +3069,107 @@
     };
   }
 
-  function getActiveTradeFlightProgressForTile(planetId, tileId, time) {
+  function projectLocalToScreen(frame, lx, ly, lz) {
+    const s = frame.scale;
+    const t = frame.rotT;
+    const b = frame.rotB;
+    const n = frame.rotN;
+    const world = {
+      x: frame.origin.x + (t.x * lx + b.x * ly + n.x * lz) * s,
+      y: frame.origin.y + (t.y * lx + b.y * ly + n.y * lz) * s,
+      z: frame.origin.z + (t.z * lx + b.z * ly + n.z * lz) * s
+    };
+    return frame.project(world, frame.cx, frame.cy, frame.focalLength);
+  }
+
+  function getActiveTradeFlightForTile(planetId, tileId) {
     for (let i = 0; i < activeTradeFlights.length; i++) {
       const tf = activeTradeFlights[i];
       if (tf.planetIdx === planetId && tf.tileId === tileId) {
-        return clamp01((time - tf.startTime) / tf.duration);
+        return tf;
       }
     }
     return null;
+  }
+
+  function getActiveTradeFlightProgressForTile(planetId, tileId, time) {
+    const tf = getActiveTradeFlightForTile(planetId, tileId);
+    return tf ? clamp01((time - tf.startTime) / tf.duration) : null;
+  }
+
+  function drawTradeRocketInFlight3D(ctx, tf, planet, transform, time, p) {
+    if (p >= 0.78 || !window.GameBuildings || typeof window.GameBuildings.renderRocketVessel3D !== "function" || !tf.tile) {
+      return;
+    }
+    const pitchX = clamp(planet.basePitch + planet.pitchOffset, -MAX_PITCH, MAX_PITCH);
+    const rotatePoint = createRotator(planet.spinY, pitchX, planet.roll);
+    const rotNormal = rotatePoint(tf.tile.normal);
+    const rotT = rotatePoint(tf.tile.tangentT);
+    const rotB = rotatePoint(tf.tile.tangentB);
+    const rotPlaneCenter = rotatePoint(tf.tile.planeCenter);
+    const elev = tf.tile.currentElev || tf.tile.baseElev || 1.02;
+    const elevCenter = scale(rotPlaneCenter, elev);
+    const unitScale = tf.tile.hexScale * elev;
+
+    const climbN = (0.56 + 6.2 * tf.speedMult * p * p) * unitScale;
+    const turnT = 1.45 * tf.speedMult * p * p * p * unitScale;
+    const worldOrigin = add(add(elevCenter, scale(rotNormal, climbN)), scale(rotT, turnT));
+
+    // Rocket is in front of the planet sphere / horizon and visible from an unblocked perspective
+    const rocketDistSq = worldOrigin.x * worldOrigin.x + worldOrigin.y * worldOrigin.y;
+    const isAbovePlanetSphere = worldOrigin.z >= 0 || rocketDistSq >= 1.00;
+
+    if (isAbovePlanetSphere && worldOrigin.z > -0.85 && worldOrigin.z < CAM_DIST - 0.65) {
+      const focalLength = transform.scaledRadius * Math.sqrt(CAM_DIST * CAM_DIST - 1);
+      const basis = buildRotatedRocketBasis(rotT, rotB, rotNormal, Math.min(0.68, p * 0.85), p * Math.PI * 1.4);
+      const vesselFrame = {
+        origin: worldOrigin,
+        rotT: basis.rotT,
+        rotB: basis.rotB,
+        rotN: basis.rotN,
+        scale: unitScale * lerp(1, 0.72, p),
+        phase: tf.tile.phase || 0,
+        cx: transform.x,
+        cy: transform.y,
+        focalLength: focalLength,
+        camVec: CAM_VEC,
+        lightDir: LIGHT_DIR,
+        halfVec: HALF_VEC,
+        atmo: planet.atmosphere,
+        isSelected: false,
+        project: project
+      };
+      const fadeAlpha = p > 0.56 ? 1 - (p - 0.56) / 0.22 : 1;
+      ctx.save();
+      ctx.globalAlpha *= clamp01(transform.alpha * fadeAlpha);
+      window.GameBuildings.renderRocketVessel3D(ctx, tf.rocketId, vesselFrame, time, 1, {
+        thrust: 1.15,
+        zOffset: -0.44
+      });
+      ctx.restore();
+    }
+  }
+
+  function drawTradeRocketLiftoffSmoke(ctx, frame, p, alpha) {
+    if (!ctx || !frame || p >= 0.55 || alpha <= 0.02) return;
+    const smP = p / 0.55;
+    const basePuffR = frame.scale * (frame.focalLength / CAM_DIST) * 0.18;
+    const smokeScale = clamp(basePuffR, 9, 24);
+    for (let s = 0; s < 3; s++) {
+      const ang = s * 2.1 + smP * 0.4;
+      const spread = 0.12 + 0.36 * smP;
+      const lx = Math.cos(ang) * spread;
+      const ly = Math.sin(ang) * spread * 0.7;
+      const pt = projectLocalToScreen(frame, lx, ly, 0.03);
+      drawSmokePuffCloud(
+        ctx,
+        pt.x,
+        pt.y,
+        smokeScale * 0.34 * (1 - smP * 0.4),
+        alpha * (1 - smP) * 0.78,
+        true
+      );
+    }
   }
 
   function computeSelectedBuildingScreenBounds(entry, buildingFrame, cx, cy, focalLength) {
@@ -3982,79 +4125,6 @@
       if (p >= 1) {
         activeTradeFlights.splice(i, 1);
         continue;
-      }
-
-      if (Math.abs(tf.planetIdx - scrollPos) >= 0.999) {
-        continue;
-      }
-
-      const planet = planets[tf.planetIdx];
-      const tr = getPlanetTransform(planet, tf.planetIdx);
-      const tInfo = tf.tile ? getPlanetTileScreenInfo(planet, tr, tf.tile) : null;
-      const padX = tInfo && tInfo.z > -0.15 ? tInfo.basePt.x : tr.x;
-      const padY = tInfo && tInfo.z > -0.15 ? tInfo.basePt.y : tr.y - tr.scaledRadius * 0.4;
-
-      if (p < 0.78 && window.GameBuildings && typeof window.GameBuildings.renderRocketVessel3D === "function" && tf.tile) {
-        const pitchX = clamp(planet.basePitch + planet.pitchOffset, -MAX_PITCH, MAX_PITCH);
-        const rotatePoint = createRotator(planet.spinY, pitchX, planet.roll);
-        const rotNormal = rotatePoint(tf.tile.normal);
-        const rotT = rotatePoint(tf.tile.tangentT);
-        const rotB = rotatePoint(tf.tile.tangentB);
-        const rotPlaneCenter = rotatePoint(tf.tile.planeCenter);
-        const elev = tf.tile.currentElev || tf.tile.baseElev || 1.02;
-        const elevCenter = scale(rotPlaneCenter, elev);
-        const unitScale = tf.tile.hexScale * elev;
-
-        const climbN = (0.56 + 6.2 * tf.speedMult * p * p) * unitScale;
-        const turnT = 1.45 * tf.speedMult * p * p * p * unitScale;
-        const worldOrigin = add(add(elevCenter, scale(rotNormal, climbN)), scale(rotT, turnT));
-
-        if (worldOrigin.z > -0.85 && worldOrigin.z < CAM_DIST - 0.65) {
-          const focalLength = tr.scaledRadius * Math.sqrt(CAM_DIST * CAM_DIST - 1);
-          const basis = buildRotatedRocketBasis(rotT, rotB, rotNormal, Math.min(0.68, p * 0.85), p * Math.PI * 1.4);
-          const vesselFrame = {
-            origin: worldOrigin,
-            rotT: basis.rotT,
-            rotB: basis.rotB,
-            rotN: basis.rotN,
-            scale: unitScale * lerp(1, 0.72, p),
-            phase: tf.tile.phase || 0,
-            cx: tr.x,
-            cy: tr.y,
-            focalLength: focalLength,
-            camVec: CAM_VEC,
-            lightDir: LIGHT_DIR,
-            halfVec: HALF_VEC,
-            atmo: planet.atmosphere,
-            isSelected: false,
-            project: project
-          };
-          const fadeAlpha = p > 0.56 ? 1 - (p - 0.56) / 0.22 : 1;
-          ctx.save();
-          ctx.globalAlpha *= clamp01(tr.alpha * fadeAlpha);
-          window.GameBuildings.renderRocketVessel3D(ctx, tf.rocketId, vesselFrame, time, 1, {
-            thrust: 1.15,
-            zOffset: -0.44
-          });
-          ctx.restore();
-        }
-      }
-
-      if (p < 0.55) {
-        const smP = p / 0.55;
-        const smokeScale = clamp(tr.scaledRadius * 0.115, 11, 24);
-        for (let s = 0; s < 3; s++) {
-          const ang = s * 2.1 + smP * 0.4;
-          const spread = tr.scaledRadius * (0.04 + 0.12 * smP);
-          drawSmokePuffCloud(
-            ctx,
-            padX + Math.cos(ang) * spread,
-            padY + Math.sin(ang) * spread * 0.7,
-            smokeScale * 0.34 * (1 - smP * 0.4),
-            tr.alpha * (1 - smP) * 0.78,
-            true
-          );
-        }
       }
     }
   }
@@ -5227,6 +5297,7 @@
           showTradeNoticeToast(bDef, pId, "toast.trade_started", "success");
         }
         updateTradeActionOverlay();
+        updatePlanetBricksHud(true);
         notifySave("trade_toggle", true);
       });
     }

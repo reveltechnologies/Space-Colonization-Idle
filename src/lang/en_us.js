@@ -76,7 +76,11 @@
       per_second: "+{rate}/s",
       per_minute: "+{rate}/min",
       per_hour: "+{rate}/hr",
-      per_day: "+{rate}/day"
+      per_day: "+{rate}/day",
+      loss_per_second: "-{rate}/s",
+      loss_per_minute: "-{rate}/min",
+      loss_per_hour: "-{rate}/hr",
+      loss_per_day: "-{rate}/day"
     },
     planets: {
       planet_1: {

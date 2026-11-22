@@ -574,6 +574,10 @@ img {
   white-space: nowrap;
 }
 
+.planet-stat-rate.is-negative {
+  color: #f87171;
+}
+
 .planet-stat-rate:empty {
   display: none;
 }

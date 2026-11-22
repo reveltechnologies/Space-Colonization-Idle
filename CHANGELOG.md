@@ -27,12 +27,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added 11 custom cel-shaded SVG icons in `src/assets/ui/` and 8 watertight procedural 3D building models (including active & spent states for `buildGeoTerraformerModel`) in `src/js/buildings.js`.
 
 ### Fixed
+- **Net Brick Income Display Accounting for Trade Rocket Demand (`src/js/planets.js`, `src/js/buildings.js`, `src/lang/en_us.js`, `src/css/style.css`)**:
+  - Updated the planet HUD brick income rate text (`#rate-bricks`) and tooltip to reflect the net brick rate (`production - trade rocket consumption`) using `calculatePlanetNetBrickRate(planetIdx)` and `calculatePlanetBrickDemandRate(planetIdx)`.
+  - Added support for negative rate display (`formatProductionRate`) with localization keys (`rates.loss_per_second`, `rates.loss_per_minute`, `rates.loss_per_hour`, `rates.loss_per_day`) and distinct `.planet-stat-rate.is-negative` red styling when operational Trade Rockets consume more bricks than active mines produce.
+  - Triggered instant HUD brick rate updates when enabling or disabling Trade Rocket operational state from the tile action panel.
 - **Fixed-Position Build Menu Header Controls (`src/css/style.css`)**:
   - Locked `.build-drawer-header` to a 2-row CSS Grid (`grid-template-columns: minmax(0, 1fr) auto`) across all viewports so the Demolish button, Close button, and Category tabs stay at fixed coordinates inside the `.build-drawer` background panel regardless of tile biome name length, while `.build-title` stays single-line with ellipsis truncation inside Row 1.
 - **Constant-Height Build Menu Cards (`src/css/style.css`, `src/js/buildings.js`, `src/lang/en_us.js`)**:
   - Locked `.build-card-info` and `.build-card-action` to uniform single-row heights across all breakpoints, switched `.build-card-multi-chips` to single-row compact `+N` badges for dual-output buildings (`solar_cabin`, `eco_dome`, `eco_arcology`, `crash_base`), and added `.is-compact-costs` for 3-currency costs so `#build-drawer` never changes height when switching categories or tiles.
 - **Back-Rim Selected Building Freeze (`src/js/planets.js`)**:
   - Fixed a `TypeError` in `computeSelectedBuildingScreenBounds` when rotating a selected building (such as `villa`) onto the planet's back rim where `entry.topPts` is `null`, which previously halted `requestAnimationFrame(render)` and left the planet stuck as a dark core circle. Guarded `needsTileActionBounds` with `entry.topVisible && Array.isArray(entry.topPts) && entry.depthZ > -0.25`, added `Array.isArray(pts)` and finite bounds fallbacks in `computeSelectedBuildingScreenBounds`, and wrapped `drawPlanet` (`ctx.save/restore`) and `render` (`requestAnimationFrame`) in `try/finally` blocks.
+- **Trade Rocket Flight & Liftoff Dust Occlusion (`src/js/planets.js`)**:
+  - Anchored Trade Rocket liftoff smoke puffs (`drawTradeRocketLiftoffSmoke`) directly to the launchpad's front-facing surface mesh in `drawPlanet`, properly hiding ground dust behind buildings and terrain when the pad itself is occluded or facing away.
+  - Upgraded flying Trade Rocket vessel rendering (`drawTradeRocketInFlight3D`) to test 3D spatial visibility relative to the planet's spherical horizon (`worldOrigin.z >= 0 || x^2 + y^2 >= 1.00`), ensuring the ascending rocket remains clearly visible from any unblocked perspective even when the bottom launchpad is hidden from view behind the curve.
+- **Resource Number Text Bounce Animation Only on Visible String Changes (`src/js/currencies.js`, `src/js/planets.js`)**:
+  - Fixed HUD resource counter bouncing (`.currency-value.is-bumped`, `.planet-stat-value.is-bumped`) so text bounce animations trigger strictly when the displayed formatted text actually changes (e.g., from `4.00M` to `4.01M`).
+  - Removed unconditional bumps from `GameCurrencies.add()` and `GameCurrencies.spend()`, ensuring income ticks that increment internal floating-point values without changing the rendered text string (such as 4,000,001 to 4,000,005 while displaying `4.00M`) do not cause constant jittering or repeated bouncing.
+  - Updated planet HUD stat bars (`Citizens`, `Energy`, `Bricks`) to compare formatted stat strings (`curr/max` or brick count) before triggering the bump animation.
 
 ## [0.2.0-pre.1] - 2026-11-21
 

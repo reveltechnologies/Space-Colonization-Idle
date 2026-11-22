@@ -152,9 +152,13 @@
     let changed = false;
     const valText = formatNumber(entry.amount);
     if (ui.valEl && valText !== ui.lastVal) {
+      const isInitial = ui.lastVal === "";
       ui.lastVal = valText;
       ui.valEl.textContent = valText;
       changed = true;
+      if (!isInitial) {
+        bumpValueElement(key);
+      }
     }
 
     const rateText = formatRate((entry.rate || 0) + (entry.displayRate || 0));
@@ -170,6 +174,8 @@
     const ui = dom[key];
     if (!ui || !ui.valEl) return;
 
+    ui.valEl.classList.remove("is-bumped");
+    void ui.valEl.offsetWidth;
     ui.valEl.classList.add("is-bumped");
     if (ui.bumpTimer) {
       window.clearTimeout(ui.bumpTimer);
@@ -243,9 +249,6 @@
 
     state[key].amount = Math.max(0, state[key].amount + val);
     renderCurrency(key);
-    if (!silent) {
-      bumpValueElement(key);
-    }
     notifyChange();
     return state[key].amount;
   }
@@ -273,7 +276,6 @@
         if (req > 0 && state[key]) {
           state[key].amount = Math.max(0, state[key].amount - req);
           renderCurrency(key);
-          bumpValueElement(key);
         }
       }
     }
