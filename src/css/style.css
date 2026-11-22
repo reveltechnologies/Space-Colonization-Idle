@@ -3506,6 +3506,34 @@ body.terraform-modal-open .tile-action-group {
   color: #ffffff;
 }
 
+.tile-action-btn--manual-trade {
+  --b: linear-gradient(180deg, #10b981 0%, #059669 100%);
+  color: #ffffff;
+  position: relative;
+  overflow: hidden;
+}
+
+.tile-action-btn--manual-trade.is-cooldown {
+  --b: linear-gradient(180deg, #64748b 0%, #334155 100%);
+  color: #e2e8f0;
+}
+
+.tile-action-btn--manual-trade.is-cooldown::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: var(--cd-pct, 0%);
+  background: rgba(52, 211, 153, 0.28);
+  pointer-events: none;
+}
+
+.tile-action-btn--manual-trade.is-empty-bricks {
+  --b: linear-gradient(180deg, #64748b 0%, #475569 100%);
+  opacity: 0.85;
+}
+
 .tile-action-btn--trade-upgrade {
   --b: linear-gradient(180deg, #fbbf24 0%, #d97706 100%);
 }

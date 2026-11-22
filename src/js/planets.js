@@ -2081,6 +2081,51 @@
       }
     }
 
+    const backCrateFlights = [];
+    const frontCrateFlights = [];
+    for (let f = 0; f < activeCrateFlights.length; f++) {
+      const cf = activeCrateFlights[f];
+      if (cf.planetIdx !== planet.id || !cf.tile) continue;
+      const fp = clamp01((time - cf.startTime) / cf.duration);
+      if (fp >= 1) continue;
+
+      const rotNormal = rotatePoint(cf.tile.normal);
+      const rotT = rotatePoint(cf.tile.tangentT);
+      const rotB = rotatePoint(cf.tile.tangentB);
+      const rotPlaneCenter = rotatePoint(cf.tile.planeCenter);
+      const elev = cf.tile.currentElev || cf.tile.baseElev || 1.02;
+      const elevCenter = scale(rotPlaneCenter, elev);
+      const unitScale = cf.tile.hexScale * elev;
+      const climbN = (0.28 + 6.8 * fp * (1.2 - 0.15 * fp)) * unitScale;
+      const driftT = 0.85 * fp * fp * unitScale;
+      const worldOrigin = add(add(elevCenter, scale(rotNormal, climbN)), scale(rotT, driftT));
+      if (worldOrigin.z >= CAM_DIST - 0.65) continue;
+
+      const crateData = {
+        cf: cf,
+        p: fp,
+        rotNormal: rotNormal,
+        rotT: rotT,
+        rotB: rotB,
+        unitScale: unitScale,
+        worldOrigin: worldOrigin
+      };
+      if (worldOrigin.z < 0) {
+        backCrateFlights.push(crateData);
+      } else {
+        frontCrateFlights.push(crateData);
+      }
+    }
+
+    if (backCrateFlights.length > 0) {
+      backCrateFlights.sort(function (a, b) {
+        return a.worldOrigin.z - b.worldOrigin.z;
+      });
+      for (let f = 0; f < backCrateFlights.length; f++) {
+        drawManualCrateInFlight3D(ctx, backCrateFlights[f], planet, transform, time);
+      }
+    }
+
     // 2. Dark Inner Core Sphere
     const coreRadius = r * planet.coreScale;
     const coreGrad = ctx.createRadialGradient(
@@ -2182,6 +2227,14 @@
       });
     }
 
+    for (let f = 0; f < frontCrateFlights.length; f++) {
+      visibleTiles.push({
+        isCrateFlight: true,
+        crateFlight: frontCrateFlights[f],
+        depthZ: frontCrateFlights[f].worldOrigin.z
+      });
+    }
+
     visibleTiles.sort(function (a, b) {
       return a.depthZ - b.depthZ;
     });
@@ -2212,6 +2265,10 @@
       const entry = visibleTiles[i];
       if (entry.isTradeFlight) {
         drawTradeRocketInFlight3D(ctx, entry.flight, planet, transform, time);
+        continue;
+      }
+      if (entry.isCrateFlight) {
+        drawManualCrateInFlight3D(ctx, entry.crateFlight, planet, transform, time);
         continue;
       }
       const tile = entry.tile;
@@ -2461,7 +2518,7 @@
                       : 0,
                   flightProgress: activeFp !== null ? activeFp : undefined
                 }
-              : placedDef && (placedDef.manualBrickPerClick > 0 || placedDef.manualEnergySlots > 0)
+              : placedDef && (placedDef.manualBrickPerClick > 0 || placedDef.manualEnergySlots > 0 || placedDef.manualTradeBricks > 0)
                 ? {
                     manualActive: Boolean((entry.placed.manualEnergyTimer || 0) > 0),
                     manualPulse: clamp01(1 - (time - (entry.placed.manualPulseAt || -9999)) / 420)
@@ -2544,7 +2601,9 @@
             (entry.placed.id === "space_rocket_1" || entry.placed.id === "space_rocket_2") &&
             planet.id + 1 < PLANET_COUNT;
           const isTradeBuilding = Boolean(placedBDef && placedBDef.tradeVariant);
-          const isManualBuilding = Boolean(placedBDef && (placedBDef.manualBrickPerClick > 0 || placedBDef.manualEnergySlots > 0));
+          const isManualBuilding = Boolean(
+            placedBDef && (placedBDef.manualBrickPerClick > 0 || placedBDef.manualEnergySlots > 0 || placedBDef.manualTradeBricks > 0)
+          );
           const nextUpgradeDef =
             !entry.placed.isLanded &&
             window.GameBuildings &&
@@ -3258,6 +3317,72 @@
         thrust: thrustRamp * departShrink,
         zOffset: -0.44
       });
+    }
+  }
+
+  const activeCrateFlights = [];
+
+  function spawnManualCrateFlight(planetIdx, tileId, bDef, time) {
+    const planet = planets[planetIdx];
+    const tile = planet && planet.tileById ? planet.tileById[tileId] : null;
+    if (!tile || !bDef) return;
+    activeCrateFlights.push({
+      planetIdx: planetIdx,
+      tileId: tileId,
+      tile: tile,
+      tier: bDef.manualTradeTier || 1,
+      startTime: time,
+      duration: 1350
+    });
+  }
+
+  function drawManualCrateInFlight3D(ctx, flightData, planet, transform, time) {
+    if (!flightData || !window.GameBuildings || typeof window.GameBuildings.renderTradeCrate3D !== "function") {
+      return;
+    }
+    const cf = flightData.cf;
+    const p = flightData.p;
+    const shrink = p > 0.65 ? 1 - Math.pow((p - 0.65) / 0.35, 2) : 1;
+    if (shrink <= 0.03) return;
+
+    const worldOrigin = flightData.worldOrigin;
+    const distSq = worldOrigin.x * worldOrigin.x + worldOrigin.y * worldOrigin.y;
+    const isAbovePlanetSphere = worldOrigin.z >= 0 || distSq >= 1.00;
+    if (isAbovePlanetSphere && worldOrigin.z > -0.85 && worldOrigin.z < CAM_DIST - 0.65) {
+      const focalLength = transform.scaledRadius * Math.sqrt(CAM_DIST * CAM_DIST - 1);
+      const basis = buildRotatedRocketBasis(
+        flightData.rotT,
+        flightData.rotB,
+        flightData.rotNormal,
+        p * Math.PI * 2.6,
+        p * Math.PI * 3.2
+      );
+      const crateFrame = {
+        origin: worldOrigin,
+        rotT: basis.rotT,
+        rotB: basis.rotB,
+        rotN: basis.rotN,
+        scale: flightData.unitScale * shrink,
+        phase: cf.tile.phase || 0,
+        cx: transform.x,
+        cy: transform.y,
+        focalLength: focalLength,
+        camVec: CAM_VEC,
+        lightDir: LIGHT_DIR,
+        halfVec: HALF_VEC,
+        atmo: planet.atmosphere,
+        isSelected: false,
+        project: project
+      };
+      window.GameBuildings.renderTradeCrate3D(ctx, crateFrame, time, cf.tier);
+    }
+  }
+
+  function updateManualCrateFlights(time) {
+    for (let i = activeCrateFlights.length - 1; i >= 0; i--) {
+      if ((time - activeCrateFlights[i].startTime) / activeCrateFlights[i].duration >= 1) {
+        activeCrateFlights.splice(i, 1);
+      }
     }
   }
 
@@ -4565,7 +4690,8 @@
     const isTrade = Boolean(bDef && bDef.tradeVariant);
     const isManualBrick = Boolean(bDef && bDef.manualBrickPerClick > 0);
     const isManualEnergy = Boolean(bDef && bDef.manualEnergySlots > 0);
-    const hasPrimary = isTrade || isManualBrick || isManualEnergy;
+    const isManualTrade = Boolean(bDef && bDef.manualTradeBricks > 0);
+    const hasPrimary = isTrade || isManualBrick || isManualEnergy || isManualTrade;
     const nextDef =
       placed && !placed.isLanded && bDef && window.GameBuildings && typeof window.GameBuildings.getNextUpgradeBuilding === "function"
         ? window.GameBuildings.getNextUpgradeBuilding(bDef.id, biomeId)
@@ -4582,6 +4708,7 @@
         tileTradeToggleBtn.classList.remove("is-hidden");
         tileTradeToggleBtn.classList.toggle("tile-action-btn--manual-brick", isManualBrick);
         tileTradeToggleBtn.classList.toggle("tile-action-btn--manual-energy", isManualEnergy);
+        tileTradeToggleBtn.classList.toggle("tile-action-btn--manual-trade", isManualTrade);
 
         let nextLabel = "";
         let nextIcon = "./assets/ui/icon-credits.svg";
@@ -4591,13 +4718,13 @@
           const enabled = Boolean(placed.tradeEnabled);
           tileTradeToggleBtn.classList.toggle("is-active", enabled);
           tileTradeToggleBtn.classList.toggle("is-stopped", !enabled);
-          tileTradeToggleBtn.classList.remove("is-cooldown", "is-capped");
+          tileTradeToggleBtn.classList.remove("is-cooldown", "is-capped", "is-empty-bricks");
           nextLabel = t(enabled ? "trade.btn_stop" : "trade.btn_enable");
         } else if (isManualBrick) {
           const cdTotal = bDef.manualBrickCooldownMs || 1500;
           const remMs = Math.max(0, (placed.manualCooldownUntil || 0) - now);
           const onCd = remMs > 0;
-          tileTradeToggleBtn.classList.remove("is-active", "is-stopped", "is-capped");
+          tileTradeToggleBtn.classList.remove("is-active", "is-stopped", "is-capped", "is-empty-bricks");
           tileTradeToggleBtn.classList.toggle("is-cooldown", onCd);
           nextIcon = "./assets/ui/icon-bricks.svg";
           if (onCd) {
@@ -4611,7 +4738,7 @@
           const maxSec = bDef.manualEnergyMaxSec || 3600;
           const isActive = timer > 0;
           const isCapped = timer >= maxSec - 0.5;
-          tileTradeToggleBtn.classList.remove("is-stopped", "is-cooldown");
+          tileTradeToggleBtn.classList.remove("is-stopped", "is-cooldown", "is-empty-bricks");
           tileTradeToggleBtn.classList.toggle("is-active", isActive && !isCapped);
           tileTradeToggleBtn.classList.toggle("is-capped", isCapped);
           nextIcon = "./assets/ui/icon-energy.svg";
@@ -4624,6 +4751,24 @@
             });
           } else {
             nextLabel = t("manual.btn_charge", { energy: formatPlanetStat(bDef.manualEnergySlots) });
+          }
+        } else if (isManualTrade) {
+          const cdTotal = bDef.manualTradeCooldownMs || 1600;
+          const remMs = Math.max(0, (placed.manualCooldownUntil || 0) - now);
+          const onCd = remMs > 0;
+          const availBricks = Math.floor(bricksByPlanet[planet.id] || 0);
+          tileTradeToggleBtn.classList.remove("is-active", "is-stopped", "is-capped");
+          tileTradeToggleBtn.classList.toggle("is-cooldown", onCd);
+          tileTradeToggleBtn.classList.toggle("is-empty-bricks", !onCd && availBricks <= 0);
+          if (onCd) {
+            cdPct = Math.round(((cdTotal - remMs) / cdTotal) * 100) + "%";
+            nextLabel = t("manual.btn_cooldown", { sec: (remMs / 1000).toFixed(1) });
+          } else if (availBricks <= 0) {
+            nextLabel = t("manual.btn_no_bricks");
+          } else {
+            const previewBricks = Math.min(availBricks, bDef.manualTradeBricks);
+            const previewCredits = previewBricks * (bDef.manualTradeCreditsPerBrick || 4);
+            nextLabel = t("manual.btn_launch_crate", { credits: formatPlanetStat(previewCredits) });
           }
         }
 
@@ -4892,6 +5037,7 @@
 
     updateAndDrawActiveFlights(time);
     updateAndDrawTradeFlights(time);
+    updateManualCrateFlights(time);
     drawFloatingTilePopups(time);
 
     if (isCrashShaking) {
@@ -5610,6 +5756,55 @@
           );
           updateTradeActionOverlay();
           notifySave("manual_energy", false);
+          return;
+        }
+
+        if (bDef.manualTradeBricks > 0) {
+          const now = performance.now();
+          if (now < (placed.manualCooldownUntil || 0)) {
+            tileTradeToggleBtn.classList.remove("is-shake");
+            void tileTradeToggleBtn.offsetWidth;
+            tileTradeToggleBtn.classList.add("is-shake");
+            window.setTimeout(function () { tileTradeToggleBtn.classList.remove("is-shake"); }, 280);
+            return;
+          }
+          const availBricks = Math.floor(bricksByPlanet[pId] || 0);
+          if (availBricks <= 0) {
+            tileTradeToggleBtn.classList.remove("is-shake");
+            void tileTradeToggleBtn.offsetWidth;
+            tileTradeToggleBtn.classList.add("is-shake");
+            window.setTimeout(function () { tileTradeToggleBtn.classList.remove("is-shake"); }, 280);
+            const iconImg = '<img class="game-toast-icon" src="' + bDef.iconSrc + '" alt="" draggable="false" />';
+            showGameToast(
+              "<span>" +
+                iconImg +
+                t("toast.manual_trade_no_bricks", {
+                  building: '<strong class="game-toast-strong">' + bDef.name + "</strong>",
+                  planet: '<strong class="game-toast-strong">' + (planets[pId] ? planets[pId].name : "") + "</strong>"
+                }) +
+                "</span>"
+            );
+            return;
+          }
+          const sold = Math.min(availBricks, bDef.manualTradeBricks);
+          const earned = sold * (bDef.manualTradeCreditsPerBrick || 4);
+          bricksByPlanet[pId] = Math.max(0, (bricksByPlanet[pId] || 0) - sold);
+          if (window.GameCurrencies && typeof window.GameCurrencies.add === "function") {
+            window.GameCurrencies.add("credits", earned);
+          }
+          placed.manualCooldownUntil = now + (bDef.manualTradeCooldownMs || 1600);
+          placed.manualPulseAt = now;
+          spawnManualCrateFlight(pId, tId, bDef, now);
+          spawnFloatingTilePopup(
+            tradeActionAnchor.cx,
+            tradeActionAnchor.minY - 8,
+            t("manual.popup_trade", { credits: formatPlanetStat(earned), bricks: formatPlanetStat(sold) }),
+            "#34d399",
+            now
+          );
+          updatePlanetBricksHud(true);
+          updateTradeActionOverlay();
+          notifySave("manual_trade", false);
           return;
         }
 
@@ -6488,6 +6683,7 @@
     }
     activeFlights.length = 0;
     activeTradeFlights.length = 0;
+    activeCrateFlights.length = 0;
     followingFlightId = null;
     for (let i = 0; i < PLANET_COUNT; i++) {
       tileEffectsByPlanet[i] = Object.create(null);
@@ -6941,6 +7137,7 @@
   function resetState() {
     activeFlights.length = 0;
     activeTradeFlights.length = 0;
+    activeCrateFlights.length = 0;
     followingFlightId = null;
     nextBuildingOrder = 1;
     lastBackgroundPerfMs = 0;

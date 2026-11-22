@@ -167,6 +167,54 @@
       iconSrc: "./assets/ui/bld-mega-quarry.svg"
     },
     {
+      id: "cargo_trampoline",
+      name: t("buildings.cargo_trampoline.name"),
+      category: "mining",
+      tag: t("categories.mining"),
+      terrain: "solid",
+      nextVariantId: "spring_catapult",
+      manualTradeTier: 1,
+      manualTradeBricks: 5,
+      manualTradeCreditsPerBrick: 4,
+      manualTradeCooldownMs: 1600,
+      description: t("buildings.cargo_trampoline.description"),
+      cost: { credits: 35, bricks: 5 },
+      accent: "#10b981",
+      iconSrc: "./assets/ui/bld-cargo-trampoline.svg"
+    },
+    {
+      id: "spring_catapult",
+      name: t("buildings.spring_catapult.name"),
+      category: "mining",
+      tag: t("categories.mining"),
+      terrain: "solid",
+      nextVariantId: "orbital_bouncer",
+      manualTradeTier: 2,
+      manualTradeBricks: 15,
+      manualTradeCreditsPerBrick: 5,
+      manualTradeCooldownMs: 1300,
+      description: t("buildings.spring_catapult.description"),
+      cost: { credits: 280, bricks: 45 },
+      accent: "#06b6d4",
+      iconSrc: "./assets/ui/bld-spring-catapult.svg"
+    },
+    {
+      id: "orbital_bouncer",
+      name: t("buildings.orbital_bouncer.name"),
+      category: "mining",
+      tag: t("categories.mining"),
+      terrain: "solid",
+      nextVariantId: null,
+      manualTradeTier: 3,
+      manualTradeBricks: 40,
+      manualTradeCreditsPerBrick: 6,
+      manualTradeCooldownMs: 1000,
+      description: t("buildings.orbital_bouncer.description"),
+      cost: { credits: 760, bricks: 155 },
+      accent: "#8b5cf6",
+      iconSrc: "./assets/ui/bld-orbital-bouncer.svg"
+    },
+    {
       id: "trade_rocket_1",
       name: t("buildings.trade_rocket_1.name"),
       category: "mining",
@@ -1645,6 +1693,19 @@
             })
           )
         );
+      } else if (!showInvalidTerrain && b.manualTradeBricks && b.manualTradeBricks > 0) {
+        info.appendChild(
+          createCardInfoChip(
+            "build-trade-chip",
+            "build-bricks-icon",
+            CURRENCY_ICONS.credits,
+            "build-bricks-label",
+            t("manual.trade_chip", {
+              bricks: formatCostValue(b.manualTradeBricks),
+              credits: formatCostValue(b.manualTradeBricks * (b.manualTradeCreditsPerBrick || 4))
+            })
+          )
+        );
       } else if (!showInvalidTerrain && b.solarEnergyBonus && b.solarEnergyBonus > 0) {
         info.appendChild(
           createCardInfoChip(
@@ -2056,6 +2117,28 @@
             b.iconSrc,
             "build-terrain-label",
             t("manual.energy_stack_chip", { mins: formatRateNumber((b.manualEnergyClickSec || 180) / 60) })
+          )
+        );
+      } else if (b.manualTradeBricks && b.manualTradeBricks > 0) {
+        confirmBadgesEl.appendChild(
+          createCardInfoChip(
+            "build-trade-chip",
+            "build-bricks-icon",
+            CURRENCY_ICONS.credits,
+            "build-bricks-label",
+            t("manual.trade_chip", {
+              bricks: formatCostValue(b.manualTradeBricks),
+              credits: formatCostValue(b.manualTradeBricks * (b.manualTradeCreditsPerBrick || 4))
+            })
+          )
+        );
+        confirmBadgesEl.appendChild(
+          createCardInfoChip(
+            "build-specialty-chip",
+            "build-terrain-icon",
+            b.iconSrc,
+            "build-terrain-label",
+            t("manual.brick_cooldown_chip", { sec: formatRateNumber((b.manualTradeCooldownMs || 1600) / 1000) })
           )
         );
       } else if (b.researchPerSec && b.researchPerSec > 0) {
@@ -5846,6 +5929,80 @@
     m.addDome(0, 0, 0.64, 0.16, 0.16, 0.18, 3, 8, [253, 224, 71], { emissive: active ? 0.92 : 0.28, spec: 0.80 });
   }
 
+  function buildTradeCrateModel(m, tier, zOffset) {
+    const zc = zOffset || 0;
+    const bodyCol = tier === 3 ? [109, 40, 217] : tier === 2 ? [2, 132, 199] : [217, 119, 6];
+    const bandCol = tier === 3 ? [253, 224, 71] : tier === 2 ? [56, 189, 248] : [245, 158, 11];
+    m.addBox(0, 0, zc, 0.15, 0.15, 0.14, bodyCol, { spec: 0.38, emissive: tier === 3 ? 0.25 : 0.08 });
+    m.addBox(0, 0, zc, 0.165, 0.165, 0.036, bandCol, { spec: 0.55, emissive: tier === 3 ? 0.45 : 0.15 });
+  }
+
+  function buildCargoTrampolineModel(m, time, phase, pxScale, opts) {
+    const pulse = opts && opts.manualPulse ? opts.manualPulse : 0;
+    const bounce = pulse > 0 ? -Math.sin(pulse * Math.PI * 2) * Math.exp(-pulse * 2.2) * 0.12 : 0;
+    const lw = Math.max(1.3, pxScale * 0.048);
+    m.addPrism(0, 0, 0.0, 0.05, 0.60, 0.56, 8, Math.PI / 8, [51, 65, 85], { spec: 0.22 });
+    for (let k = 0; k < 6; k++) {
+      const a = (Math.PI * 2 * k) / 6;
+      m.addLine(
+        [Math.cos(a) * 0.48, Math.sin(a) * 0.48, 0.04],
+        [Math.cos(a) * 0.45, Math.sin(a) * 0.45, 0.24],
+        "#94a3b8",
+        lw
+      );
+    }
+    m.addPrism(0, 0, 0.23, 0.29, 0.50, 0.50, 8, Math.PI / 8, [100, 116, 139], { spec: 0.35 });
+    m.addPrism(0, 0, 0.26 + bounce, 0.31 + bounce, 0.40, 0.38, 8, Math.PI / 8, [16, 185, 129], {
+      spec: 0.40,
+      emissive: 0.12 + pulse * 0.35
+    });
+    if (pulse < 0.05) {
+      buildTradeCrateModel(m, 1, 0.45);
+    }
+  }
+
+  function buildSpringCatapultModel(m, time, phase, pxScale, opts) {
+    const pulse = opts && opts.manualPulse ? opts.manualPulse : 0;
+    const bounce = pulse > 0 ? -Math.sin(pulse * Math.PI * 2) * Math.exp(-pulse * 2.2) * 0.14 : 0;
+    m.addPrism(0, 0, 0.0, 0.07, 0.64, 0.59, 8, Math.PI / 8, [30, 41, 59], { spec: 0.28 });
+    for (let k = 0; k < 6; k++) {
+      const a = (Math.PI * 2 * k) / 6;
+      m.addPrism(Math.cos(a) * 0.44, Math.sin(a) * 0.44, 0.07, 0.28, 0.055, 0.045, 6, 0, [56, 189, 248], {
+        emissive: 0.32 + pulse * 0.3,
+        spec: 0.55
+      });
+    }
+    m.addPrism(0, 0, 0.27, 0.34, 0.54, 0.54, 8, Math.PI / 8, [71, 85, 105], { spec: 0.40 });
+    m.addPrism(0, 0, 0.30 + bounce, 0.36 + bounce, 0.43, 0.41, 8, Math.PI / 8, [6, 182, 212], {
+      spec: 0.48,
+      emissive: 0.20 + pulse * 0.40
+    });
+    if (pulse < 0.05) {
+      buildTradeCrateModel(m, 2, 0.50);
+    }
+  }
+
+  function buildOrbitalBouncerModel(m, time, phase, pxScale, opts) {
+    const pulse = opts && opts.manualPulse ? opts.manualPulse : 0;
+    const bounce = pulse > 0 ? -Math.sin(pulse * Math.PI * 2) * Math.exp(-pulse * 2.2) * 0.14 : 0;
+    const glow = 0.45 + 0.15 * Math.sin(time * 0.005 + phase) + pulse * 0.40;
+    m.addPrism(0, 0, 0.0, 0.09, 0.66, 0.61, 8, Math.PI / 8, [49, 46, 129], { spec: 0.36 });
+    for (let k = 0; k < 4; k++) {
+      const a = (Math.PI * 2 * k) / 4 + Math.PI / 4;
+      const px = Math.cos(a) * 0.46;
+      const py = Math.sin(a) * 0.46;
+      m.addPrism(px, py, 0.09, 0.48, 0.065, 0.04, 6, 0, [139, 92, 246], { spec: 0.5, emissive: glow * 0.6 });
+      m.addBox(px, py, 0.51, 0.04, 0.04, 0.035, [253, 224, 71], { emissive: glow });
+    }
+    m.addPrism(0, 0, 0.26 + bounce, 0.33 + bounce, 0.44, 0.42, 8, time * 0.002, [196, 181, 253], {
+      spec: 0.65,
+      emissive: glow * 0.85
+    });
+    if (pulse < 0.05) {
+      buildTradeCrateModel(m, 3, 0.47);
+    }
+  }
+
   function buildUtopiaSpireFast(m, time, phase) {
     // Lean ~14-face utopian sky spire for silky 60fps Nova-7 metropolis rendering
     m.addPrism(0, 0, 0.0, 0.10, 0.62, 0.56, 6, 0, [251, 191, 36], { spec: 0.55 });
@@ -6136,6 +6293,13 @@
     collector.drawAll(ctx);
   }
 
+  function renderTradeCrate3D(ctx, frame, time, tier) {
+    if (!ctx || !frame) return;
+    const collector = createMeshCollector(frame, 1, null);
+    buildTradeCrateModel(collector, tier || 1, 0);
+    collector.drawAll(ctx);
+  }
+
   function renderRocketVessel3D(ctx, rocketId, frame, time, buildScale, opts) {
     if (!ctx || !frame) return;
     const collector = createMeshCollector(frame, buildScale, opts);
@@ -6180,6 +6344,12 @@
       buildFlywheelDynamoModel(collector, time, phase, pxScale, opts);
     } else if (buildingId === "capacitor_core") {
       buildCapacitorCoreModel(collector, time, phase, pxScale, opts);
+    } else if (buildingId === "cargo_trampoline") {
+      buildCargoTrampolineModel(collector, time, phase, pxScale, opts);
+    } else if (buildingId === "spring_catapult") {
+      buildSpringCatapultModel(collector, time, phase, pxScale, opts);
+    } else if (buildingId === "orbital_bouncer") {
+      buildOrbitalBouncerModel(collector, time, phase, pxScale, opts);
     } else if (buildingId === "mine") {
       buildMineModel(collector, time, phase, pxScale);
     } else if (buildingId === "deep_mine") {
@@ -7057,6 +7227,7 @@
     renderBuilding3D: renderBuilding3D,
     renderRocketVessel3D: renderRocketVessel3D,
     renderEscapeCraft3D: renderEscapeCraft3D,
+    renderTradeCrate3D: renderTradeCrate3D,
     renderTileEffect: renderTileEffect
   };
 })();

@@ -146,6 +146,18 @@
         name: "Overdrive Core",
         description: "Late-game manual hyper-capacitor spire. Click to inject +7.5m of +25 Energy per click, stacking up to 1 hour max."
       },
+      cargo_trampoline: {
+        name: "Space Trampoline",
+        description: "Spring-loaded orbital bounce pad. Click to fling crates of 5 Construction Bricks into space for +20 Space Credits with a short cooldown."
+      },
+      spring_catapult: {
+        name: "Coil Trampoline",
+        description: "Upgraded twin-coil trampoline pad that launches heavier 15-Brick crates into space for +75 Space Credits on every click."
+      },
+      orbital_bouncer: {
+        name: "Grav-Trampoline",
+        description: "Late-game gravimetric bounce array that hurls massive 40-Brick cargo crates into orbit for +240 Space Credits per click."
+      },
       crash_base: {
         name: "Crash Base",
         specialty: "Permanent Pioneer Shelter",
@@ -305,7 +317,11 @@
       btn_charge_max: "MAX 60:00 (+{energy}⚡)",
       popup_brick: "+{amount} Bricks",
       popup_energy: "+{mins}m ⚡",
-      popup_energy_max: "MAX 1h ⚡"
+      popup_energy_max: "MAX 1h ⚡",
+      trade_chip: "{bricks} Bricks → +{credits} SC",
+      btn_launch_crate: "Bounce +{credits} SC",
+      btn_no_bricks: "Need Bricks",
+      popup_trade: "+{credits} SC (-{bricks})"
     },
     rocket: {
       launch_btn: "LAUNCH!",
@@ -402,7 +418,8 @@
       terraform_already_used: "{building} has already been used — demolish or replace it with another building.",
       terraform_same_biome: "This tile is already {biome}. Pick a different terrain type.",
       terraform_success: "Tile transformed into {biome}! {building} is now spent — demolish or replace it.",
-      manual_energy_max: "{building} is already at maximum charge (1 hour)!"
+      manual_energy_max: "{building} is already at maximum charge (1 hour)!",
+      manual_trade_no_bricks: "Need at least 1 Construction Brick on {planet} to launch with {building}!"
     },
     research: {
       title: "Research Tree",

@@ -84,6 +84,29 @@
         citizensRequired: 4
       },
 
+      // Manual Brick Trading (Trampolines)
+      cargo_trampoline: {
+        cost: { credits: 35, bricks: 5 },
+        manualTradeTier: 1,
+        manualTradeBricks: 5,
+        manualTradeCreditsPerBrick: 4,
+        manualTradeCooldownMs: 1600
+      },
+      spring_catapult: {
+        cost: { credits: 280, bricks: 45 },
+        manualTradeTier: 2,
+        manualTradeBricks: 15,
+        manualTradeCreditsPerBrick: 5,
+        manualTradeCooldownMs: 1300
+      },
+      orbital_bouncer: {
+        cost: { credits: 760, bricks: 155 },
+        manualTradeTier: 3,
+        manualTradeBricks: 40,
+        manualTradeCreditsPerBrick: 6,
+        manualTradeCooldownMs: 1000
+      },
+
       // Automated Trade Rockets
       trade_rocket_1: {
         cost: { credits: 90, bricks: 40 },
