@@ -811,6 +811,7 @@
     bricks: { iconSrc: "./assets/ui/icon-bricks.svg", scope: "planet" }
   };
   const resourceTooltipState = { open: false, key: null, triggerEl: null };
+  let lastCitizenTooltipSec = -1;
   const blockedOverlayIcons = {
     energy: (function () {
       const img = new Image();
@@ -1578,12 +1579,24 @@
         }
       } else if (key === "citizens") {
         const cit = getPlanetCitizenStatus(activeDotIndex);
-        if (cit.totalCitizens < cit.maxCitizens) {
+        const growthRatePerSec = getPlanetCitizenGrowthRate(activeDotIndex);
+        if (cit.totalCitizens < cit.maxCitizens && growthRatePerSec > 0) {
+          const rawPop = Math.max(getPlanetBaseCitizenCount(activeDotIndex), Number(citizensByPlanet[activeDotIndex]) || 0);
+          const frac = rawPop - Math.floor(rawPop);
+          const remCit = Math.max(0.001, 1 - frac);
+          const secToNext = Math.max(1, Math.ceil(remCit / growthRatePerSec));
+          const nextTimeStr =
+            secToNext >= 60
+              ? Math.floor(secToNext / 60) + "m " + (secToNext % 60) + "s"
+              : secToNext + "s";
+          const ratePerMin = Math.round(growthRatePerSec * 60 * 10) / 10;
           statText = t("resource_tooltips.citizens_regen_label", {
             avail: formatPlanetStat(cit.availableCitizens),
             pop: formatPlanetStat(cit.totalCitizens),
             max: formatPlanetStat(cit.maxCitizens),
-            used: formatPlanetStat(cit.usedCitizens)
+            used: formatPlanetStat(cit.usedCitizens),
+            rate: ratePerMin,
+            next: nextTimeStr
           });
         } else {
           statText = t("resource_tooltips.citizens_avail_label", {
@@ -1592,7 +1605,7 @@
             used: formatPlanetStat(cit.usedCitizens)
           });
         }
-        const growthMult = getPlanetCitizenGrowthRate(activeDotIndex) / Math.max(0.0001, CITIZEN_REGEN_PER_SEC);
+        const growthMult = growthRatePerSec / Math.max(0.0001, CITIZEN_REGEN_PER_SEC);
         if (growthMult > 1.001) {
           statText += t("resource_tooltips.growth_bonus_suffix", { pct: Math.round((growthMult - 1) * 100) });
         }
@@ -4986,7 +4999,11 @@
     updatePlanetCitizenHud(false);
     if (citizenRegenChanged) {
       syncOreProductionRate(false);
-      if (resourceTooltipState.open && resourceTooltipState.key === "citizens") {
+    }
+    if (resourceTooltipState.open && resourceTooltipState.key === "citizens") {
+      const curSec = Math.floor(time / 1000);
+      if (citizenRegenChanged || curSec !== lastCitizenTooltipSec) {
+        lastCitizenTooltipSec = curSec;
         updateResourceTooltipContent();
       }
     }
