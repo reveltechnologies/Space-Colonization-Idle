@@ -402,6 +402,16 @@
     }
   }
 
+  const NODES_BY_ID = Object.create(null);
+  const NODE_BY_BUILDING_ID = Object.create(null);
+  for (let i = 0; i < RESEARCH_NODES.length; i++) {
+    const node = RESEARCH_NODES[i];
+    NODES_BY_ID[node.id] = node;
+    if (node.unlocksBuilding) {
+      NODE_BY_BUILDING_ID[node.unlocksBuilding] = node;
+    }
+  }
+
   const PLANET_DEFAULTS = {
     rocky: {
       nameKey: "planets.planet_1.default_name",
@@ -463,13 +473,43 @@
     planetProvider = typeof fn === "function" ? fn : null;
   }
 
-  function getNode(id) {
+  let cachedBricksMult = 1;
+  let cachedDeepMegaBricksMult = 1;
+  let cachedResearchMult = 1;
+  let cachedEnergyMult = 1;
+  let cachedCitizenMult = 1;
+  let cachedCitizenGrowthMult = 1;
+
+  function rebuildBonusCache() {
+    let bricks = 1;
+    let deepMegaBricks = 1;
+    let res = 1;
+    let energy = 1;
+    let cit = 1;
+    let citGrowth = 1;
     for (let i = 0; i < RESEARCH_NODES.length; i++) {
-      if (RESEARCH_NODES[i].id === id) {
-        return RESEARCH_NODES[i];
+      const node = RESEARCH_NODES[i];
+      if (!researched[node.id]) continue;
+      if (node.bricksBonus) {
+        bricks += node.bricksBonus;
+        deepMegaBricks += node.bricksBonus;
       }
+      if (node.deepMegaBricksBonus) deepMegaBricks += node.deepMegaBricksBonus;
+      if (node.researchBonus) res += node.researchBonus;
+      if (node.energyBonus) energy += node.energyBonus;
+      if (node.citizenBonus) cit += node.citizenBonus;
+      if (node.citizenGrowthBonus) citGrowth += node.citizenGrowthBonus;
     }
-    return null;
+    cachedBricksMult = bricks;
+    cachedDeepMegaBricksMult = deepMegaBricks;
+    cachedResearchMult = res;
+    cachedEnergyMult = energy;
+    cachedCitizenMult = cit;
+    cachedCitizenGrowthMult = citGrowth;
+  }
+
+  function getNode(id) {
+    return (id && NODES_BY_ID[id]) || null;
   }
 
   function isResearched(id) {
@@ -477,12 +517,7 @@
   }
 
   function getResearchForBuilding(buildingId) {
-    for (let i = 0; i < RESEARCH_NODES.length; i++) {
-      if (RESEARCH_NODES[i].unlocksBuilding === buildingId) {
-        return RESEARCH_NODES[i];
-      }
-    }
-    return null;
+    return (buildingId && NODE_BY_BUILDING_ID[buildingId]) || null;
   }
 
   function isBuildingUnlocked(buildingId) {
@@ -491,43 +526,26 @@
     return isResearched(req.id);
   }
 
-  function sumResearchedBonus(bonusKey) {
-    let mult = 1;
-    for (let i = 0; i < RESEARCH_NODES.length; i++) {
-      const node = RESEARCH_NODES[i];
-      if (isResearched(node.id) && node[bonusKey]) {
-        mult += node[bonusKey];
-      }
-    }
-    return mult;
-  }
-
   function getBrickMultiplier(buildingId) {
-    let mult = 1;
-    const isDeepOrMega = buildingId === "deep_mine" || buildingId === "mega_quarry";
-    for (let i = 0; i < RESEARCH_NODES.length; i++) {
-      const node = RESEARCH_NODES[i];
-      if (!isResearched(node.id)) continue;
-      if (node.bricksBonus) mult += node.bricksBonus;
-      if (isDeepOrMega && node.deepMegaBricksBonus) mult += node.deepMegaBricksBonus;
-    }
-    return mult;
+    return buildingId === "deep_mine" || buildingId === "mega_quarry"
+      ? cachedDeepMegaBricksMult
+      : cachedBricksMult;
   }
 
   function getResearchMultiplier() {
-    return sumResearchedBonus("researchBonus");
+    return cachedResearchMult;
   }
 
   function getEnergyMultiplier() {
-    return sumResearchedBonus("energyBonus");
+    return cachedEnergyMult;
   }
 
   function getCitizenMultiplier() {
-    return sumResearchedBonus("citizenBonus");
+    return cachedCitizenMult;
   }
 
   function getCitizenGrowthMultiplier() {
-    return sumResearchedBonus("citizenGrowthBonus");
+    return cachedCitizenGrowthMult;
   }
 
   function formatNumber(val) {
@@ -713,6 +731,7 @@
 
     researchPoints = Math.max(0, researchPoints - node.cost);
     researched[node.id] = true;
+    rebuildBonusCache();
     syncRpHeader(true);
     renderCategories();
     renderTree();
@@ -1229,6 +1248,7 @@
       researchPoints = STARTING_RP;
     }
 
+    rebuildBonusCache();
     syncRpHeader(true);
     if (modalOpen) {
       renderCategories();
@@ -1245,6 +1265,7 @@
     }
     researchPoints = STARTING_RP;
     currentRpPerSec = 0;
+    rebuildBonusCache();
     syncRpHeader(true);
     if (modalOpen) {
       renderCategories();

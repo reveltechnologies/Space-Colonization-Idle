@@ -26,6 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Removed clipping on `.build-title-stack` so `#build-biome-badge`'s bottom border and drop shadow render cleanly without being cut off by the purple header background.
 - **Helio Mirror 3D Pedestal & Support Strut Connection (`src/js/buildings.js`)**:
   - Extended `buildHelioMirrorModel` with a central support mast, golden gimbal pivot head, and rear/lower brace struts connecting the ground pedestal cleanly to the underside of the tilted mirror dish.
+- **High-Building-Count Performance Optimization (`src/js/buildings.js`, `src/js/planets.js`, `src/js/research.js`, `src/js/main.js`)**:
+  - Rewrote the 3D building mesh collector in `src/js/buildings.js` to use a zero-allocation pooled primitive buffer (`primPool` + `sharedCollector`), precomputed local-space backface culling (`addBox`/`addPrism`/`addDome`), convex-group self-overlap skipping, typed-array polygon clipping, a fast zero-edge topological sort path, and Canvas 2D style caching.
+  - Added versioned per-planet economy snapshots (`getPlanetSnapshot`) in `src/js/planets.js` so brick/energy/citizen/research/ore/trade calculations run once per state change instead of dozens of times per frame, alongside pre-multiplied 3×3 planet rotation matrices, reused `buildingFrame` objects, and cached HUD/control DOM state.
+  - Added O(1) lookup maps and cached multipliers in `src/js/research.js` and `src/js/buildings.js`, in-place Build Menu affordability updates (`syncBuildingCardAffordability`), and pre-rendered nebula sprites + cached gradients in `src/js/main.js`.
 
 ## [0.2.0-pre.2] - 2026-11-21
 

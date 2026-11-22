@@ -17,12 +17,12 @@
 
   // Star palette representing stellar spectral classes (O, B, A, F, G, K, M)
   const STAR_COLORS = [
-    { r: 255, g: 255, b: 255 }, // Neutral White
-    { r: 215, g: 235, b: 255 }, // Bluish-White
-    { r: 165, g: 215, b: 255 }, // Cyan-Blue (Rigel)
-    { r: 255, g: 244, b: 214 }, // Soft Yellow (Sun-like)
-    { r: 255, g: 210, b: 150 }, // Amber-Orange (Arcturus)
-    { r: 255, g: 175, b: 175 }  // Crimson-Red Dwarf
+    { r: 255, g: 255, b: 255, rgbStr: "rgb(255,255,255)" }, // Neutral White
+    { r: 215, g: 235, b: 255, rgbStr: "rgb(215,235,255)" }, // Bluish-White
+    { r: 165, g: 215, b: 255, rgbStr: "rgb(165,215,255)" }, // Cyan-Blue (Rigel)
+    { r: 255, g: 244, b: 214, rgbStr: "rgb(255,244,214)" }, // Soft Yellow (Sun-like)
+    { r: 255, g: 210, b: 150, rgbStr: "rgb(255,210,150)" }, // Amber-Orange (Arcturus)
+    { r: 255, g: 175, b: 175, rgbStr: "rgb(255,175,175)" }  // Crimson-Red Dwarf
   ];
 
   const NEBULA_PALETTES = [
@@ -32,11 +32,33 @@
     { r: 190, g: 24, b: 93 }   // Magenta Nebula
   ];
 
+  const nebulaSprites = [];
+  function getNebulaSprite(palette) {
+    for (let i = 0; i < nebulaSprites.length; i++) {
+      if (nebulaSprites[i].palette === palette) return nebulaSprites[i].canvas;
+    }
+    const off = document.createElement("canvas");
+    off.width = 128;
+    off.height = 128;
+    const octx = off.getContext("2d");
+    if (octx) {
+      const g = octx.createRadialGradient(64, 64, 0, 64, 64, 64);
+      g.addColorStop(0, `rgba(${palette.r}, ${palette.g}, ${palette.b}, 1)`);
+      g.addColorStop(0.45, `rgba(${palette.r}, ${palette.g}, ${palette.b}, 0.42)`);
+      g.addColorStop(1, `rgba(${palette.r}, ${palette.g}, ${palette.b}, 0)`);
+      octx.fillStyle = g;
+      octx.fillRect(0, 0, 128, 128);
+    }
+    nebulaSprites.push({ palette: palette, canvas: off });
+    return off;
+  }
+
   let width = window.innerWidth;
   let height = window.innerHeight;
   let lastTime = performance.now();
   let nextShootingStarTime = performance.now() + 2000;
   let parallaxDx = 0;
+  let cachedBgGrad = null;
 
   window.SpaceBackground = {
     addParallax: function (dx) {
@@ -60,6 +82,11 @@
 
     if (ctx) {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const bgGrad = ctx.createLinearGradient(0, 0, width, height);
+      bgGrad.addColorStop(0, "#040711");
+      bgGrad.addColorStop(0.5, "#070b18");
+      bgGrad.addColorStop(1, "#03050c");
+      cachedBgGrad = bgGrad;
     }
   }
 
@@ -180,14 +207,11 @@
     parallaxDx = 0;
 
     // 1. Dark Void Base Clear with slight gradient
-    const bgGrad = ctx.createLinearGradient(0, 0, width, height);
-    bgGrad.addColorStop(0, "#040711");
-    bgGrad.addColorStop(0.5, "#070b18");
-    bgGrad.addColorStop(1, "#03050c");
-    ctx.fillStyle = bgGrad;
+    ctx.fillStyle = cachedBgGrad || "#040711";
     ctx.fillRect(0, 0, width, height);
 
     // 2. Render Soft Nebulae Glows
+    ctx.save();
     for (let i = 0; i < nebulae.length; i++) {
       const neb = nebulae[i];
       neb.x += neb.vx;
@@ -197,18 +221,14 @@
       if (neb.x > width + neb.radius) neb.x = -neb.radius;
 
       const pulse = Math.sin(time * neb.pulseSpeed + neb.pulseOffset) * 0.03;
-      const alpha = Math.max(0.02, neb.baseAlpha + pulse);
-
-      const grad = ctx.createRadialGradient(neb.x, neb.y, 0, neb.x, neb.y, neb.radius);
-      grad.addColorStop(0, `rgba(${neb.color.r}, ${neb.color.g}, ${neb.color.b}, ${alpha * 1.2})`);
-      grad.addColorStop(0.45, `rgba(${neb.color.r}, ${neb.color.g}, ${neb.color.b}, ${alpha * 0.5})`);
-      grad.addColorStop(1, `rgba(${neb.color.r}, ${neb.color.g}, ${neb.color.b}, 0)`);
-
-      ctx.fillStyle = grad;
-      ctx.fillRect(neb.x - neb.radius, neb.y - neb.radius, neb.radius * 2, neb.radius * 2);
+      const alpha = Math.max(0.02, neb.baseAlpha + pulse) * 1.2;
+      const sprite = getNebulaSprite(neb.color);
+      ctx.globalAlpha = alpha;
+      ctx.drawImage(sprite, neb.x - neb.radius, neb.y - neb.radius, neb.radius * 2, neb.radius * 2);
     }
 
     // 3. Render Cosmic Dust Motes
+    ctx.fillStyle = "rgb(186,230,253)";
     for (let i = 0; i < cosmicDust.length; i++) {
       const p = cosmicDust[i];
       p.x += p.vx + frameParallax * 0.14;
@@ -221,9 +241,7 @@
       if (p.y > height) p.y = 0;
 
       const flicker = Math.sin(time * 0.002 + p.lifeOffset) * 0.08;
-      const curAlpha = Math.max(0.04, p.alpha + flicker);
-
-      ctx.fillStyle = `rgba(186, 230, 253, ${curAlpha})`;
+      ctx.globalAlpha = Math.max(0.04, p.alpha + flicker);
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
       ctx.fill();
@@ -248,23 +266,24 @@
       const alpha = Math.max(0.12, Math.min(1, s.baseAlpha + twinkle * 0.35));
       const radius = Math.max(0.3, s.radius + twinkle * 0.25);
 
-      const colorStr = `${s.color.r}, ${s.color.g}, ${s.color.b}`;
+      ctx.fillStyle = s.color.rgbStr;
 
       if (s.layer >= 1) {
+        ctx.globalAlpha = alpha * 0.22;
         ctx.beginPath();
         ctx.arc(s.x, s.y, radius * 2.8, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(${colorStr}, ${alpha * 0.22})`;
         ctx.fill();
       }
 
+      ctx.globalAlpha = alpha;
       ctx.beginPath();
       ctx.arc(s.x, s.y, radius, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(${colorStr}, ${alpha})`;
       ctx.fill();
 
       if (s.hasRays && alpha > 0.6) {
         const rayLen = radius * 4.2;
-        ctx.strokeStyle = `rgba(${colorStr}, ${alpha * 0.35})`;
+        ctx.strokeStyle = s.color.rgbStr;
+        ctx.globalAlpha = alpha * 0.35;
         ctx.lineWidth = 0.8;
 
         ctx.beginPath();
@@ -275,6 +294,7 @@
         ctx.stroke();
       }
     }
+    ctx.restore();
 
     // 5. Shooting Stars / Meteors
     if (time > nextShootingStarTime) {

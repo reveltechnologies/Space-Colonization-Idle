@@ -818,6 +818,11 @@
     })()
   };
   let lastHeaderPlanet = -1;
+  let lastTradeCreditsRate = -1;
+  let lastPrevHidden = null;
+  let lastNextHidden = null;
+  let lastZoomInDisabled = null;
+  let lastZoomOutDisabled = null;
   let emblemPopTimer = 0;
   let isRenamingPlanet = false;
   let renamingPlanetIndex = -1;
@@ -993,38 +998,264 @@
     }
   }
 
-  /** Sum a per-building capacity property (e.g. citizenSlots or energySlots) on a planet. */
-  function calculatePlanetStatCapacity(planetIdx, slotKey) {
-    const buildings = buildingsByPlanet[planetIdx];
-    if (!buildings || !window.GameBuildings) return 0;
-    let cap = 0;
-    const keys = Object.keys(buildings);
-    for (let i = 0; i < keys.length; i++) {
-      const bInfo = buildings[keys[i]];
-      if (!bInfo || !bInfo.id) continue;
-      const bDef = window.GameBuildings.getBuilding(bInfo.id);
-      if (bDef && bDef[slotKey]) {
-        if (slotKey === "citizenSlots" && bDef.fixedCitizens) continue;
-        cap += bDef[slotKey];
-      }
+  const planetBuildingsVersion = [1, 1, 1];
+  let researchStatsVersion = 1;
+  const planetSnapshots = [null, null, null];
+
+  function invalidatePlanetStats(planetIdx) {
+    if (planetIdx >= 0 && planetIdx < PLANET_COUNT) {
+      planetBuildingsVersion[planetIdx]++;
+      planetSnapshots[planetIdx] = null;
     }
-    return cap;
   }
 
-  function calculateFixedBuildingCitizens(planetIdx) {
-    const buildings = buildingsByPlanet[planetIdx];
-    if (!buildings || !window.GameBuildings) return 0;
-    let fixed = 0;
-    const keys = Object.keys(buildings);
-    for (let i = 0; i < keys.length; i++) {
-      const bInfo = buildings[keys[i]];
-      if (!bInfo || !bInfo.id) continue;
-      const bDef = window.GameBuildings.getBuilding(bInfo.id);
-      if (bDef && bDef.fixedCitizens && bDef.citizenSlots > 0) {
-        fixed += bDef.citizenSlots;
+  function invalidateAllPlanetStats() {
+    for (let i = 0; i < PLANET_COUNT; i++) {
+      planetBuildingsVersion[i]++;
+      planetSnapshots[i] = null;
+    }
+  }
+
+  function allocateConsumersList(consumers, totalSupply) {
+    consumers.sort(function (a, b) {
+      if (a.placedOrder !== b.placedOrder) return a.placedOrder - b.placedOrder;
+      return a.tileNum - b.tileNum;
+    });
+
+    let remaining = totalSupply;
+    let used = 0;
+    let required = 0;
+    const activeTiles = Object.create(null);
+    const blockedTiles = Object.create(null);
+
+    for (let i = 0; i < consumers.length; i++) {
+      const c = consumers[i];
+      required += c.req;
+      if (remaining >= c.req) {
+        remaining -= c.req;
+        used += c.req;
+        activeTiles[c.tileId] = true;
+      } else {
+        blockedTiles[c.tileId] = true;
       }
     }
-    return fixed;
+
+    return {
+      available: remaining,
+      used: used,
+      required: required,
+      activeTiles: activeTiles,
+      blockedTiles: blockedTiles
+    };
+  }
+
+  function getPlanetSnapshot(planetIdx) {
+    const bVer = planetBuildingsVersion[planetIdx];
+    const rVer = researchStatsVersion;
+    const rawFloorCit = Math.floor(citizensByPlanet[planetIdx] || 0);
+    const cached = planetSnapshots[planetIdx];
+    if (
+      cached &&
+      cached.bVer === bVer &&
+      cached.rVer === rVer &&
+      cached.rawFloorCit === rawFloorCit
+    ) {
+      return cached;
+    }
+
+    const buildings = buildingsByPlanet[planetIdx];
+    const countsById = Object.create(null);
+    const discountsByCategory = Object.create(null);
+    const energyConsumers = [];
+    const citizenConsumers = [];
+    const brickProducers = [];
+    const researchProducers = [];
+    const oreProducers = [];
+    const tradeCandidates = [];
+
+    let nonSolarEnergy = 0;
+    let solarEnergy = 0;
+    let solarBonus = 0;
+    let citizenGrowthBonus = 0;
+    let nonFixedCitizens = 0;
+    let fixedCitizens = 0;
+    let landedCitizens = 0;
+
+    if (buildings && window.GameBuildings) {
+      const keys = Object.keys(buildings);
+      for (let i = 0; i < keys.length; i++) {
+        const tileId = keys[i];
+        const bInfo = buildings[tileId];
+        if (!bInfo || !bInfo.id) continue;
+        countsById[bInfo.id] = (countsById[bInfo.id] || 0) + 1;
+
+        const bDef = window.GameBuildings.getBuilding(bInfo.id);
+        if (!bDef) continue;
+
+        if (bDef.citizenSlots > 0) {
+          if (bDef.fixedCitizens) {
+            fixedCitizens += bDef.citizenSlots;
+          } else {
+            nonFixedCitizens += bDef.citizenSlots;
+          }
+        }
+        if (bInfo.isLanded && bInfo.landedCitizens > 0) {
+          landedCitizens += bInfo.landedCitizens;
+        }
+
+        const isUsed = Boolean(bInfo.used);
+        if (!isUsed) {
+          if (bDef.energySlots > 0) {
+            if (bDef.isSolar) {
+              solarEnergy += bDef.energySlots;
+            } else {
+              nonSolarEnergy += bDef.energySlots;
+            }
+          }
+          if (bDef.solarEnergyBonus > 0) solarBonus += bDef.solarEnergyBonus;
+          if (bDef.citizenGrowthBonus > 0) citizenGrowthBonus += bDef.citizenGrowthBonus;
+          if (bDef.costDiscount > 0 && Array.isArray(bDef.discountCategories)) {
+            for (let d = 0; d < bDef.discountCategories.length; d++) {
+              const cat = bDef.discountCategories[d];
+              discountsByCategory[cat] = (discountsByCategory[cat] || 0) + bDef.costDiscount;
+            }
+          }
+
+          const order = Number.isFinite(bInfo.placedOrder) ? bInfo.placedOrder : (bInfo.placedAt || 0);
+          const tileNum = Number(tileId) || 0;
+          if (bDef.energyRequired > 0) {
+            energyConsumers.push({ tileId: tileId, tileNum: tileNum, placedOrder: order, req: bDef.energyRequired });
+          }
+          if (bDef.citizensRequired > 0) {
+            citizenConsumers.push({ tileId: tileId, tileNum: tileNum, placedOrder: order, req: bDef.citizensRequired });
+          }
+        }
+
+        if (bDef.bricksPerSec) {
+          brickProducers.push({ tileId: tileId, bDef: bDef });
+        }
+        if (bDef.researchPerSec) {
+          researchProducers.push({ tileId: tileId, bDef: bDef });
+        }
+        const orePerSec =
+          typeof window.GameBuildings.getBuildingOrePerSec === "function"
+            ? window.GameBuildings.getBuildingOrePerSec(bDef)
+            : bDef.orePerSec > 0
+              ? bDef.orePerSec
+              : bDef.orePerDay > 0
+                ? bDef.orePerDay / 86400
+                : 0;
+        if (orePerSec > 0) {
+          oreProducers.push({ tileId: tileId, bDef: bDef, perSec: orePerSec });
+        }
+        if (bDef.tradeVariant && bInfo.tradeEnabled) {
+          tradeCandidates.push({ tileId: tileId, bInfo: bInfo, bDef: bDef });
+        }
+      }
+    }
+
+    const resEnergyMult =
+      window.GameResearch && typeof window.GameResearch.getEnergyMultiplier === "function"
+        ? window.GameResearch.getEnergyMultiplier()
+        : 1;
+    const maxEnergy = Math.round((nonSolarEnergy + solarEnergy * (1 + solarBonus)) * resEnergyMult);
+    const powerAlloc = allocateConsumersList(energyConsumers, maxEnergy);
+    const power = {
+      maxEnergy: maxEnergy,
+      availableEnergy: powerAlloc.available,
+      usedEnergy: powerAlloc.used,
+      requiredEnergy: powerAlloc.required,
+      poweredTiles: powerAlloc.activeTiles,
+      energyBlockedTiles: powerAlloc.blockedTiles
+    };
+
+    const baseCitizens = Math.max(0, Math.floor(baseCitizensByPlanet[planetIdx] || 0)) + fixedCitizens;
+    const resCitMult =
+      window.GameResearch && typeof window.GameResearch.getCitizenMultiplier === "function"
+        ? window.GameResearch.getCitizenMultiplier()
+        : 1;
+    const maxCitizens = baseCitizens + Math.round(nonFixedCitizens * resCitMult) + landedCitizens;
+    const totalCitizens = Math.max(baseCitizens, Math.min(maxCitizens, rawFloorCit));
+    const citAlloc = allocateConsumersList(citizenConsumers, totalCitizens);
+    const citizens = {
+      maxCitizens: maxCitizens,
+      totalCitizens: totalCitizens,
+      availableCitizens: citAlloc.available,
+      usedCitizens: citAlloc.used,
+      requiredCitizens: citAlloc.required,
+      staffedTiles: citAlloc.activeTiles,
+      citizenBlockedTiles: citAlloc.blockedTiles
+    };
+
+    const resGrowthMult =
+      window.GameResearch && typeof window.GameResearch.getCitizenGrowthMultiplier === "function"
+        ? window.GameResearch.getCitizenGrowthMultiplier()
+        : 1;
+    const citizenGrowthRate = CITIZEN_REGEN_PER_SEC * (1 + citizenGrowthBonus) * resGrowthMult;
+
+    let brickRate = 0;
+    for (let i = 0; i < brickProducers.length; i++) {
+      const p = brickProducers[i];
+      if (!isTileOperational(p.tileId, p.bDef, power, citizens)) continue;
+      const mult =
+        window.GameResearch && typeof window.GameResearch.getBrickMultiplier === "function"
+          ? window.GameResearch.getBrickMultiplier(p.bDef.id)
+          : 1;
+      brickRate += p.bDef.bricksPerSec * mult;
+    }
+
+    let researchBase = 0;
+    for (let i = 0; i < researchProducers.length; i++) {
+      const p = researchProducers[i];
+      if (!isTileOperational(p.tileId, p.bDef, power, citizens)) continue;
+      researchBase += p.bDef.researchPerSec;
+    }
+    const resResearchMult =
+      window.GameResearch && typeof window.GameResearch.getResearchMultiplier === "function"
+        ? window.GameResearch.getResearchMultiplier()
+        : 1;
+    const researchRate = researchBase * resResearchMult;
+
+    let oreRate = 0;
+    for (let i = 0; i < oreProducers.length; i++) {
+      const p = oreProducers[i];
+      if (!isTileOperational(p.tileId, p.bDef, power, citizens)) continue;
+      oreRate += p.perSec;
+    }
+
+    let brickDemandRate = 0;
+    const activeTradeEntries = [];
+    for (let i = 0; i < tradeCandidates.length; i++) {
+      const tc = tradeCandidates[i];
+      if (!isTileOperational(tc.tileId, tc.bDef, power, citizens)) continue;
+      activeTradeEntries.push(tc);
+      if (tc.bDef.tradeIntervalSec > 0 && tc.bDef.bricksPerLaunch > 0) {
+        brickDemandRate += tc.bDef.bricksPerLaunch / tc.bDef.tradeIntervalSec;
+      }
+    }
+
+    const snap = {
+      bVer: bVer,
+      rVer: rVer,
+      rawFloorCit: rawFloorCit,
+      countsById: countsById,
+      discountsByCategory: discountsByCategory,
+      solarBonus: solarBonus,
+      citizenGrowthBonus: citizenGrowthBonus,
+      citizenGrowthRate: citizenGrowthRate,
+      baseCitizens: baseCitizens,
+      maxCitizens: maxCitizens,
+      totalCitizens: totalCitizens,
+      power: power,
+      citizens: citizens,
+      brickRate: brickRate,
+      brickDemandRate: brickDemandRate,
+      researchRate: researchRate,
+      oreRate: oreRate,
+      activeTradeEntries: activeTradeEntries
+    };
+    planetSnapshots[planetIdx] = snap;
+    return snap;
   }
 
   /** Sync a top-right planet HUD stat cell, progress meter, and bump animation. */
@@ -1073,17 +1304,7 @@
   }
 
   function countBuildingOnPlanet(planetIdx, buildingId) {
-    const buildings = buildingsByPlanet[planetIdx];
-    if (!buildings) return 0;
-    let count = 0;
-    const keys = Object.keys(buildings);
-    for (let i = 0; i < keys.length; i++) {
-      const bInfo = buildings[keys[i]];
-      if (bInfo && bInfo.id === buildingId) {
-        count++;
-      }
-    }
-    return count;
+    return getPlanetSnapshot(planetIdx).countsById[buildingId] || 0;
   }
 
   function countBuildingGlobal(buildingId) {
@@ -1094,105 +1315,20 @@
     return total;
   }
 
-  function calculateLandedRocketCitizenCapacity(planetIdx) {
-    const buildings = buildingsByPlanet[planetIdx];
-    if (!buildings) return 0;
-    let cap = 0;
-    const keys = Object.keys(buildings);
-    for (let i = 0; i < keys.length; i++) {
-      const bInfo = buildings[keys[i]];
-      if (bInfo && bInfo.isLanded && bInfo.landedCitizens > 0) {
-        cap += bInfo.landedCitizens;
-      }
-    }
-    return cap;
-  }
-
   function getPlanetBaseCitizenCount(planetIdx) {
-    return Math.max(0, Math.floor(baseCitizensByPlanet[planetIdx] || 0)) + calculateFixedBuildingCitizens(planetIdx);
+    return getPlanetSnapshot(planetIdx).baseCitizens;
   }
 
   function calculatePlanetCitizenCapacity(planetIdx) {
-    const base = calculatePlanetStatCapacity(planetIdx, "citizenSlots");
-    const mult =
-      window.GameResearch && typeof window.GameResearch.getCitizenMultiplier === "function"
-        ? window.GameResearch.getCitizenMultiplier()
-        : 1;
-    return getPlanetBaseCitizenCount(planetIdx) + Math.round(base * mult) + calculateLandedRocketCitizenCapacity(planetIdx);
+    return getPlanetSnapshot(planetIdx).maxCitizens;
   }
 
   function getPlanetCitizenCount(planetIdx) {
-    const base = getPlanetBaseCitizenCount(planetIdx);
-    const cap = calculatePlanetCitizenCapacity(planetIdx);
-    const cur = Math.floor(citizensByPlanet[planetIdx] || 0);
-    return Math.max(base, Math.min(cap, cur));
-  }
-
-  function allocatePlanetConsumers(planetIdx, reqField, totalSupply) {
-    const buildings = buildingsByPlanet[planetIdx];
-    const consumers = [];
-    if (buildings && window.GameBuildings) {
-      const keys = Object.keys(buildings);
-      for (let i = 0; i < keys.length; i++) {
-        const tileId = keys[i];
-        const bInfo = buildings[tileId];
-        if (!bInfo || !bInfo.id || bInfo.used) continue;
-        const bDef = window.GameBuildings.getBuilding(bInfo.id);
-        if (bDef && bDef[reqField] > 0) {
-          consumers.push({
-            tileId: tileId,
-            placedOrder: Number.isFinite(bInfo.placedOrder) ? bInfo.placedOrder : (bInfo.placedAt || 0),
-            req: bDef[reqField]
-          });
-        }
-      }
-    }
-
-    consumers.sort(function (a, b) {
-      if (a.placedOrder !== b.placedOrder) return a.placedOrder - b.placedOrder;
-      return Number(a.tileId) - Number(b.tileId);
-    });
-
-    let remaining = totalSupply;
-    let used = 0;
-    let required = 0;
-    const activeTiles = Object.create(null);
-    const blockedTiles = Object.create(null);
-
-    for (let i = 0; i < consumers.length; i++) {
-      const c = consumers[i];
-      required += c.req;
-      if (remaining >= c.req) {
-        remaining -= c.req;
-        used += c.req;
-        activeTiles[c.tileId] = true;
-      } else {
-        blockedTiles[c.tileId] = true;
-      }
-    }
-
-    return {
-      available: remaining,
-      used: used,
-      required: required,
-      activeTiles: activeTiles,
-      blockedTiles: blockedTiles
-    };
+    return getPlanetSnapshot(planetIdx).totalCitizens;
   }
 
   function getPlanetCitizenStatus(planetIdx) {
-    const maxCitizens = calculatePlanetCitizenCapacity(planetIdx);
-    const totalCitizens = getPlanetCitizenCount(planetIdx);
-    const alloc = allocatePlanetConsumers(planetIdx, "citizensRequired", totalCitizens);
-    return {
-      maxCitizens: maxCitizens,
-      totalCitizens: totalCitizens,
-      availableCitizens: alloc.available,
-      usedCitizens: alloc.used,
-      requiredCitizens: alloc.required,
-      staffedTiles: alloc.activeTiles,
-      citizenBlockedTiles: alloc.blockedTiles
-    };
+    return getPlanetSnapshot(planetIdx).citizens;
   }
 
   function showGameToast(messageHtml, variant) {
@@ -1219,102 +1355,29 @@
   }
 
   function getPlanetSolarBonus(planetIdx) {
-    const buildings = buildingsByPlanet[planetIdx];
-    if (!buildings || !window.GameBuildings) return 0;
-    let bonus = 0;
-    const keys = Object.keys(buildings);
-    for (let i = 0; i < keys.length; i++) {
-      const bInfo = buildings[keys[i]];
-      if (!bInfo || !bInfo.id || bInfo.used) continue;
-      const bDef = window.GameBuildings.getBuilding(bInfo.id);
-      if (bDef && bDef.solarEnergyBonus > 0) {
-        bonus += bDef.solarEnergyBonus;
-      }
-    }
-    return bonus;
+    return getPlanetSnapshot(planetIdx).solarBonus;
   }
 
   function getPlanetCitizenGrowthBonus(planetIdx) {
-    const buildings = buildingsByPlanet[planetIdx];
-    if (!buildings || !window.GameBuildings) return 0;
-    let bonus = 0;
-    const keys = Object.keys(buildings);
-    for (let i = 0; i < keys.length; i++) {
-      const bInfo = buildings[keys[i]];
-      if (!bInfo || !bInfo.id || bInfo.used) continue;
-      const bDef = window.GameBuildings.getBuilding(bInfo.id);
-      if (bDef && bDef.citizenGrowthBonus > 0) {
-        bonus += bDef.citizenGrowthBonus;
-      }
-    }
-    return bonus;
+    return getPlanetSnapshot(planetIdx).citizenGrowthBonus;
   }
 
   function getPlanetCitizenGrowthRate(planetIdx) {
-    const planetBonus = getPlanetCitizenGrowthBonus(planetIdx);
-    const researchMult =
-      window.GameResearch && typeof window.GameResearch.getCitizenGrowthMultiplier === "function"
-        ? window.GameResearch.getCitizenGrowthMultiplier()
-        : 1;
-    return CITIZEN_REGEN_PER_SEC * (1 + planetBonus) * researchMult;
+    return getPlanetSnapshot(planetIdx).citizenGrowthRate;
   }
 
   function getPlanetCostDiscount(planetIdx, buildingDef) {
     if (!buildingDef || !buildingDef.category) return 0;
-    const buildings = buildingsByPlanet[planetIdx];
-    if (!buildings || !window.GameBuildings) return 0;
-    let discount = 0;
-    const keys = Object.keys(buildings);
-    for (let i = 0; i < keys.length; i++) {
-      const bInfo = buildings[keys[i]];
-      if (!bInfo || !bInfo.id || bInfo.used) continue;
-      const bDef = window.GameBuildings.getBuilding(bInfo.id);
-      if (!bDef || !(bDef.costDiscount > 0)) continue;
-      if (Array.isArray(bDef.discountCategories) && bDef.discountCategories.indexOf(buildingDef.category) !== -1) {
-        discount += bDef.costDiscount;
-      }
-    }
-    return clamp(discount, 0, 0.50);
+    const raw = getPlanetSnapshot(planetIdx).discountsByCategory[buildingDef.category] || 0;
+    return clamp(raw, 0, 0.50);
   }
 
   function calculatePlanetEnergyCapacity(planetIdx) {
-    const buildings = buildingsByPlanet[planetIdx];
-    let nonSolarBase = 0;
-    let solarBase = 0;
-    if (buildings && window.GameBuildings) {
-      const keys = Object.keys(buildings);
-      for (let i = 0; i < keys.length; i++) {
-        const bInfo = buildings[keys[i]];
-        if (!bInfo || !bInfo.id || bInfo.used) continue;
-        const bDef = window.GameBuildings.getBuilding(bInfo.id);
-        if (bDef && bDef.energySlots > 0) {
-          if (bDef.isSolar) {
-            solarBase += bDef.energySlots;
-          } else {
-            nonSolarBase += bDef.energySlots;
-          }
-        }
-      }
-    }
-    const solarBonus = getPlanetSolarBonus(planetIdx);
-    const mult =
-      window.GameResearch && typeof window.GameResearch.getEnergyMultiplier === "function"
-        ? window.GameResearch.getEnergyMultiplier()
-        : 1;
-    return Math.round((nonSolarBase + solarBase * (1 + solarBonus)) * mult);
+    return getPlanetSnapshot(planetIdx).power.maxEnergy;
   }
 
   function getPlanetPowerStatus(planetIdx) {
-    const maxEnergy = calculatePlanetEnergyCapacity(planetIdx);
-    const alloc = allocatePlanetConsumers(planetIdx, "energyRequired", maxEnergy);
-    return {
-      maxEnergy: maxEnergy,
-      availableEnergy: alloc.available,
-      usedEnergy: alloc.used,
-      requiredEnergy: alloc.required,
-      poweredTiles: alloc.activeTiles,
-      energyBlockedTiles: alloc.blockedTiles
-    };
+    return getPlanetSnapshot(planetIdx).power;
   }
 
   function isTileOperational(tileId, bDef, power, cit) {
@@ -1343,76 +1406,20 @@
   }
 
   function calculatePlanetBrickRate(planetIdx) {
-    const buildings = buildingsByPlanet[planetIdx];
-    if (!buildings || !window.GameBuildings) return 0;
-    const power = getPlanetPowerStatus(planetIdx);
-    const cit = getPlanetCitizenStatus(planetIdx);
-    let rate = 0;
-    const keys = Object.keys(buildings);
-    for (let i = 0; i < keys.length; i++) {
-      const tileId = keys[i];
-      const bInfo = buildings[tileId];
-      if (!bInfo || !bInfo.id) continue;
-      const bDef = window.GameBuildings.getBuilding(bInfo.id);
-      if (bDef && bDef.bricksPerSec) {
-        if (!isTileOperational(tileId, bDef, power, cit)) continue;
-        const mult =
-          window.GameResearch && typeof window.GameResearch.getBrickMultiplier === "function"
-            ? window.GameResearch.getBrickMultiplier(bDef.id)
-            : 1;
-        rate += bDef.bricksPerSec * mult;
-      }
-    }
-    return rate;
+    return getPlanetSnapshot(planetIdx).brickRate;
   }
 
   function calculatePlanetBrickDemandRate(planetIdx) {
-    const buildings = buildingsByPlanet[planetIdx];
-    if (!buildings || !window.GameBuildings) return 0;
-    const power = getPlanetPowerStatus(planetIdx);
-    const cit = getPlanetCitizenStatus(planetIdx);
-    let demand = 0;
-    const keys = Object.keys(buildings);
-    for (let i = 0; i < keys.length; i++) {
-      const tileId = keys[i];
-      const bInfo = buildings[tileId];
-      if (!bInfo || !bInfo.id || !bInfo.tradeEnabled) continue;
-      const bDef = window.GameBuildings.getBuilding(bInfo.id);
-      if (!bDef || !bDef.tradeVariant || !bDef.tradeIntervalSec || !bDef.bricksPerLaunch) continue;
-      if (!isTileOperational(tileId, bDef, power, cit)) continue;
-      demand += bDef.bricksPerLaunch / bDef.tradeIntervalSec;
-    }
-    return demand;
+    return getPlanetSnapshot(planetIdx).brickDemandRate;
   }
 
   function calculatePlanetNetBrickRate(planetIdx) {
-    const prod = calculatePlanetBrickRate(planetIdx);
-    const demand = calculatePlanetBrickDemandRate(planetIdx);
-    return prod - demand;
+    const snap = getPlanetSnapshot(planetIdx);
+    return snap.brickRate - snap.brickDemandRate;
   }
 
   function calculatePlanetResearchRate(planetIdx) {
-    const buildings = buildingsByPlanet[planetIdx];
-    if (!buildings || !window.GameBuildings) return 0;
-    const power = getPlanetPowerStatus(planetIdx);
-    const cit = getPlanetCitizenStatus(planetIdx);
-    let base = 0;
-    const keys = Object.keys(buildings);
-    for (let i = 0; i < keys.length; i++) {
-      const tileId = keys[i];
-      const bInfo = buildings[tileId];
-      if (!bInfo || !bInfo.id) continue;
-      const bDef = window.GameBuildings.getBuilding(bInfo.id);
-      if (bDef && bDef.researchPerSec) {
-        if (!isTileOperational(tileId, bDef, power, cit)) continue;
-        base += bDef.researchPerSec;
-      }
-    }
-    const mult =
-      window.GameResearch && typeof window.GameResearch.getResearchMultiplier === "function"
-        ? window.GameResearch.getResearchMultiplier()
-        : 1;
-    return base * mult;
+    return getPlanetSnapshot(planetIdx).researchRate;
   }
 
   function calculateTotalResearchRate() {
@@ -1424,32 +1431,7 @@
   }
 
   function calculatePlanetOreRate(planetIdx) {
-    const buildings = buildingsByPlanet[planetIdx];
-    if (!buildings || !window.GameBuildings) return 0;
-    const power = getPlanetPowerStatus(planetIdx);
-    const cit = getPlanetCitizenStatus(planetIdx);
-    let total = 0;
-    const keys = Object.keys(buildings);
-    for (let i = 0; i < keys.length; i++) {
-      const tileId = keys[i];
-      const bInfo = buildings[tileId];
-      if (!bInfo || !bInfo.id) continue;
-      const bDef = window.GameBuildings.getBuilding(bInfo.id);
-      if (!bDef) continue;
-      const perSec =
-        typeof window.GameBuildings.getBuildingOrePerSec === "function"
-          ? window.GameBuildings.getBuildingOrePerSec(bDef)
-          : bDef.orePerSec > 0
-            ? bDef.orePerSec
-            : bDef.orePerDay > 0
-              ? bDef.orePerDay / 86400
-              : 0;
-      if (perSec > 0) {
-        if (!isTileOperational(tileId, bDef, power, cit)) continue;
-        total += perSec;
-      }
-    }
-    return total;
+    return getPlanetSnapshot(planetIdx).oreRate;
   }
 
   function calculateTotalOreRate() {
@@ -1531,7 +1513,7 @@
     updatePlanetEnergyHud(force);
     updatePlanetBricksHud(force);
     syncOreProductionRate(force);
-    if (resourceTooltipState.open) {
+    if (force && resourceTooltipState.open) {
       updateResourceTooltipContent();
     }
   }
@@ -1767,26 +1749,42 @@
           btn.removeAttribute("aria-current");
         }
       }
+      updatePlanetLockDots();
     }
-    updatePlanetLockDots();
   }
 
   function updateControlStates() {
     if (prevBtn) {
-      prevBtn.classList.toggle("is-hidden", activeDotIndex <= 0);
+      const prevHidden = activeDotIndex <= 0;
+      if (prevHidden !== lastPrevHidden) {
+        lastPrevHidden = prevHidden;
+        prevBtn.classList.toggle("is-hidden", prevHidden);
+      }
     }
     if (nextBtn) {
-      nextBtn.classList.toggle("is-hidden", activeDotIndex >= PLANET_COUNT - 1);
+      const nextHidden = activeDotIndex >= PLANET_COUNT - 1;
+      if (nextHidden !== lastNextHidden) {
+        lastNextHidden = nextHidden;
+        nextBtn.classList.toggle("is-hidden", nextHidden);
+      }
     }
 
     const activePlanet = planets[activeDotIndex];
     if (!activePlanet) return;
 
     if (zoomInBtn) {
-      zoomInBtn.disabled = activePlanet.targetZoom >= MAX_ZOOM - 0.02;
+      const zoomInDis = activePlanet.targetZoom >= MAX_ZOOM - 0.02;
+      if (zoomInDis !== lastZoomInDisabled) {
+        lastZoomInDisabled = zoomInDis;
+        zoomInBtn.disabled = zoomInDis;
+      }
     }
     if (zoomOutBtn) {
-      zoomOutBtn.disabled = activePlanet.targetZoom <= MIN_ZOOM + 0.02;
+      const zoomOutDis = activePlanet.targetZoom <= MIN_ZOOM + 0.02;
+      if (zoomOutDis !== lastZoomOutDisabled) {
+        lastZoomOutDisabled = zoomOutDis;
+        zoomOutBtn.disabled = zoomOutDis;
+      }
     }
 
     const zoomText = t("planet.zoom_format", { zoom: activePlanet.zoom.toFixed(1) });
@@ -1918,19 +1916,24 @@
     const cosZ = Math.cos(rollZ);
     const sinZ = Math.sin(rollZ);
 
+    // Pre-multiplied Rz * Rx * Ry matrix (3x3)
+    const m00 = cosZ * cosY - sinZ * sinX * sinY;
+    const m01 = -sinZ * cosX;
+    const m02 = cosZ * sinY + sinZ * sinX * cosY;
+
+    const m10 = sinZ * cosY + cosZ * sinX * sinY;
+    const m11 = cosZ * cosX;
+    const m12 = sinZ * sinY - cosZ * sinX * cosY;
+
+    const m20 = -cosX * sinY;
+    const m21 = sinX;
+    const m22 = cosX * cosY;
+
     return function rotatePoint(p) {
-      const x1 = p.x * cosY + p.z * sinY;
-      const y1 = p.y;
-      const z1 = -p.x * sinY + p.z * cosY;
-
-      const x2 = x1;
-      const y2 = y1 * cosX - z1 * sinX;
-      const z2 = y1 * sinX + z1 * cosX;
-
       return {
-        x: x2 * cosZ - y2 * sinZ,
-        y: x2 * sinZ + y2 * cosZ,
-        z: z2
+        x: m00 * p.x + m01 * p.y + m02 * p.z,
+        y: m10 * p.x + m11 * p.y + m12 * p.z,
+        z: m20 * p.x + m21 * p.y + m22 * p.z
       };
     };
   }
@@ -2177,6 +2180,23 @@
     const planetPower = getPlanetPowerStatus(planet.id);
     const planetCitizens = getPlanetCitizenStatus(planet.id);
     const lineUnit = Math.max(0.75, r / (planet.freq * 68));
+    const buildingFrame = {
+      origin: null,
+      rotT: null,
+      rotB: null,
+      rotN: null,
+      scale: 1,
+      phase: 0,
+      cx: cx,
+      cy: cy,
+      focalLength: focalLength,
+      camVec: CAM_VEC,
+      lightDir: LIGHT_DIR,
+      halfVec: HALF_VEC,
+      atmo: atmo,
+      isSelected: false,
+      project: project
+    };
 
     // 4. Draw Sorted 3D Tiles (Side Extrusion Walls + Top Face + Glowing White Hex Frame)
     for (let i = 0; i < visibleTiles.length; i++) {
@@ -2226,10 +2246,11 @@
           ctx.lineTo(topPts[k].x, topPts[k].y);
           ctx.closePath();
 
-          ctx.fillStyle = `rgb(${sr}, ${sg}, ${sb})`;
+          const sideRgb = `rgb(${sr}, ${sg}, ${sb})`;
+          ctx.fillStyle = sideRgb;
           ctx.fill();
           ctx.lineWidth = 0.6;
-          ctx.strokeStyle = `rgb(${sr}, ${sg}, ${sb})`;
+          ctx.strokeStyle = sideRgb;
           ctx.stroke();
 
           if (isSelected) {
@@ -2264,7 +2285,15 @@
         const lightAmt =
           Math.min(1.18, 0.28 + 0.82 * ndotl + frontFill + effEmissive * (1 - ndotl * 0.6)) *
           (1 - shadow * 0.82);
-        const specAmt = tile.spec * Math.pow(Math.max(0, dot(rotNormal, HALF_VEC)), 18) * (1 - shadow * 0.72);
+        const specDot = Math.max(0, dot(rotNormal, HALF_VEC));
+        let specPow = 0;
+        if (specDot > 0.2) {
+          const sp2 = specDot * specDot;
+          const sp4 = sp2 * sp2;
+          const sp8 = sp4 * sp4;
+          specPow = sp8 * sp8 * sp2;
+        }
+        const specAmt = tile.spec * specPow * (1 - shadow * 0.72);
         const fresnelAmt =
           Math.pow(Math.max(0, 1 - Math.max(0, rotNormal.z)), 2.6) * 0.28 * (1 - shadow * 0.65);
         const shadedRgb =
@@ -2361,23 +2390,13 @@
       if (window.GameBuildings && (entry.placed || entry.effect)) {
         const rotT = rotatePoint(tile.tangentT);
         const rotB = rotatePoint(tile.tangentB);
-        const buildingFrame = {
-          origin: entry.elevPlaneCenter,
-          rotT: rotT,
-          rotB: rotB,
-          rotN: rotNormal,
-          scale: tile.hexScale * elev,
-          phase: tile.phase,
-          cx: cx,
-          cy: cy,
-          focalLength: focalLength,
-          camVec: CAM_VEC,
-          lightDir: LIGHT_DIR,
-          halfVec: HALF_VEC,
-          atmo: atmo,
-          isSelected: isSelected,
-          project: project
-        };
+        buildingFrame.origin = entry.elevPlaneCenter;
+        buildingFrame.rotT = rotT;
+        buildingFrame.rotB = rotB;
+        buildingFrame.rotN = rotNormal;
+        buildingFrame.scale = tile.hexScale * elev;
+        buildingFrame.phase = tile.phase;
+        buildingFrame.isSelected = isSelected;
 
         const eff = entry.effect;
 
@@ -3749,6 +3768,7 @@
       citizensByPlanet[srcPlanetId] - status.bld.rocketCitizens
     );
     delete buildingsByPlanet[srcPlanetId][srcTileId];
+    invalidatePlanetStats(srcPlanetId);
 
     closeRocketCargoModal();
     clearSelectionAndCloseBuildMenu();
@@ -3865,6 +3885,7 @@
       landedCitizens: flight.citizens,
       loadedBricks: 0
     };
+    invalidatePlanetStats(destIdx);
     tileEffectsByPlanet[destIdx][flight.destTileId] = {
       type: "build",
       prevBuildingId: null,
@@ -4158,25 +4179,15 @@
     let totalActiveCreditsPerSec = 0;
 
     for (let pIdx = 0; pIdx < PLANET_COUNT; pIdx++) {
-      const buildings = buildingsByPlanet[pIdx];
-      if (!buildings || !window.GameBuildings) continue;
-      const power = getPlanetPowerStatus(pIdx);
-      const cit = getPlanetCitizenStatus(pIdx);
-      const keys = Object.keys(buildings);
-      for (let i = 0; i < keys.length; i++) {
-        const tileId = keys[i];
-        const bInfo = buildings[tileId];
-        if (!bInfo || !bInfo.id) continue;
-        const bDef = window.GameBuildings.getBuilding(bInfo.id);
-        if (!bDef || !bDef.tradeVariant) continue;
+      const activeTrades = getPlanetSnapshot(pIdx).activeTradeEntries;
+      if (activeTrades.length === 0) continue;
 
-        if (!bInfo.tradeEnabled) continue;
+      const avail = Math.floor(bricksByPlanet[pIdx] || 0);
+      for (let i = 0; i < activeTrades.length; i++) {
+        const tc = activeTrades[i];
+        const bInfo = tc.bInfo;
+        const bDef = tc.bDef;
 
-        if (!isTileOperational(tileId, bDef, power, cit)) {
-          continue;
-        }
-
-        const avail = Math.floor(bricksByPlanet[pIdx] || 0);
         if (avail <= 0) {
           bInfo.tradeTimer = 0;
           continue;
@@ -4185,21 +4196,27 @@
         bInfo.tradeTimer = (bInfo.tradeTimer || 0) + dtSec;
         if (bInfo.tradeTimer >= bDef.tradeIntervalSec) {
           bInfo.tradeTimer = 0;
-          const sold = Math.min(avail, bDef.bricksPerLaunch);
-          const earned = sold * bDef.creditsPerBrick;
-          bricksByPlanet[pIdx] = Math.max(0, bricksByPlanet[pIdx] - sold);
-          if (window.GameCurrencies && typeof window.GameCurrencies.add === "function") {
-            window.GameCurrencies.add("credits", earned);
+          const curAvail = Math.floor(bricksByPlanet[pIdx] || 0);
+          if (curAvail > 0) {
+            const sold = Math.min(curAvail, bDef.bricksPerLaunch);
+            const earned = sold * bDef.creditsPerBrick;
+            bricksByPlanet[pIdx] = Math.max(0, bricksByPlanet[pIdx] - sold);
+            if (window.GameCurrencies && typeof window.GameCurrencies.add === "function") {
+              window.GameCurrencies.add("credits", earned);
+            }
+            spawnTradeRocketFlight(pIdx, tc.tileId, bDef, sold, earned, time);
           }
-          spawnTradeRocketFlight(pIdx, tileId, bDef, sold, earned, time);
         }
 
         totalActiveCreditsPerSec += (bDef.bricksPerLaunch * bDef.creditsPerBrick) / bDef.tradeIntervalSec;
       }
     }
 
-    if (window.GameCurrencies && typeof window.GameCurrencies.setDisplayRate === "function") {
-      window.GameCurrencies.setDisplayRate("credits", totalActiveCreditsPerSec);
+    if (Math.abs(totalActiveCreditsPerSec - lastTradeCreditsRate) > 1e-12) {
+      lastTradeCreditsRate = totalActiveCreditsPerSec;
+      if (window.GameCurrencies && typeof window.GameCurrencies.setDisplayRate === "function") {
+        window.GameCurrencies.setDisplayRate("credits", totalActiveCreditsPerSec);
+      }
     }
   }
 
@@ -4372,6 +4389,7 @@
     if (!applyTileBiomeStyle(tile, targetBiomeId, false)) return false;
     tileBiomesByPlanet[planetId][tileId] = targetBiomeId;
     placed.used = true;
+    invalidatePlanetStats(planetId);
 
     const now = performance.now();
     tileEffectsByPlanet[planetId][tileId] = {
@@ -5380,10 +5398,12 @@
         if (placed.tradeEnabled) {
           placed.tradeEnabled = false;
           placed.tradeTimer = 0;
+          invalidatePlanetStats(pId);
           showTradeNoticeToast(bDef, pId, "toast.trade_stopped");
         } else {
           placed.tradeEnabled = true;
           placed.tradeTimer = 0;
+          invalidatePlanetStats(pId);
           showTradeNoticeToast(bDef, pId, "toast.trade_started", "success");
         }
         updateTradeActionOverlay();
@@ -5617,6 +5637,8 @@
       }
       if (typeof window.GameResearch.onChange === "function") {
         window.GameResearch.onChange(function () {
+          researchStatsVersion++;
+          invalidateAllPlanetStats();
           for (let i = 0; i < PLANET_COUNT; i++) {
             const minCit = getPlanetBaseCitizenCount(i);
             const cap = calculatePlanetCitizenCapacity(i);
@@ -5727,6 +5749,7 @@
             tradeEnabled: initialTradeEnabled,
             tradeTimer: 0
           };
+          invalidatePlanetStats(targetIndex);
           const minCit = getPlanetBaseCitizenCount(targetIndex);
           const newCap = calculatePlanetCitizenCapacity(targetIndex);
           const capDiff = newCap - prevCap;
@@ -5773,6 +5796,7 @@
 
           const now = performance.now();
           delete buildingsByPlanet[targetIndex][tileId];
+          invalidatePlanetStats(targetIndex);
           const minCit = getPlanetBaseCitizenCount(targetIndex);
           const newCap = calculatePlanetCitizenCapacity(targetIndex);
           citizensByPlanet[targetIndex] = clamp(citizensByPlanet[targetIndex] || 0, minCit, Math.max(minCit, newCap));
@@ -5998,6 +6022,7 @@
       tradeEnabled: false,
       tradeTimer: 0
     };
+    invalidatePlanetStats(0);
 
     const minCit = getPlanetBaseCitizenCount(0);
     const capCit = calculatePlanetCitizenCapacity(0);
@@ -6126,6 +6151,7 @@
         tradeEnabled: false,
         tradeTimer: 0
       };
+      invalidatePlanetStats(destIdx);
     }
 
     if (deliveredBricks > 0) {
@@ -6311,6 +6337,7 @@
           used: Boolean(bDef.singleUseTerraformer && bData.used)
         };
       }
+      invalidatePlanetStats(i);
 
       const minCit = getPlanetBaseCitizenCount(i);
       const capCit = calculatePlanetCitizenCapacity(i);
@@ -6709,6 +6736,8 @@
     lastRenderScrollPos = 0;
     activeDotIndex = 0;
     lastHeaderPlanet = -1;
+    lastTradeCreditsRate = -1;
+    invalidateAllPlanetStats();
     lastFrameTime = performance.now();
 
     syncOreProductionRate(true);

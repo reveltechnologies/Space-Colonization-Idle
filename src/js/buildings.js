@@ -608,6 +608,19 @@
     }
   }
 
+  const BUILDINGS_BY_ID = Object.create(null);
+  for (let i = 0; i < BUILDINGS.length; i++) {
+    BUILDINGS_BY_ID[BUILDINGS[i].id] = BUILDINGS[i];
+  }
+  if (BUILDINGS_BY_ID.small_house) {
+    BUILDINGS_BY_ID.house = BUILDINGS_BY_ID.small_house;
+  }
+
+  const CATEGORIES_BY_ID = Object.create(null);
+  for (let i = 0; i < CATEGORIES.length; i++) {
+    CATEGORIES_BY_ID[CATEGORIES[i].id] = CATEGORIES[i];
+  }
+
   const BIOMES = {
     mountains: { id: "mountains", name: t("biomes.mountains.name"), terrains: ["solid", "mountainous"], accent: "#94a3b8", badgeBg: "#edf4ff", iconSrc: "./assets/ui/biome-mountains.svg" },
     glacier:   { id: "glacier",   name: t("biomes.glacier.name"),   terrains: ["solid"],                accent: "#5fd8f8", badgeBg: "#e6faff", iconSrc: "./assets/ui/biome-glacier.svg" },
@@ -627,13 +640,7 @@
   }
 
   function getBuilding(buildingId) {
-    const id = buildingId === "house" ? "small_house" : buildingId;
-    for (let i = 0; i < BUILDINGS.length; i++) {
-      if (BUILDINGS[i].id === id) {
-        return BUILDINGS[i];
-      }
-    }
-    return null;
+    return (buildingId && BUILDINGS_BY_ID[buildingId]) || null;
   }
 
   function isProtectedBuilding(buildingId) {
@@ -646,12 +653,7 @@
   }
 
   function getCategory(categoryId) {
-    for (let i = 0; i < CATEGORIES.length; i++) {
-      if (CATEGORIES[i].id === categoryId) {
-        return CATEGORIES[i];
-      }
-    }
-    return CATEGORIES[0];
+    return (categoryId && CATEGORIES_BY_ID[categoryId]) || CATEGORIES[0];
   }
 
   function canBuildOnBiome(buildingId, biomeId) {
@@ -845,6 +847,8 @@
       const hasEnough = getAvailableCurrencyAmount(key, planetId) >= req;
       const item = document.createElement("span");
       item.className = "build-cost-item" + (hasEnough ? "" : " is-short") + (isDiscounted ? " is-discounted" : "");
+      item.setAttribute("data-cost-key", key);
+      item.setAttribute("data-cost-req", String(req));
       const cIcon = document.createElement("img");
       cIcon.className = "build-cost-icon";
       cIcon.src = CURRENCY_ICONS[key];
@@ -1635,7 +1639,15 @@
           showProtectedToast(currentPlacedId, "toast.cannot_replace_protected");
           return;
         }
-        if (!canPurchase) {
+        const canBuyNow =
+          !isProtectedCard &&
+          !isLandedBuilt &&
+          !isBuilt &&
+          !researchLocked &&
+          !limitBlocked &&
+          terrainOk &&
+          canAffordBuilding(b.id, currentPlanetId);
+        if (!canBuyNow) {
           card.classList.remove("is-shake");
           void card.offsetWidth;
           card.classList.add("is-shake");
@@ -1656,6 +1668,45 @@
 
     syncShelfScroll();
     window.requestAnimationFrame(syncShelfScroll);
+  }
+
+  function syncBuildingCardAffordability() {
+    if (!listEl || !menuOpen) return;
+    const cards = listEl.querySelectorAll(".build-card");
+    for (let i = 0; i < cards.length; i++) {
+      const card = cards[i];
+      const bId = card.getAttribute("data-building");
+      if (!bId) continue;
+      const isBuilt = currentPlacedId === bId;
+      const isProtectedCard = isProtectedBuilding(bId);
+      const isLandedBuilt = isBuilt && currentPlacedLanded;
+      const researchLocked = isBuildingResearchLocked(bId);
+      const limitBlocked = !isBuilt && isBuildingPlanetLimitReached(bId, currentPlanetId, currentPlacedId);
+      const terrainOk = canBuildOnBiome(bId, currentBiomeId);
+      const affordable = canAffordBuilding(bId, currentPlanetId);
+      const canBuyNow =
+        !isProtectedCard &&
+        !isLandedBuilt &&
+        !isBuilt &&
+        !researchLocked &&
+        !limitBlocked &&
+        terrainOk &&
+        affordable;
+
+      card.classList.toggle(
+        "is-unaffordable",
+        !isBuilt && !researchLocked && !limitBlocked && terrainOk && !affordable
+      );
+      card.setAttribute("aria-disabled", canBuyNow || isBuilt ? "false" : "true");
+
+      const costItems = card.querySelectorAll(".build-cost-item[data-cost-key]");
+      for (let c = 0; c < costItems.length; c++) {
+        const item = costItems[c];
+        const key = item.getAttribute("data-cost-key");
+        const req = Number(item.getAttribute("data-cost-req")) || 0;
+        item.classList.toggle("is-short", getAvailableCurrencyAmount(key, currentPlanetId) < req);
+      }
+    }
   }
 
   function syncRemoveButton() {
@@ -2608,7 +2659,7 @@
   if (window.GameCurrencies && typeof window.GameCurrencies.onChange === "function") {
     window.GameCurrencies.onChange(function () {
       if (menuOpen) {
-        renderBuildingCards();
+        syncBuildingCardAffordability();
         if (pendingConfirmBuildingId) {
           syncConfirmState();
         }
@@ -2651,18 +2702,39 @@
     return n < 0 ? 0 : n > 255 ? 255 : n | 0;
   }
 
-  function shadeColor(rgb, n, lightDir, halfVec, atmo, opts) {
-    const ndotl = Math.max(0, dot3(n, lightDir));
-    const frontFill = 0.16 * Math.max(0, n.z);
-    const emissive = opts.emissive || 0;
-    const spec = opts.spec !== undefined ? opts.spec : 0.14;
-    const lightAmt = Math.min(1.22, 0.30 + 0.78 * ndotl + frontFill + emissive * (1 - ndotl * 0.5));
-    const specAmt = spec * Math.pow(Math.max(0, dot3(n, halfVec)), 18);
-    const fresnel = Math.pow(Math.max(0, 1 - Math.max(0, n.z)), 2.8) * 0.22;
+  function shadeColorXYZ(rgb, nx, ny, nz, lightDir, halfVec, atmo, spec, emissive) {
+    const ndotl = nx * lightDir.x + ny * lightDir.y + nz * lightDir.z;
+    const ndotlPos = ndotl > 0 ? ndotl : 0;
+    const nzPos = nz > 0 ? nz : 0;
+    const frontFill = 0.16 * nzPos;
+    let lightAmt = 0.30 + 0.78 * ndotlPos + frontFill + emissive * (1 - ndotlPos * 0.5);
+    if (lightAmt > 1.22) lightAmt = 1.22;
 
-    const r = clampByte(Math.round(rgb[0] * lightAmt + 255 * specAmt + (atmo.r - rgb[0] * lightAmt) * fresnel));
-    const g = clampByte(Math.round(rgb[1] * lightAmt + 255 * specAmt + (atmo.g - rgb[1] * lightAmt) * fresnel));
-    const b = clampByte(Math.round(rgb[2] * lightAmt + 255 * specAmt + (atmo.b - rgb[2] * lightAmt) * fresnel));
+    let specAmt = 0;
+    if (spec > 0) {
+      const ndoth = nx * halfVec.x + ny * halfVec.y + nz * halfVec.z;
+      if (ndoth > 0.2) {
+        const p2 = ndoth * ndoth;
+        const p4 = p2 * p2;
+        const p8 = p4 * p4;
+        specAmt = spec * (p8 * p8 * p2);
+      }
+    }
+
+    let fresnel = 0;
+    if (nzPos < 0.99) {
+      const invNz = 1 - nzPos;
+      const f2 = invNz * invNz;
+      fresnel = f2 * Math.sqrt(f2) * 0.22;
+    }
+
+    const rBase = rgb[0] * lightAmt;
+    const gBase = rgb[1] * lightAmt;
+    const bBase = rgb[2] * lightAmt;
+    const spec255 = 255 * specAmt;
+    const r = clampByte((rBase + spec255 + (atmo.r - rBase) * fresnel + 0.5) | 0);
+    const g = clampByte((gBase + spec255 + (atmo.g - gBase) * fresnel + 0.5) | 0);
+    const b = clampByte((bBase + spec255 + (atmo.b - bBase) * fresnel + 0.5) | 0);
     return "rgb(" + r + "," + g + "," + b + ")";
   }
 
@@ -2673,11 +2745,24 @@
   const CLIP_OVERLAP_PT = { x: 0, y: 0 };
   const LINE_HIT_INFO = { x: 0, y: 0, um: 0 };
 
+  // Scratch buffers for zero-allocation 3D building mesh generation
+  const SCRATCH_WX = new Float64Array(32);
+  const SCRATCH_WY = new Float64Array(32);
+  const SCRATCH_WZ = new Float64Array(32);
+  const RING_BOT_X = new Float64Array(32);
+  const RING_BOT_Y = new Float64Array(32);
+  const RING_TOP_X = new Float64Array(32);
+  const RING_TOP_Y = new Float64Array(32);
+  const COS_LUT = new Float64Array(33);
+  const SIN_LUT = new Float64Array(33);
+
   let sortNodeCap = 256;
   let sortEdgeCap = 2048;
   let sortIndeg = new Int16Array(sortNodeCap);
   let sortDone = new Uint8Array(sortNodeCap);
   let sortHead = new Int32Array(sortNodeCap);
+  let sortReady = new Int32Array(sortNodeCap);
+  let sortFastOrder = new Int32Array(sortNodeCap);
   let sortEdgeTo = new Int32Array(sortEdgeCap);
   let sortEdgeNext = new Int32Array(sortEdgeCap);
 
@@ -2687,6 +2772,8 @@
     sortIndeg = new Int16Array(sortNodeCap);
     sortDone = new Uint8Array(sortNodeCap);
     sortHead = new Int32Array(sortNodeCap);
+    sortReady = new Int32Array(sortNodeCap);
+    sortFastOrder = new Int32Array(sortNodeCap);
   }
 
   function ensureSortEdgeCap(needed) {
@@ -2702,20 +2789,51 @@
     sortEdgeCap = nextCap;
   }
 
-  function clipPolyOverlapCentroid(ptsA, ptsB, outPt) {
-    let len = ptsA.length < 32 ? ptsA.length : 32;
-    for (let i = 0; i < len; i++) {
-      CLIP_AX[i] = ptsA[i].x;
-      CLIP_AY[i] = ptsA[i].y;
+  const primPool = [];
+  function allocPrimSlot(idx) {
+    while (primPool.length <= idx) {
+      primPool.push({
+        type: 0, // 0 = poly, 1 = line
+        count: 0,
+        ptsX: new Float64Array(16),
+        ptsY: new Float64Array(16),
+        cnx: 0,
+        cny: 0,
+        cnz: 0,
+        camOffset: 0,
+        minX: 0,
+        maxX: 0,
+        minY: 0,
+        maxY: 0,
+        depthZ: 0,
+        depthBias: 0,
+        convexGroup: 0,
+        fill: "",
+        stroke: "",
+        lineWidth: 0.7,
+        p0x: 0,
+        p0y: 0,
+        p1x: 0,
+        p1y: 0,
+        d0: 0,
+        d1: 0
+      });
     }
-    const nb = ptsB.length;
+    return primPool[idx];
+  }
+
+  function clipPolyOverlapCentroid(ax, ay, lenA, bx, by, nb, outPt) {
+    let len = lenA < 32 ? lenA : 32;
+    for (let i = 0; i < len; i++) {
+      CLIP_AX[i] = ax[i];
+      CLIP_AY[i] = ay[i];
+    }
     for (let e = 0; e < nb; e++) {
-      const p1 = ptsB[e];
-      const p2 = ptsB[(e + 1) % nb];
-      const x1 = p1.x;
-      const y1 = p1.y;
-      const ex = p2.x - x1;
-      const ey = p2.y - y1;
+      const next = e + 1 < nb ? e + 1 : 0;
+      const x1 = bx[e];
+      const y1 = by[e];
+      const ex = bx[next] - x1;
+      const ey = by[next] - y1;
       if (len === 0) return false;
       let outLen = 0;
       let sx = CLIP_AX[len - 1];
@@ -2769,20 +2887,20 @@
     return true;
   }
 
-  function clipLineInPoly(p0, p1, ptsPoly, outInfo) {
-    const dx = p1.x - p0.x;
-    const dy = p1.y - p0.y;
+  function clipLineInPoly(p0x, p0y, p1x, p1y, px, py, np, outInfo) {
+    const dx = p1x - p0x;
+    const dy = p1y - p0y;
     let u0 = 0;
     let u1 = 1;
-    const np = ptsPoly.length;
     for (let e = 0; e < np; e++) {
-      const a = ptsPoly[e];
-      const b = ptsPoly[(e + 1) % np];
-      const ex = b.x - a.x;
-      const ey = b.y - a.y;
-      const num = ex * (p0.y - a.y) - ey * (p0.x - a.x);
+      const next = e + 1 < np ? e + 1 : 0;
+      const ax = px[e];
+      const ay = py[e];
+      const ex = px[next] - ax;
+      const ey = py[next] - ay;
+      const num = ex * (p0y - ay) - ey * (p0x - ax);
       const den = ex * dy - ey * dx;
-      if (Math.abs(den) < 1e-9) {
+      if (den > -1e-9 && den < 1e-9) {
         if (num < 0) return false;
       } else {
         const uHit = -num / den;
@@ -2795,464 +2913,1019 @@
       }
     }
     const um = 0.5 * (u0 + u1);
-    outInfo.x = p0.x + um * dx;
-    outInfo.y = p0.y + um * dy;
+    outInfo.x = p0x + um * dx;
+    outInfo.y = p0y + um * dy;
     outInfo.um = um;
     return true;
   }
 
-  function createMeshCollector(frame, buildScale, opts) {
+  // Reusable module-level mesh collector state (eliminates per-building closures & array allocations)
+  let mcPrimCount = 0;
+  let mcNextConvexGroup = 0;
+  let mcSXY = 1;
+  let mcSZ = 1;
+  let mcJx = 0;
+  let mcJy = 0;
+  let mcOx = 0;
+  let mcOy = 0;
+  let mcOz = 0;
+  let mcOjx = 0;
+  let mcOjy = 0;
+  let mcOjz = 0;
+  let mcTx = 1, mcTy = 0, mcTz = 0;
+  let mcBx = 0, mcBy = 1, mcBz = 0;
+  let mcNx = 0, mcNy = 0, mcNz = 1;
+  let mcTSx = 1, mcTSy = 0, mcTSz = 0;
+  let mcBSx = 0, mcBSy = 1, mcBSz = 0;
+  let mcNSx = 0, mcNSy = 0, mcNSz = 1;
+  let mcCamX = 0, mcCamY = 0, mcCamZ = 4.2;
+  let mcCamLx = 0, mcCamLy = 0, mcCamLz = 4.2;
+  let mcNearClipZ = 3.95;
+  let mcVx = 0, mcVy = 0, mcVz = 1;
+  let mcCx = 0, mcCy = 0, mcFl = 1;
+  let mcLightDir = null;
+  let mcHalfVec = null;
+  let mcAtmo = null;
+
+  function mcToWorld(lx, ly, lz) {
+    return {
+      x: mcOjx + mcTSx * lx + mcBSx * ly + mcNSx * lz,
+      y: mcOjy + mcTSy * lx + mcBSy * ly + mcNSy * lz,
+      z: mcOjz + mcTSz * lx + mcBSz * ly + mcNSz * lz
+    };
+  }
+
+  function mcAddFaceFlat(
+    lx0, ly0, lz0,
+    lx1, ly1, lz1,
+    lx2, ly2, lz2,
+    lx3, ly3, lz3,
+    has4,
+    rgb,
+    spec,
+    emissive,
+    doubleSided,
+    stroke,
+    lineWidth,
+    depthBias,
+    hasHint,
+    hx, hy, hz,
+    convexGroup
+  ) {
+    const count = has4 ? 4 : 3;
+    const w0x = mcOjx + mcTSx * lx0 + mcBSx * ly0 + mcNSx * lz0;
+    const w0y = mcOjy + mcTSy * lx0 + mcBSy * ly0 + mcNSy * lz0;
+    const w0z = mcOjz + mcTSz * lx0 + mcBSz * ly0 + mcNSz * lz0;
+    if (w0z >= mcNearClipZ) return;
+
+    const w1x = mcOjx + mcTSx * lx1 + mcBSx * ly1 + mcNSx * lz1;
+    const w1y = mcOjy + mcTSy * lx1 + mcBSy * ly1 + mcNSy * lz1;
+    const w1z = mcOjz + mcTSz * lx1 + mcBSz * ly1 + mcNSz * lz1;
+    if (w1z >= mcNearClipZ) return;
+
+    const w2x = mcOjx + mcTSx * lx2 + mcBSx * ly2 + mcNSx * lz2;
+    const w2y = mcOjy + mcTSy * lx2 + mcBSy * ly2 + mcNSy * lz2;
+    const w2z = mcOjz + mcTSz * lx2 + mcBSz * ly2 + mcNSz * lz2;
+    if (w2z >= mcNearClipZ) return;
+
+    let w3x = 0, w3y = 0, w3z = 0;
+    let fcx, fcy, fcz;
+    if (has4) {
+      w3x = mcOjx + mcTSx * lx3 + mcBSx * ly3 + mcNSx * lz3;
+      w3y = mcOjy + mcTSy * lx3 + mcBSy * ly3 + mcNSy * lz3;
+      w3z = mcOjz + mcTSz * lx3 + mcBSz * ly3 + mcNSz * lz3;
+      if (w3z >= mcNearClipZ) return;
+      fcx = (w0x + w1x + w2x + w3x) * 0.25;
+      fcy = (w0y + w1y + w2y + w3y) * 0.25;
+      fcz = (w0z + w1z + w2z + w3z) * 0.25;
+    } else {
+      fcx = (w0x + w1x + w2x) / 3;
+      fcy = (w0y + w1y + w2y) / 3;
+      fcz = (w0z + w1z + w2z) / 3;
+    }
+
+    const e1x = w1x - w0x, e1y = w1y - w0y, e1z = w1z - w0z;
+    const e2x = w2x - w0x, e2y = w2y - w0y, e2z = w2z - w0z;
+    let rnx = e1y * e2z - e1z * e2y;
+    let rny = e1z * e2x - e1x * e2z;
+    let rnz = e1x * e2y - e1y * e2x;
+    let rawLenSq = rnx * rnx + rny * rny + rnz * rnz;
+    if (rawLenSq < 1e-18 && has4) {
+      const f1x = w2x - w1x, f1y = w2y - w1y, f1z = w2z - w1z;
+      const f2x = w3x - w1x, f2y = w3y - w1y, f2z = w3z - w1z;
+      rnx = f1y * f2z - f1z * f2y;
+      rny = f1z * f2x - f1x * f2z;
+      rnz = f1x * f2y - f1y * f2x;
+      rawLenSq = rnx * rnx + rny * rny + rnz * rnz;
+    }
+    if (rawLenSq < 1e-18) return;
+
+    const invRawLen = 1 / Math.sqrt(rawLenSq);
+    let fnx = rnx * invRawLen;
+    let fny = rny * invRawLen;
+    let fnz = rnz * invRawLen;
+
+    if (hasHint) {
+      const dnx = hx / mcSXY;
+      const dny = hy / mcSXY;
+      const dnz = hz / mcSZ;
+      const hwx = mcTx * dnx + mcBx * dny + mcNx * dnz;
+      const hwy = mcTy * dnx + mcBy * dny + mcNy * dnz;
+      const hwz = mcTz * dnx + mcBz * dny + mcNz * dnz;
+      if (fnx * hwx + fny * hwy + fnz * hwz < 0) {
+        fnx = -fnx;
+        fny = -fny;
+        fnz = -fnz;
+      }
+    }
+
+    const toCamX = mcCamX - fcx;
+    const toCamY = mcCamY - fcy;
+    const toCamZ = mcCamZ - fcz;
+    const facing = fnx * toCamX + fny * toCamY + fnz * toCamZ;
+    if (!doubleSided && facing <= 1e-7) return;
+
+    const cnx = facing < 0 ? -fnx : fnx;
+    const cny = facing < 0 ? -fny : fny;
+    const cnz = facing < 0 ? -fnz : fnz;
+    const camOffset = cnx * (fcx - mcCamX) + cny * (fcy - mcCamY) + cnz * (fcz - mcCamZ);
+
+    const denom0 = mcCamZ - w0z;
+    const inv0 = mcFl / (denom0 < 0.30 ? 0.30 : denom0);
+    const p0x = mcCx + w0x * inv0;
+    const p0y = mcCy - w0y * inv0;
+
+    const denom1 = mcCamZ - w1z;
+    const inv1 = mcFl / (denom1 < 0.30 ? 0.30 : denom1);
+    const p1x = mcCx + w1x * inv1;
+    const p1y = mcCy - w1y * inv1;
+
+    const denom2 = mcCamZ - w2z;
+    const inv2 = mcFl / (denom2 < 0.30 ? 0.30 : denom2);
+    const p2x = mcCx + w2x * inv2;
+    const p2y = mcCy - w2y * inv2;
+
+    let p3x = 0, p3y = 0;
+    let minX, maxX, minY, maxY, area2, sumD;
+    if (has4) {
+      const denom3 = mcCamZ - w3z;
+      const inv3 = mcFl / (denom3 < 0.30 ? 0.30 : denom3);
+      p3x = mcCx + w3x * inv3;
+      p3y = mcCy - w3y * inv3;
+
+      area2 =
+        (p3x * p0y - p0x * p3y) +
+        (p0x * p1y - p1x * p0y) +
+        (p1x * p2y - p2x * p1y) +
+        (p2x * p3y - p3x * p2y);
+      if (area2 > -1e-4 && area2 < 1e-4) return;
+
+      minX = p0x < p1x ? p0x : p1x;
+      if (p2x < minX) minX = p2x;
+      if (p3x < minX) minX = p3x;
+      maxX = p0x > p1x ? p0x : p1x;
+      if (p2x > maxX) maxX = p2x;
+      if (p3x > maxX) maxX = p3x;
+      minY = p0y < p1y ? p0y : p1y;
+      if (p2y < minY) minY = p2y;
+      if (p3y < minY) minY = p3y;
+      maxY = p0y > p1y ? p0y : p1y;
+      if (p2y > maxY) maxY = p2y;
+      if (p3y > maxY) maxY = p3y;
+      sumD =
+        ((w0x + w1x + w2x + w3x) * mcVx +
+          (w0y + w1y + w2y + w3y) * mcVy +
+          (w0z + w1z + w2z + w3z) * mcVz) * 0.25;
+    } else {
+      area2 =
+        (p2x * p0y - p0x * p2y) +
+        (p0x * p1y - p1x * p0y) +
+        (p1x * p2y - p2x * p1y);
+      if (area2 > -1e-4 && area2 < 1e-4) return;
+
+      minX = p0x < p1x ? (p0x < p2x ? p0x : p2x) : (p1x < p2x ? p1x : p2x);
+      maxX = p0x > p1x ? (p0x > p2x ? p0x : p2x) : (p1x > p2x ? p1x : p2x);
+      minY = p0y < p1y ? (p0y < p2y ? p0y : p2y) : (p1y < p2y ? p1y : p2y);
+      maxY = p0y > p1y ? (p0y > p2y ? p0y : p2y) : (p1y > p2y ? p1y : p2y);
+      sumD =
+        ((w0x + w1x + w2x) * mcVx +
+          (w0y + w1y + w2y) * mcVy +
+          (w0z + w1z + w2z) * mcVz) / 3;
+    }
+
+    const fill = shadeColorXYZ(rgb, cnx, cny, cnz, mcLightDir, mcHalfVec, mcAtmo, spec, emissive);
+    const prim = allocPrimSlot(mcPrimCount++);
+    prim.type = 0;
+    prim.count = count;
+    const pxArr = prim.ptsX;
+    const pyArr = prim.ptsY;
+    if (area2 < 0) {
+      if (has4) {
+        pxArr[0] = p3x; pyArr[0] = p3y;
+        pxArr[1] = p2x; pyArr[1] = p2y;
+        pxArr[2] = p1x; pyArr[2] = p1y;
+        pxArr[3] = p0x; pyArr[3] = p0y;
+      } else {
+        pxArr[0] = p2x; pyArr[0] = p2y;
+        pxArr[1] = p1x; pyArr[1] = p1y;
+        pxArr[2] = p0x; pyArr[2] = p0y;
+      }
+    } else {
+      pxArr[0] = p0x; pyArr[0] = p0y;
+      pxArr[1] = p1x; pyArr[1] = p1y;
+      pxArr[2] = p2x; pyArr[2] = p2y;
+      if (has4) {
+        pxArr[3] = p3x; pyArr[3] = p3y;
+      }
+    }
+    prim.cnx = cnx;
+    prim.cny = cny;
+    prim.cnz = cnz;
+    prim.camOffset = camOffset;
+    prim.minX = minX;
+    prim.maxX = maxX;
+    prim.minY = minY;
+    prim.maxY = maxY;
+    prim.depthZ = sumD + depthBias;
+    prim.depthBias = depthBias;
+    prim.convexGroup = convexGroup;
+    prim.fill = fill;
+    prim.stroke = stroke || fill;
+    prim.lineWidth = lineWidth;
+  }
+
+  function mcAddFace(localVerts, rgb, opts) {
     const o = opts || {};
-    const primitives = [];
-    const baseS = frame.scale * Math.max(0.05, buildScale);
-    const sXY = Math.max(1e-4, baseS * (o.scaleXY !== undefined ? o.scaleXY : 1));
-    const sZ = Math.max(1e-4, baseS * (o.scaleZ !== undefined ? o.scaleZ : 1));
-    const jx = o.jitterX || 0;
-    const jy = o.jitterY || 0;
-    const ox = frame.origin.x;
-    const oy = frame.origin.y;
-    const oz = frame.origin.z;
-    const t = frame.rotT;
-    const b = frame.rotB;
-    const n = frame.rotN;
-    const camVec = frame.camVec;
-    const lightDir = frame.lightDir;
-    const halfVec = frame.halfVec;
-    const atmo = frame.atmo;
-    const viewAxis = norm3(sub3(camVec, { x: ox, y: oy, z: oz }));
-    const nearClipZ = camVec.z - 0.25;
-    let nextPid = 0;
-
-    function toWorld(lx, ly, lz) {
-      const wx = (lx + jx) * sXY;
-      const wy = (ly + jy) * sXY;
-      const wz = lz * sZ;
-      return {
-        x: ox + t.x * wx + b.x * wy + n.x * wz,
-        y: oy + t.y * wx + b.y * wy + n.y * wz,
-        z: oz + t.z * wx + b.z * wy + n.z * wz
-      };
+    const count = localVerts.length;
+    if (count < 3) return;
+    if (count <= 4 && !o.refWorld) {
+      const v0 = localVerts[0];
+      const v1 = localVerts[1];
+      const v2 = localVerts[2];
+      const v3 = count === 4 ? localVerts[3] : v0;
+      const hint = o.outwardNormal;
+      mcAddFaceFlat(
+        v0[0], v0[1], v0[2],
+        v1[0], v1[1], v1[2],
+        v2[0], v2[1], v2[2],
+        v3[0], v3[1], v3[2],
+        count === 4,
+        rgb,
+        o.spec !== undefined ? o.spec : 0.14,
+        o.emissive || 0,
+        Boolean(o.doubleSided),
+        o.stroke || "",
+        o.lineWidth || 0.7,
+        o.depthBias || 0,
+        Boolean(hint),
+        hint ? hint[0] : 0,
+        hint ? hint[1] : 0,
+        hint ? hint[2] : 0,
+        o.convexGroup || 0
+      );
+      return;
     }
 
-    function dirToWorld(dx, dy, dz) {
-      const nx = dx / sXY;
-      const ny = dy / sXY;
-      const nz = dz / sZ;
-      return norm3({
-        x: t.x * nx + b.x * ny + n.x * nz,
-        y: t.y * nx + b.y * ny + n.y * nz,
-        z: t.z * nx + b.z * ny + n.z * nz
-      });
+    let cx = 0, cy = 0, cz = 0;
+    for (let i = 0; i < count; i++) {
+      const lv = localVerts[i];
+      const wx = mcOjx + mcTSx * lv[0] + mcBSx * lv[1] + mcNSx * lv[2];
+      const wy = mcOjy + mcTSy * lv[0] + mcBSy * lv[1] + mcNSy * lv[2];
+      const wz = mcOjz + mcTSz * lv[0] + mcBSz * lv[1] + mcNSz * lv[2];
+      if (wz >= mcNearClipZ) return;
+      SCRATCH_WX[i] = wx;
+      SCRATCH_WY[i] = wy;
+      SCRATCH_WZ[i] = wz;
+      cx += wx;
+      cy += wy;
+      cz += wz;
+    }
+    cx /= count;
+    cy /= count;
+    cz /= count;
+
+    const e1x = SCRATCH_WX[1] - SCRATCH_WX[0];
+    const e1y = SCRATCH_WY[1] - SCRATCH_WY[0];
+    const e1z = SCRATCH_WZ[1] - SCRATCH_WZ[0];
+    const e2x = SCRATCH_WX[2] - SCRATCH_WX[0];
+    const e2y = SCRATCH_WY[2] - SCRATCH_WY[0];
+    const e2z = SCRATCH_WZ[2] - SCRATCH_WZ[0];
+    let rnx = e1y * e2z - e1z * e2y;
+    let rny = e1z * e2x - e1x * e2z;
+    let rnz = e1x * e2y - e1y * e2x;
+    let rawLenSq = rnx * rnx + rny * rny + rnz * rnz;
+    if (rawLenSq < 1e-18 && count >= 4) {
+      const f1x = SCRATCH_WX[2] - SCRATCH_WX[1], f1y = SCRATCH_WY[2] - SCRATCH_WY[1], f1z = SCRATCH_WZ[2] - SCRATCH_WZ[1];
+      const f2x = SCRATCH_WX[3] - SCRATCH_WX[1], f2y = SCRATCH_WY[3] - SCRATCH_WY[1], f2z = SCRATCH_WZ[3] - SCRATCH_WZ[1];
+      rnx = f1y * f2z - f1z * f2y;
+      rny = f1z * f2x - f1x * f2z;
+      rnz = f1x * f2y - f1y * f2x;
+      rawLenSq = rnx * rnx + rny * rny + rnz * rnz;
+    }
+    if (rawLenSq < 1e-18) return;
+    const invRawLen = 1 / Math.sqrt(rawLenSq);
+    let fnx = rnx * invRawLen;
+    let fny = rny * invRawLen;
+    let fnz = rnz * invRawLen;
+
+    if (o.outwardNormal) {
+      const hint = o.outwardNormal;
+      const dnx = hint[0] / mcSXY;
+      const dny = hint[1] / mcSXY;
+      const dnz = hint[2] / mcSZ;
+      const hwx = mcTx * dnx + mcBx * dny + mcNx * dnz;
+      const hwy = mcTy * dnx + mcBy * dny + mcNy * dnz;
+      const hwz = mcTz * dnx + mcBz * dny + mcNz * dnz;
+      if (fnx * hwx + fny * hwy + fnz * hwz < 0) {
+        fnx = -fnx;
+        fny = -fny;
+        fnz = -fnz;
+      }
+    } else if (o.refWorld) {
+      const rw = o.refWorld;
+      if (fnx * (cx - rw.x) + fny * (cy - rw.y) + fnz * (cz - rw.z) < 0) {
+        fnx = -fnx;
+        fny = -fny;
+        fnz = -fnz;
+      }
     }
 
-    function addFace(localVerts, rgb, opts) {
-      const o = opts || {};
-      const count = localVerts.length;
-      if (count < 3) return;
-      const wVerts = new Array(count);
-      let cx = 0;
-      let cy = 0;
-      let cz = 0;
+    const facing = fnx * (mcCamX - cx) + fny * (mcCamY - cy) + fnz * (mcCamZ - cz);
+    if (!o.doubleSided && facing <= 1e-7) return;
 
-      for (let i = 0; i < count; i++) {
-        const w = toWorld(localVerts[i][0], localVerts[i][1], localVerts[i][2]);
-        if (w.z >= nearClipZ) {
-          return;
-        }
-        wVerts[i] = w;
-        cx += w.x;
-        cy += w.y;
-        cz += w.z;
-      }
-      cx /= count;
-      cy /= count;
-      cz /= count;
-      const fc = { x: cx, y: cy, z: cz };
+    const cnx = facing < 0 ? -fnx : fnx;
+    const cny = facing < 0 ? -fny : fny;
+    const cnz = facing < 0 ? -fnz : fnz;
+    const camOffset = cnx * (cx - mcCamX) + cny * (cy - mcCamY) + cnz * (cz - mcCamZ);
 
-      let rawN = cross3(sub3(wVerts[1], wVerts[0]), sub3(wVerts[2], wVerts[0]));
-      let rawLenSq = dot3(rawN, rawN);
-      if (rawLenSq < 1e-18 && count >= 4) {
-        rawN = cross3(sub3(wVerts[2], wVerts[1]), sub3(wVerts[3], wVerts[1]));
-        rawLenSq = dot3(rawN, rawN);
-      }
-      if (rawLenSq < 1e-18) {
-        return;
-      }
-      const invRawLen = 1 / Math.sqrt(rawLenSq);
-      let fn = {
-        x: rawN.x * invRawLen,
-        y: rawN.y * invRawLen,
-        z: rawN.z * invRawLen
-      };
+    const prim = allocPrimSlot(mcPrimCount++);
+    if (prim.ptsX.length < count) {
+      prim.ptsX = new Float64Array(count);
+      prim.ptsY = new Float64Array(count);
+    }
+    const pxArr = prim.ptsX;
+    const pyArr = prim.ptsY;
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity, sumD = 0;
 
-      if (o.outwardNormal) {
-        const hintW = dirToWorld(o.outwardNormal[0], o.outwardNormal[1], o.outwardNormal[2]);
-        if (dot3(fn, hintW) < 0) {
-          wVerts.reverse();
-          fn = { x: -fn.x, y: -fn.y, z: -fn.z };
-        }
-      } else if (o.refWorld) {
-        if (dot3(fn, sub3(fc, o.refWorld)) < 0) {
-          wVerts.reverse();
-          fn = { x: -fn.x, y: -fn.y, z: -fn.z };
-        }
-      }
-
-      const toCam = sub3(camVec, fc);
-      const facing = dot3(fn, toCam);
-
-      if (!o.doubleSided && facing <= 1e-7) {
-        return;
-      }
-
-      const camNormal = facing < 0 ? { x: -fn.x, y: -fn.y, z: -fn.z } : fn;
-      const planeD = dot3(camNormal, fc);
-      const camOffset = planeD - dot3(camNormal, camVec);
-      const fill = shadeColor(rgb, camNormal, lightDir, halfVec, atmo, o);
-      const bias = o.depthBias || 0;
-
-      const pts = new Array(count);
-      let minX = Infinity;
-      let maxX = -Infinity;
-      let minY = Infinity;
-      let maxY = -Infinity;
-      let sumD = 0;
-
-      for (let i = 0; i < count; i++) {
-        const w = wVerts[i];
-        const pt = frame.project(w, frame.cx, frame.cy, frame.focalLength);
-        pts[i] = pt;
-        if (pt.x < minX) minX = pt.x;
-        if (pt.x > maxX) maxX = pt.x;
-        if (pt.y < minY) minY = pt.y;
-        if (pt.y > maxY) maxY = pt.y;
-        sumD += dot3(w, viewAxis);
-      }
-
-      let area2 = 0;
-      for (let i = 0, j = count - 1; i < count; j = i++) {
-        area2 += pts[j].x * pts[i].y - pts[i].x * pts[j].y;
-      }
-      if (Math.abs(area2) < 1e-4) {
-        return;
-      }
-      if (area2 < 0) {
-        pts.reverse();
-      }
-
-      primitives.push({
-        type: "poly",
-        pts: pts,
-        camNormal: camNormal,
-        camOffset: camOffset,
-        minX: minX,
-        maxX: maxX,
-        minY: minY,
-        maxY: maxY,
-        depthZ: sumD / count + bias,
-        depthBias: bias,
-        fill: fill,
-        stroke: o.stroke || fill,
-        lineWidth: o.lineWidth || 0.7
-      });
+    for (let i = 0; i < count; i++) {
+      const wx = SCRATCH_WX[i];
+      const wy = SCRATCH_WY[i];
+      const wz = SCRATCH_WZ[i];
+      const denom = mcCamZ - wz;
+      const inv = mcFl / (denom < 0.30 ? 0.30 : denom);
+      const px = mcCx + wx * inv;
+      const py = mcCy - wy * inv;
+      pxArr[i] = px;
+      pyArr[i] = py;
+      if (px < minX) minX = px;
+      if (px > maxX) maxX = px;
+      if (py < minY) minY = py;
+      if (py > maxY) maxY = py;
+      sumD += wx * mcVx + wy * mcVy + wz * mcVz;
     }
 
-    function addQuad(v0, v1, v2, v3, rgb, opts) {
-      addFace([v0, v1, v2, v3], rgb, opts);
+    let area2 = 0;
+    for (let i = 0, j = count - 1; i < count; j = i++) {
+      area2 += pxArr[j] * pyArr[i] - pxArr[i] * pyArr[j];
+    }
+    if (area2 > -1e-4 && area2 < 1e-4) {
+      mcPrimCount--;
+      return;
+    }
+    if (area2 < 0) {
+      for (let l = 0, r = count - 1; l < r; l++, r--) {
+        const tx = pxArr[l]; pxArr[l] = pxArr[r]; pxArr[r] = tx;
+        const ty = pyArr[l]; pyArr[l] = pyArr[r]; pyArr[r] = ty;
+      }
     }
 
-    function addLine(a, bPt, stroke, lineWidth, depthBias, opts) {
-      const wa = toWorld(a[0], a[1], a[2]);
-      const wb = toWorld(bPt[0], bPt[1], bPt[2]);
-      if (wa.z >= nearClipZ || wb.z >= nearClipZ) {
+    const spec = o.spec !== undefined ? o.spec : 0.14;
+    const emissive = o.emissive || 0;
+    const fill = shadeColorXYZ(rgb, cnx, cny, cnz, mcLightDir, mcHalfVec, mcAtmo, spec, emissive);
+    const bias = o.depthBias || 0;
+
+    prim.type = 0;
+    prim.count = count;
+    prim.cnx = cnx;
+    prim.cny = cny;
+    prim.cnz = cnz;
+    prim.camOffset = camOffset;
+    prim.minX = minX;
+    prim.maxX = maxX;
+    prim.minY = minY;
+    prim.maxY = maxY;
+    prim.depthZ = sumD / count + bias;
+    prim.depthBias = bias;
+    prim.convexGroup = o.convexGroup || 0;
+    prim.fill = fill;
+    prim.stroke = o.stroke || fill;
+    prim.lineWidth = o.lineWidth || 0.7;
+  }
+
+  function mcAddQuad(v0, v1, v2, v3, rgb, opts) {
+    const o = opts || {};
+    if (o.refWorld) {
+      mcAddFace([v0, v1, v2, v3], rgb, o);
+      return;
+    }
+    const hint = o.outwardNormal;
+    mcAddFaceFlat(
+      v0[0], v0[1], v0[2],
+      v1[0], v1[1], v1[2],
+      v2[0], v2[1], v2[2],
+      v3[0], v3[1], v3[2],
+      true,
+      rgb,
+      o.spec !== undefined ? o.spec : 0.14,
+      o.emissive || 0,
+      Boolean(o.doubleSided),
+      o.stroke || "",
+      o.lineWidth || 0.7,
+      o.depthBias || 0,
+      Boolean(hint),
+      hint ? hint[0] : 0,
+      hint ? hint[1] : 0,
+      hint ? hint[2] : 0,
+      o.convexGroup || 0
+    );
+  }
+
+  function mcAddLine(a, bPt, stroke, lineWidth, depthBias, opts) {
+    const wax = mcOjx + mcTSx * a[0] + mcBSx * a[1] + mcNSx * a[2];
+    const way = mcOjy + mcTSy * a[0] + mcBSy * a[1] + mcNSy * a[2];
+    const waz = mcOjz + mcTSz * a[0] + mcBSz * a[1] + mcNSz * a[2];
+    if (waz >= mcNearClipZ) return;
+
+    const wbx = mcOjx + mcTSx * bPt[0] + mcBSx * bPt[1] + mcNSx * bPt[2];
+    const wby = mcOjy + mcTSy * bPt[0] + mcBSy * bPt[1] + mcNSy * bPt[2];
+    const wbz = mcOjz + mcTSz * bPt[0] + mcBSz * bPt[1] + mcNSz * bPt[2];
+    if (wbz >= mcNearClipZ) return;
+
+    if (opts && opts.outwardNormal) {
+      const hint = opts.outwardNormal;
+      const dnx = hint[0] / mcSXY;
+      const dny = hint[1] / mcSXY;
+      const dnz = hint[2] / mcSZ;
+      const hwx = mcTx * dnx + mcBx * dny + mcNx * dnz;
+      const hwy = mcTy * dnx + mcBy * dny + mcNy * dnz;
+      const hwz = mcTz * dnx + mcBz * dny + mcNz * dnz;
+      const midX = (wax + wbx) * 0.5;
+      const midY = (way + wby) * 0.5;
+      const midZ = (waz + wbz) * 0.5;
+      if (hwx * (mcCamX - midX) + hwy * (mcCamY - midY) + hwz * (mcCamZ - midZ) <= 1e-7) {
         return;
       }
-      if (opts && opts.outwardNormal) {
-        const hintW = dirToWorld(opts.outwardNormal[0], opts.outwardNormal[1], opts.outwardNormal[2]);
-        const midW = { x: (wa.x + wb.x) * 0.5, y: (wa.y + wb.y) * 0.5, z: (wa.z + wb.z) * 0.5 };
-        if (dot3(hintW, sub3(camVec, midW)) <= 1e-7) {
-          return;
-        }
+    }
+
+    const denom0 = mcCamZ - waz;
+    const inv0 = mcFl / (denom0 < 0.30 ? 0.30 : denom0);
+    const p0x = mcCx + wax * inv0;
+    const p0y = mcCy - way * inv0;
+
+    const denom1 = mcCamZ - wbz;
+    const inv1 = mcFl / (denom1 < 0.30 ? 0.30 : denom1);
+    const p1x = mcCx + wbx * inv1;
+    const p1y = mcCy - wby * inv1;
+
+    const da = wax * mcVx + way * mcVy + waz * mcVz;
+    const db = wbx * mcVx + wby * mcVy + wbz * mcVz;
+    const d0 = denom0 < 0.30 ? 0.30 : denom0;
+    const d1 = denom1 < 0.30 ? 0.30 : denom1;
+    const bias = depthBias || 0;
+    const lw = lineWidth || 1.2;
+    const pad = lw * 0.5;
+
+    const prim = allocPrimSlot(mcPrimCount++);
+    prim.type = 1;
+    prim.p0x = p0x;
+    prim.p0y = p0y;
+    prim.p1x = p1x;
+    prim.p1y = p1y;
+    prim.d0 = d0;
+    prim.d1 = d1;
+    prim.minX = (p0x < p1x ? p0x : p1x) - pad;
+    prim.maxX = (p0x > p1x ? p0x : p1x) + pad;
+    prim.minY = (p0y < p1y ? p0y : p1y) - pad;
+    prim.maxY = (p0y > p1y ? p0y : p1y) + pad;
+    prim.depthZ = (da + db) * 0.5 + bias;
+    prim.depthBias = bias;
+    prim.convexGroup = 0;
+    prim.stroke = stroke;
+    prim.lineWidth = lw;
+  }
+
+  function mcAddBox(cx, cy, cz, hx, hy, hz, rgb, opts) {
+    const o = opts || {};
+    const spec = o.spec !== undefined ? o.spec : 0.14;
+    const emissive = o.emissive || 0;
+    const ds = Boolean(o.doubleSided);
+    const stroke = o.stroke || "";
+    const lw = o.lineWidth || 0.7;
+    const bias = o.depthBias || 0;
+    const grp = ds ? 0 : ++mcNextConvexGroup;
+
+    const x0 = cx - hx, x1 = cx + hx;
+    const y0 = cy - hy, y1 = cy + hy;
+    const z0 = cz - hz, z1 = cz + hz;
+
+    if (ds || mcCamLz > z1 - 1e-5) {
+      mcAddFaceFlat(x0, y0, z1, x1, y0, z1, x1, y1, z1, x0, y1, z1, true, rgb, spec, emissive, ds, stroke, lw, bias, true, 0, 0, 1, grp);
+    }
+    if (ds || z0 + 1e-5 > mcCamLz) {
+      mcAddFaceFlat(x0, y0, z0, x0, y1, z0, x1, y1, z0, x1, y0, z0, true, rgb, spec, emissive, ds, stroke, lw, bias, true, 0, 0, -1, grp);
+    }
+    if (ds || y0 + 1e-5 > mcCamLy) {
+      mcAddFaceFlat(x0, y0, z0, x1, y0, z0, x1, y0, z1, x0, y0, z1, true, rgb, spec, emissive, ds, stroke, lw, bias, true, 0, -1, 0, grp);
+    }
+    if (ds || mcCamLy > y1 - 1e-5) {
+      mcAddFaceFlat(x0, y1, z0, x0, y1, z1, x1, y1, z1, x1, y1, z0, true, rgb, spec, emissive, ds, stroke, lw, bias, true, 0, 1, 0, grp);
+    }
+    if (ds || mcCamLx > x1 - 1e-5) {
+      mcAddFaceFlat(x1, y0, z0, x1, y1, z0, x1, y1, z1, x1, y0, z1, true, rgb, spec, emissive, ds, stroke, lw, bias, true, 1, 0, 0, grp);
+    }
+    if (ds || x0 + 1e-5 > mcCamLx) {
+      mcAddFaceFlat(x0, y0, z0, x0, y0, z1, x0, y1, z1, x0, y1, z0, true, rgb, spec, emissive, ds, stroke, lw, bias, true, -1, 0, 0, grp);
+    }
+  }
+
+  function mcAddPrism(cx, cy, z0, z1, r0, r1, sides, rotAngle, rgb, opts) {
+    const o = opts || {};
+    const swapped = z1 < z0;
+    const zBot = swapped ? z1 : z0;
+    const zTop = swapped ? z0 : z1;
+    const rBot = swapped ? r1 : r0;
+    const rTop = swapped ? r0 : r1;
+    const h = zTop - zBot;
+    if (h < 1e-6) return;
+
+    const spec = o.spec !== undefined ? o.spec : 0.14;
+    const emissive = o.emissive || 0;
+    const ds = Boolean(o.doubleSided);
+    const stroke = o.stroke || "";
+    const lw = o.lineWidth || 0.7;
+    const bias = o.depthBias || 0;
+    const grp = ds ? 0 : ++mcNextConvexGroup;
+
+    const angleOffset = rotAngle || 0;
+    const step = (Math.PI * 2) / sides;
+    const cosHalf = Math.cos(Math.PI / sides);
+
+    for (let i = 0; i < sides; i++) {
+      const a = angleOffset + step * i;
+      const ca = Math.cos(a);
+      const sa = Math.sin(a);
+      RING_BOT_X[i] = cx + rBot * ca;
+      RING_BOT_Y[i] = cy + rBot * sa;
+      RING_TOP_X[i] = cx + rTop * ca;
+      RING_TOP_Y[i] = cy + rTop * sa;
+    }
+
+    const effRBot = rBot > 0.002 ? rBot : 0;
+    const effRTop = rTop > 0.002 ? rTop : 0;
+    const dzSlope = (effRBot - effRTop) * cosHalf;
+    for (let i = 0; i < sides; i++) {
+      const next = i + 1 < sides ? i + 1 : 0;
+      const midA = angleOffset + step * (i + 0.5);
+      const onx = Math.cos(midA) * h;
+      const ony = Math.sin(midA) * h;
+      const bx0 = RING_BOT_X[i];
+      const by0 = RING_BOT_Y[i];
+      const px0 = effRBot > 0 ? bx0 : cx;
+      const py0 = effRBot > 0 ? by0 : cy;
+
+      if (!ds && onx * (mcCamLx - px0) + ony * (mcCamLy - py0) + dzSlope * (mcCamLz - zBot) <= -1e-4) {
+        continue;
       }
-      const p0 = frame.project(wa, frame.cx, frame.cy, frame.focalLength);
-      const p1 = frame.project(wb, frame.cx, frame.cy, frame.focalLength);
-      const da = dot3(wa, viewAxis);
-      const db = dot3(wb, viewAxis);
-      const d0 = camVec.z - wa.z;
-      const d1 = camVec.z - wb.z;
-      const bias = depthBias || 0;
-      const lw = lineWidth || 1.2;
-      const pad = lw * 0.5;
-      primitives.push({
-        type: "line",
-        p0: p0,
-        p1: p1,
-        d0: d0 < 0.30 ? 0.30 : d0,
-        d1: d1 < 0.30 ? 0.30 : d1,
-        minX: Math.min(p0.x, p1.x) - pad,
-        maxX: Math.max(p0.x, p1.x) + pad,
-        minY: Math.min(p0.y, p1.y) - pad,
-        maxY: Math.max(p0.y, p1.y) + pad,
-        depthZ: (da + db) * 0.5 + bias,
-        depthBias: bias,
+
+      if (rBot > 0.002 && rTop > 0.002) {
+        mcAddFaceFlat(
+          bx0, by0, zBot,
+          RING_BOT_X[next], RING_BOT_Y[next], zBot,
+          RING_TOP_X[next], RING_TOP_Y[next], zTop,
+          RING_TOP_X[i], RING_TOP_Y[i], zTop,
+          true, rgb, spec, emissive, ds, stroke, lw, bias, true, onx, ony, dzSlope, grp
+        );
+      } else if (rBot > 0.002) {
+        mcAddFaceFlat(
+          bx0, by0, zBot,
+          RING_BOT_X[next], RING_BOT_Y[next], zBot,
+          cx, cy, zTop,
+          0, 0, 0,
+          false, rgb, spec, emissive, ds, stroke, lw, bias, true, onx, ony, dzSlope, grp
+        );
+      } else if (rTop > 0.002) {
+        mcAddFaceFlat(
+          cx, cy, zBot,
+          RING_TOP_X[next], RING_TOP_Y[next], zTop,
+          RING_TOP_X[i], RING_TOP_Y[i], zTop,
+          0, 0, 0,
+          false, rgb, spec, emissive, ds, stroke, lw, bias, true, onx, ony, dzSlope, grp
+        );
+      }
+    }
+
+    if (rTop > 0.002 && !o.openTop && (ds || mcCamLz > zTop - 1e-5)) {
+      const capOpts = {
+        spec: spec,
+        emissive: emissive,
+        doubleSided: ds,
         stroke: stroke,
-        lineWidth: lw
-      });
-    }
-
-    function addBox(cx, cy, cz, hx, hy, hz, rgb, opts) {
-      const baseOpt = opts || {};
-      const x0 = cx - hx, x1 = cx + hx;
-      const y0 = cy - hy, y1 = cy + hy;
-      const z0 = cz - hz, z1 = cz + hz;
-
-      addFace([[x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1]], rgb, Object.assign({}, baseOpt, { outwardNormal: [0, 0, 1] }));
-      addFace([[x0, y0, z0], [x0, y1, z0], [x1, y1, z0], [x1, y0, z0]], rgb, Object.assign({}, baseOpt, { outwardNormal: [0, 0, -1] }));
-      addFace([[x0, y0, z0], [x1, y0, z0], [x1, y0, z1], [x0, y0, z1]], rgb, Object.assign({}, baseOpt, { outwardNormal: [0, -1, 0] }));
-      addFace([[x0, y1, z0], [x0, y1, z1], [x1, y1, z1], [x1, y1, z0]], rgb, Object.assign({}, baseOpt, { outwardNormal: [0, 1, 0] }));
-      addFace([[x1, y0, z0], [x1, y1, z0], [x1, y1, z1], [x1, y0, z1]], rgb, Object.assign({}, baseOpt, { outwardNormal: [1, 0, 0] }));
-      addFace([[x0, y0, z0], [x0, y0, z1], [x0, y1, z1], [x0, y1, z0]], rgb, Object.assign({}, baseOpt, { outwardNormal: [-1, 0, 0] }));
-    }
-
-    function addPrism(cx, cy, z0, z1, r0, r1, sides, rotAngle, rgb, opts) {
-      const baseOpt = opts || {};
-      const swapped = z1 < z0;
-      const zBot = swapped ? z1 : z0;
-      const zTop = swapped ? z0 : z1;
-      const rBot = swapped ? r1 : r0;
-      const rTop = swapped ? r0 : r1;
-      const h = zTop - zBot;
-      if (h < 1e-6) return;
-
-      const angleOffset = rotAngle || 0;
-      const step = (Math.PI * 2) / sides;
-      const cosHalf = Math.cos(Math.PI / sides);
-      const botRing = new Array(sides);
-      const topRing = new Array(sides);
-
+        lineWidth: lw,
+        depthBias: bias,
+        convexGroup: grp,
+        outwardNormal: [0, 0, 1]
+      };
+      const topVerts = new Array(sides);
       for (let i = 0; i < sides; i++) {
-        const a = angleOffset + step * i;
-        const ca = Math.cos(a);
-        const sa = Math.sin(a);
-        botRing[i] = [cx + rBot * ca, cy + rBot * sa, zBot];
-        topRing[i] = [cx + rTop * ca, cy + rTop * sa, zTop];
+        topVerts[i] = [RING_TOP_X[i], RING_TOP_Y[i], zTop];
       }
-
-      const dzSlope = (rBot - rTop) * cosHalf;
+      mcAddFace(topVerts, rgb, capOpts);
+    }
+    if (rBot > 0.002 && !o.openBottom && (ds || zBot + 1e-5 > mcCamLz)) {
+      const capOpts = {
+        spec: spec,
+        emissive: emissive,
+        doubleSided: ds,
+        stroke: stroke,
+        lineWidth: lw,
+        depthBias: bias,
+        convexGroup: grp,
+        outwardNormal: [0, 0, -1]
+      };
+      const botVerts = new Array(sides);
       for (let i = 0; i < sides; i++) {
-        const next = (i + 1) % sides;
-        const midA = angleOffset + step * (i + 0.5);
-        const sideOpt = Object.assign({}, baseOpt, {
-          outwardNormal: [Math.cos(midA) * h, Math.sin(midA) * h, dzSlope]
-        });
+        botVerts[i] = [RING_BOT_X[sides - 1 - i], RING_BOT_Y[sides - 1 - i], zBot];
+      }
+      mcAddFace(botVerts, rgb, capOpts);
+    }
+  }
 
-        if (rBot > 0.002 && rTop > 0.002) {
-          addFace([botRing[i], botRing[next], topRing[next], topRing[i]], rgb, sideOpt);
-        } else if (rBot > 0.002) {
-          addFace([botRing[i], botRing[next], [cx, cy, zTop]], rgb, sideOpt);
-        } else if (rTop > 0.002) {
-          addFace([[cx, cy, zBot], topRing[next], topRing[i]], rgb, sideOpt);
-        }
-      }
+  function mcAddDome(cx, cy, zBase, rx, ry, rz, rings, segs, rgb, opts) {
+    const o = opts || {};
+    const spec = o.spec !== undefined ? o.spec : 0.14;
+    const emissive = o.emissive || 0;
+    const ds = Boolean(o.doubleSided);
+    const stroke = o.stroke || "";
+    const lw = o.lineWidth || 0.7;
+    const bias = o.depthBias || 0;
+    const grp = ds ? 0 : ++mcNextConvexGroup;
 
-      if (rTop > 0.002 && !baseOpt.openTop) {
-        addFace(topRing, rgb, Object.assign({}, baseOpt, { outwardNormal: [0, 0, 1] }));
-      }
-      if (rBot > 0.002 && !baseOpt.openBottom) {
-        addFace(botRing.slice().reverse(), rgb, Object.assign({}, baseOpt, { outwardNormal: [0, 0, -1] }));
-      }
+    const invRx = 1 / (rx || 1);
+    const invRy = 1 / (ry || 1);
+    const invRz = 1 / (rz || 1);
+
+    for (let k = 0; k <= segs; k++) {
+      const ang = (Math.PI * 2 * k) / segs;
+      COS_LUT[k] = Math.cos(ang);
+      SIN_LUT[k] = Math.sin(ang);
     }
 
-    function addDome(cx, cy, zBase, rx, ry, rz, rings, segs, rgb, opts) {
-      const baseOpt = opts || {};
-      const invRx = 1 / (rx || 1);
-      const invRy = 1 / (ry || 1);
-      const invRz = 1 / (rz || 1);
-      const baseRing = !baseOpt.openBottom && rx > 0.002 && ry > 0.002 ? new Array(segs) : null;
+    for (let r = 0; r < rings; r++) {
+      const phi0 = (Math.PI * 0.5 * r) / rings;
+      const phi1 = (Math.PI * 0.5 * (r + 1)) / rings;
+      const c0 = Math.cos(phi0);
+      const s0 = Math.sin(phi0);
+      const c1 = Math.cos(phi1);
+      const s1 = Math.sin(phi1);
+      const phiMid = (phi0 + phi1) * 0.5;
+      const cMid = Math.cos(phiMid);
+      const sMid = Math.sin(phiMid);
 
-      for (let r = 0; r < rings; r++) {
-        const phi0 = (Math.PI * 0.5 * r) / rings;
-        const phi1 = (Math.PI * 0.5 * (r + 1)) / rings;
-        const c0 = Math.cos(phi0);
-        const s0 = Math.sin(phi0);
-        const c1 = Math.cos(phi1);
-        const s1 = Math.sin(phi1);
-        const phiMid = (phi0 + phi1) * 0.5;
-        const cMid = Math.cos(phiMid);
-        const sMid = Math.sin(phiMid);
+      for (let k = 0; k < segs; k++) {
+        const ck0 = COS_LUT[k], sk0 = SIN_LUT[k];
+        const ck1 = COS_LUT[k + 1], sk1 = SIN_LUT[k + 1];
+        const tMid = (Math.PI * 2 * (k + 0.5)) / segs;
+        const hnx = cMid * Math.cos(tMid) * invRx;
+        const hny = cMid * Math.sin(tMid) * invRy;
+        const hnz = sMid * invRz;
 
-        for (let k = 0; k < segs; k++) {
-          const t0 = (Math.PI * 2 * k) / segs;
-          const t1 = (Math.PI * 2 * (k + 1)) / segs;
-          const tMid = (t0 + t1) * 0.5;
+        const p00x = cx + rx * c0 * ck0;
+        const p00y = cy + ry * c0 * sk0;
+        const p00z = zBase + rz * s0;
 
-          const p00 = [cx + rx * c0 * Math.cos(t0), cy + ry * c0 * Math.sin(t0), zBase + rz * s0];
-          const p01 = [cx + rx * c0 * Math.cos(t1), cy + ry * c0 * Math.sin(t1), zBase + rz * s0];
-          const p11 = [cx + rx * c1 * Math.cos(t1), cy + ry * c1 * Math.sin(t1), zBase + rz * s1];
-          const p10 = [cx + rx * c1 * Math.cos(t0), cy + ry * c1 * Math.sin(t0), zBase + rz * s1];
-
-          if (r === 0 && baseRing) {
-            baseRing[k] = p00;
-          }
-
-          const patchOpt = Object.assign({}, baseOpt, {
-            outwardNormal: [cMid * Math.cos(tMid) * invRx, cMid * Math.sin(tMid) * invRy, sMid * invRz]
-          });
-
-          if (r === rings - 1) {
-            addFace([p00, p01, [cx, cy, zBase + rz]], rgb, patchOpt);
-          } else {
-            addFace([p00, p01, p11, p10], rgb, patchOpt);
-          }
-        }
-      }
-
-      if (baseRing) {
-        addFace(baseRing.reverse(), rgb, Object.assign({}, baseOpt, { outwardNormal: [0, 0, -1] }));
-      }
-    }
-
-    function drawAll(ctx) {
-      const n = primitives.length;
-      if (n === 0) return;
-
-      ensureSortNodeCap(n);
-      for (let i = 0; i < n; i++) {
-        sortHead[i] = -1;
-        sortIndeg[i] = 0;
-        sortDone[i] = 0;
-      }
-
-      let edgeCount = 0;
-      const cx = frame.cx;
-      const cy = frame.cy;
-      const fl = frame.focalLength;
-
-      for (let i = 0; i < n; i++) {
-        const A = primitives[i];
-        const aIsPoly = A.type === "poly";
-        for (let j = i + 1; j < n; j++) {
-          const B = primitives[j];
-          if (
-            A.maxX <= B.minX + 0.05 ||
-            B.maxX <= A.minX + 0.05 ||
-            A.maxY <= B.minY + 0.05 ||
-            B.maxY <= A.minY + 0.05
-          ) {
+        if (!ds) {
+          const dpx = mcCamLx - p00x;
+          const dpy = mcCamLy - p00y;
+          const dpz = mcCamLz - p00z;
+          const dotN = hnx * dpx + hny * dpy + hnz * dpz;
+          if (dotN < -0.25 * Math.sqrt((hnx * hnx + hny * hny + hnz * hnz) * (dpx * dpx + dpy * dpy + dpz * dpz))) {
             continue;
           }
+        }
 
-          const bIsPoly = B.type === "poly";
-          let dir = 0;
+        const p01x = cx + rx * c0 * ck1;
+        const p01y = cy + ry * c0 * sk1;
+        if (r === rings - 1) {
+          mcAddFaceFlat(
+            p00x, p00y, p00z,
+            p01x, p01y, p00z,
+            cx, cy, zBase + rz,
+            0, 0, 0,
+            false, rgb, spec, emissive, ds, stroke, lw, bias, true, hnx, hny, hnz, grp
+          );
+        } else {
+          const p11x = cx + rx * c1 * ck1;
+          const p11y = cy + ry * c1 * sk1;
+          const p10x = cx + rx * c1 * ck0;
+          const p10y = cy + ry * c1 * sk0;
+          const z1 = zBase + rz * s1;
+          mcAddFaceFlat(
+            p00x, p00y, p00z,
+            p01x, p01y, p00z,
+            p11x, p11y, z1,
+            p10x, p10y, z1,
+            true, rgb, spec, emissive, ds, stroke, lw, bias, true, hnx, hny, hnz, grp
+          );
+        }
+      }
+    }
 
-          if (aIsPoly && bIsPoly) {
-            if (!clipPolyOverlapCentroid(A.pts, B.pts, CLIP_OVERLAP_PT)) {
-              continue;
-            }
-            const rx = (CLIP_OVERLAP_PT.x - cx) / fl;
-            const ry = -(CLIP_OVERLAP_PT.y - cy) / fl;
-            const da = A.camNormal.x * rx + A.camNormal.y * ry - A.camNormal.z;
-            const db = B.camNormal.x * rx + B.camNormal.y * ry - B.camNormal.z;
-            if (Math.abs(da) > 1e-7 && Math.abs(db) > 1e-7) {
-              const ta = A.camOffset / da;
-              const tb = B.camOffset / db;
-              if (Math.abs(ta - tb) > 1e-5) {
-                dir = ta > tb ? -1 : 1;
-              } else {
-                dir = A.depthBias <= B.depthBias ? -1 : 1;
-              }
+    if (!o.openBottom && rx > 0.002 && ry > 0.002 && (ds || zBase + 1e-5 > mcCamLz)) {
+      const capOpts = {
+        spec: spec,
+        emissive: emissive,
+        doubleSided: ds,
+        stroke: stroke,
+        lineWidth: lw,
+        depthBias: bias,
+        convexGroup: grp,
+        outwardNormal: [0, 0, -1]
+      };
+      const baseVerts = new Array(segs);
+      for (let k = 0; k < segs; k++) {
+        const rk = segs - 1 - k;
+        baseVerts[k] = [cx + rx * COS_LUT[rk], cy + ry * SIN_LUT[rk], zBase];
+      }
+      mcAddFace(baseVerts, rgb, capOpts);
+    }
+  }
+
+  function mcDrawAll(ctx) {
+    const n = mcPrimCount;
+    if (n === 0) return;
+
+    ensureSortNodeCap(n);
+    for (let i = 0; i < n; i++) {
+      sortHead[i] = -1;
+      sortIndeg[i] = 0;
+      sortDone[i] = 0;
+    }
+
+    let edgeCount = 0;
+    const cx = mcCx;
+    const cy = mcCy;
+    const fl = mcFl;
+
+    for (let i = 0; i < n; i++) {
+      const A = primPool[i];
+      const aIsPoly = A.type === 0;
+      const aGrp = A.convexGroup;
+      for (let j = i + 1; j < n; j++) {
+        const B = primPool[j];
+        if (aGrp > 0 && aGrp === B.convexGroup) {
+          continue;
+        }
+        if (
+          A.maxX <= B.minX + 0.05 ||
+          B.maxX <= A.minX + 0.05 ||
+          A.maxY <= B.minY + 0.05 ||
+          B.maxY <= A.minY + 0.05
+        ) {
+          continue;
+        }
+
+        const bIsPoly = B.type === 0;
+        let dir = 0;
+
+        if (aIsPoly && bIsPoly) {
+          if (!clipPolyOverlapCentroid(A.ptsX, A.ptsY, A.count, B.ptsX, B.ptsY, B.count, CLIP_OVERLAP_PT)) {
+            continue;
+          }
+          const rx = (CLIP_OVERLAP_PT.x - cx) / fl;
+          const ry = -(CLIP_OVERLAP_PT.y - cy) / fl;
+          const da = A.cnx * rx + A.cny * ry - A.cnz;
+          const db = B.cnx * rx + B.cny * ry - B.cnz;
+          if ((da > 1e-7 || da < -1e-7) && (db > 1e-7 || db < -1e-7)) {
+            const ta = A.camOffset / da;
+            const tb = B.camOffset / db;
+            const diff = ta - tb;
+            if (diff > 1e-5 || diff < -1e-5) {
+              dir = ta > tb ? -1 : 1;
             } else {
-              dir = A.depthZ <= B.depthZ ? -1 : 1;
+              dir = A.depthBias <= B.depthBias ? -1 : 1;
             }
-          } else if (aIsPoly !== bIsPoly) {
-            const L = aIsPoly ? B : A;
-            const P = aIsPoly ? A : B;
-            if (!clipLineInPoly(L.p0, L.p1, P.pts, LINE_HIT_INFO)) {
-              continue;
-            }
-            const rx = (LINE_HIT_INFO.x - cx) / fl;
-            const ry = -(LINE_HIT_INFO.y - cy) / fl;
-            const dp = P.camNormal.x * rx + P.camNormal.y * ry - P.camNormal.z;
-            const tL = (L.d0 * L.d1) / ((1 - LINE_HIT_INFO.um) * L.d1 + LINE_HIT_INFO.um * L.d0);
-            const tP = Math.abs(dp) > 1e-7 ? P.camOffset / dp : camVec.z - P.depthZ;
-            const lineBehind =
-              Math.abs(tL - tP) > 1e-5 ? tL > tP : L.depthBias <= P.depthBias;
-            dir = lineBehind ? (aIsPoly ? 1 : -1) : (aIsPoly ? -1 : 1);
           } else {
+            dir = A.depthZ <= B.depthZ ? -1 : 1;
+          }
+        } else if (aIsPoly !== bIsPoly) {
+          const L = aIsPoly ? B : A;
+          const P = aIsPoly ? A : B;
+          if (!clipLineInPoly(L.p0x, L.p0y, L.p1x, L.p1y, P.ptsX, P.ptsY, P.count, LINE_HIT_INFO)) {
             continue;
           }
+          const rx = (LINE_HIT_INFO.x - cx) / fl;
+          const ry = -(LINE_HIT_INFO.y - cy) / fl;
+          const dp = P.cnx * rx + P.cny * ry - P.cnz;
+          const tL = (L.d0 * L.d1) / ((1 - LINE_HIT_INFO.um) * L.d1 + LINE_HIT_INFO.um * L.d0);
+          const tP = (dp > 1e-7 || dp < -1e-7) ? P.camOffset / dp : mcCamZ - P.depthZ;
+          const diff = tL - tP;
+          const lineBehind = (diff > 1e-5 || diff < -1e-5) ? tL > tP : L.depthBias <= P.depthBias;
+          dir = lineBehind ? (aIsPoly ? 1 : -1) : (aIsPoly ? -1 : 1);
+        } else {
+          continue;
+        }
 
-          if (dir !== 0) {
-            const from = dir < 0 ? i : j;
-            const to = dir < 0 ? j : i;
-            ensureSortEdgeCap(edgeCount + 1);
-            sortEdgeTo[edgeCount] = to;
-            sortEdgeNext[edgeCount] = sortHead[from];
-            sortHead[from] = edgeCount++;
-            sortIndeg[to]++;
-          }
+        if (dir !== 0) {
+          const from = dir < 0 ? i : j;
+          const to = dir < 0 ? j : i;
+          ensureSortEdgeCap(edgeCount + 1);
+          sortEdgeTo[edgeCount] = to;
+          sortEdgeNext[edgeCount] = sortHead[from];
+          sortHead[from] = edgeCount++;
+          sortIndeg[to]++;
         }
       }
+    }
 
+    let lastFill = "";
+    let lastStroke = "";
+    let lastLW = -1;
+
+    if (edgeCount === 0) {
+      for (let i = 0; i < n; i++) {
+        sortFastOrder[i] = i;
+      }
+      for (let i = 1; i < n; i++) {
+        const keyIdx = sortFastOrder[i];
+        const keyDepth = primPool[keyIdx].depthZ;
+        let k = i - 1;
+        while (k >= 0 && primPool[sortFastOrder[k]].depthZ > keyDepth) {
+          sortFastOrder[k + 1] = sortFastOrder[k];
+          k--;
+        }
+        sortFastOrder[k + 1] = keyIdx;
+      }
       for (let step = 0; step < n; step++) {
-        let best = -1;
+        const p = primPool[sortFastOrder[step]];
+        if (p.type === 1) {
+          ctx.beginPath();
+          ctx.moveTo(p.p0x, p.p0y);
+          ctx.lineTo(p.p1x, p.p1y);
+          if (p.stroke !== lastStroke) { ctx.strokeStyle = p.stroke; lastStroke = p.stroke; }
+          if (p.lineWidth !== lastLW) { ctx.lineWidth = p.lineWidth; lastLW = p.lineWidth; }
+          ctx.stroke();
+        } else {
+          const pxArr = p.ptsX;
+          const pyArr = p.ptsY;
+          const cnt = p.count;
+          ctx.beginPath();
+          ctx.moveTo(pxArr[0], pyArr[0]);
+          for (let k = 1; k < cnt; k++) {
+            ctx.lineTo(pxArr[k], pyArr[k]);
+          }
+          ctx.closePath();
+          if (p.fill !== lastFill) { ctx.fillStyle = p.fill; lastFill = p.fill; }
+          ctx.fill();
+          if (p.lineWidth !== lastLW) { ctx.lineWidth = p.lineWidth; lastLW = p.lineWidth; }
+          if (p.stroke !== lastStroke) { ctx.strokeStyle = p.stroke; lastStroke = p.stroke; }
+          ctx.stroke();
+        }
+      }
+      return;
+    }
+
+    let readyCount = 0;
+    for (let i = 0; i < n; i++) {
+      if (sortIndeg[i] === 0) {
+        sortReady[readyCount++] = i;
+      }
+    }
+
+    for (let step = 0; step < n; step++) {
+      let best = -1;
+      if (readyCount > 0) {
+        let bestSlot = 0;
+        best = sortReady[0];
+        let bestDepth = primPool[best].depthZ;
+        for (let r = 1; r < readyCount; r++) {
+          const idx = sortReady[r];
+          const d = primPool[idx].depthZ;
+          if (d < bestDepth) {
+            bestDepth = d;
+            best = idx;
+            bestSlot = r;
+          }
+        }
+        sortReady[bestSlot] = sortReady[--readyCount];
+      } else {
         for (let i = 0; i < n; i++) {
-          if (sortDone[i] || sortIndeg[i] !== 0) continue;
-          if (best < 0 || primitives[i].depthZ < primitives[best].depthZ) {
+          if (sortDone[i]) continue;
+          if (
+            best < 0 ||
+            sortIndeg[i] < sortIndeg[best] ||
+            (sortIndeg[i] === sortIndeg[best] && primPool[i].depthZ < primPool[best].depthZ)
+          ) {
             best = i;
           }
         }
-        if (best < 0) {
-          for (let i = 0; i < n; i++) {
-            if (sortDone[i]) continue;
-            if (
-              best < 0 ||
-              sortIndeg[i] < sortIndeg[best] ||
-              (sortIndeg[i] === sortIndeg[best] && primitives[i].depthZ < primitives[best].depthZ)
-            ) {
-              best = i;
-            }
-          }
-        }
-        sortDone[best] = 1;
-        for (let e = sortHead[best]; e !== -1; e = sortEdgeNext[e]) {
-          sortIndeg[sortEdgeTo[e]]--;
-        }
+      }
 
-        const p = primitives[best];
-        if (p.type === "line") {
-          ctx.beginPath();
-          ctx.moveTo(p.p0.x, p.p0.y);
-          ctx.lineTo(p.p1.x, p.p1.y);
-          ctx.strokeStyle = p.stroke;
-          ctx.lineWidth = p.lineWidth;
-          ctx.stroke();
-        } else {
-          ctx.beginPath();
-          ctx.moveTo(p.pts[0].x, p.pts[0].y);
-          for (let k = 1; k < p.pts.length; k++) {
-            ctx.lineTo(p.pts[k].x, p.pts[k].y);
-          }
-          ctx.closePath();
-          ctx.fillStyle = p.fill;
-          ctx.fill();
-          ctx.lineWidth = p.lineWidth;
-          ctx.strokeStyle = p.stroke;
-          ctx.stroke();
+      sortDone[best] = 1;
+      for (let e = sortHead[best]; e !== -1; e = sortEdgeNext[e]) {
+        const to = sortEdgeTo[e];
+        if (--sortIndeg[to] === 0 && !sortDone[to]) {
+          sortReady[readyCount++] = to;
         }
       }
-    }
 
-    return {
-      toWorld: toWorld,
-      addFace: addFace,
-      addQuad: addQuad,
-      addLine: addLine,
-      addBox: addBox,
-      addPrism: addPrism,
-      addDome: addDome,
-      drawAll: drawAll
-    };
+      const p = primPool[best];
+      if (p.type === 1) {
+        ctx.beginPath();
+        ctx.moveTo(p.p0x, p.p0y);
+        ctx.lineTo(p.p1x, p.p1y);
+        if (p.stroke !== lastStroke) { ctx.strokeStyle = p.stroke; lastStroke = p.stroke; }
+        if (p.lineWidth !== lastLW) { ctx.lineWidth = p.lineWidth; lastLW = p.lineWidth; }
+        ctx.stroke();
+      } else {
+        const pxArr = p.ptsX;
+        const pyArr = p.ptsY;
+        const cnt = p.count;
+        ctx.beginPath();
+        ctx.moveTo(pxArr[0], pyArr[0]);
+        for (let k = 1; k < cnt; k++) {
+          ctx.lineTo(pxArr[k], pyArr[k]);
+        }
+        ctx.closePath();
+        if (p.fill !== lastFill) { ctx.fillStyle = p.fill; lastFill = p.fill; }
+        ctx.fill();
+        if (p.lineWidth !== lastLW) { ctx.lineWidth = p.lineWidth; lastLW = p.lineWidth; }
+        if (p.stroke !== lastStroke) { ctx.strokeStyle = p.stroke; lastStroke = p.stroke; }
+        ctx.stroke();
+      }
+    }
+  }
+
+  const sharedCollector = {
+    toWorld: mcToWorld,
+    addFace: mcAddFace,
+    addQuad: mcAddQuad,
+    addLine: mcAddLine,
+    addBox: mcAddBox,
+    addPrism: mcAddPrism,
+    addDome: mcAddDome,
+    drawAll: mcDrawAll
+  };
+
+  function createMeshCollector(frame, buildScale, opts) {
+    const o = opts || {};
+    mcPrimCount = 0;
+    mcNextConvexGroup = 0;
+    const baseS = frame.scale * Math.max(0.05, buildScale);
+    mcSXY = Math.max(1e-4, baseS * (o.scaleXY !== undefined ? o.scaleXY : 1));
+    mcSZ = Math.max(1e-4, baseS * (o.scaleZ !== undefined ? o.scaleZ : 1));
+    mcJx = o.jitterX || 0;
+    mcJy = o.jitterY || 0;
+    mcOx = frame.origin.x;
+    mcOy = frame.origin.y;
+    mcOz = frame.origin.z;
+    const t = frame.rotT;
+    const b = frame.rotB;
+    const n = frame.rotN;
+    mcTx = t.x; mcTy = t.y; mcTz = t.z;
+    mcBx = b.x; mcBy = b.y; mcBz = b.z;
+    mcNx = n.x; mcNy = n.y; mcNz = n.z;
+
+    mcTSx = mcTx * mcSXY; mcTSy = mcTy * mcSXY; mcTSz = mcTz * mcSXY;
+    mcBSx = mcBx * mcSXY; mcBSy = mcBy * mcSXY; mcBSz = mcBz * mcSXY;
+    mcNSx = mcNx * mcSZ;  mcNSy = mcNy * mcSZ;  mcNSz = mcNz * mcSZ;
+    mcOjx = mcOx + mcTSx * mcJx + mcBSx * mcJy;
+    mcOjy = mcOy + mcTSy * mcJx + mcBSy * mcJy;
+    mcOjz = mcOz + mcTSz * mcJx + mcBSz * mcJy;
+
+    mcCamX = frame.camVec.x;
+    mcCamY = frame.camVec.y;
+    mcCamZ = frame.camVec.z;
+    mcNearClipZ = mcCamZ - 0.25;
+    mcCx = frame.cx;
+    mcCy = frame.cy;
+    mcFl = frame.focalLength;
+    mcLightDir = frame.lightDir;
+    mcHalfVec = frame.halfVec;
+    mcAtmo = frame.atmo;
+
+    const dxCam = mcCamX - mcOjx;
+    const dyCam = mcCamY - mcOjy;
+    const dzCam = mcCamZ - mcOjz;
+    const vLen = Math.sqrt(dxCam * dxCam + dyCam * dyCam + dzCam * dzCam) || 1;
+    mcVx = dxCam / vLen;
+    mcVy = dyCam / vLen;
+    mcVz = dzCam / vLen;
+
+    mcCamLx = (dxCam * mcTx + dyCam * mcTy + dzCam * mcTz) / mcSXY;
+    mcCamLy = (dxCam * mcBx + dyCam * mcBy + dzCam * mcBz) / mcSXY;
+    mcCamLz = (dxCam * mcNx + dyCam * mcNy + dzCam * mcNz) / mcSZ;
+
+    return sharedCollector;
   }
 
   // --- Five Procedural 3D Building Models ---
