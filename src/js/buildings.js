@@ -894,6 +894,7 @@
   let currentTileId = null;
   let currentPlacedId = null;
   let currentPlacedUsed = false;
+  let currentPlacedLanded = false;
   let currentBiomeId = null;
   let pendingConfirmBuildingId = null;
   let menuOpen = false;
@@ -1099,6 +1100,10 @@
       showProtectedToast(plId, "toast.cannot_replace_protected");
       return true;
     }
+    if (currentPlacedLanded && plId) {
+      showProtectedToast(plId, "toast.cannot_replace_landed");
+      return true;
+    }
     if (!b || b.hiddenFromBuildMenu) return true;
     const researchLocked = isBuildingResearchLocked(b.id);
     if (researchLocked) {
@@ -1208,10 +1213,11 @@
     listEl.innerHTML = "";
 
     const tileProtected = isProtectedBuilding(currentPlacedId);
+    const tileSingleCard = tileProtected || currentPlacedLanded;
     const entries = [];
     for (let i = 0; i < BUILDINGS.length; i++) {
       const b = BUILDINGS[i];
-      if (tileProtected) {
+      if (tileSingleCard) {
         if (b.id !== currentPlacedId) continue;
       } else {
         if (b.hiddenFromBuildMenu) continue;
@@ -1221,6 +1227,7 @@
       }
       const isBuilt = currentPlacedId === b.id;
       const isSpentBuilt = isBuilt && currentPlacedUsed;
+      const isLandedBuilt = isBuilt && currentPlacedLanded;
       const researchLocked = isBuildingResearchLocked(b.id);
       const limitBlocked = !isBuilt && isBuildingPlanetLimitReached(b.id, currentPlanetId, currentPlacedId);
       const terrainOk = canBuildOnBiome(b.id, currentBiomeId);
@@ -1231,6 +1238,7 @@
         idx: i,
         isBuilt: isBuilt,
         isSpentBuilt: isSpentBuilt,
+        isLandedBuilt: isLandedBuilt,
         researchLocked: researchLocked,
         limitBlocked: limitBlocked,
         terrainOk: terrainOk,
@@ -1249,13 +1257,14 @@
       const b = entry.b;
       const isBuilt = entry.isBuilt;
       const isSpentBuilt = entry.isSpentBuilt;
+      const isLandedBuilt = entry.isLandedBuilt;
       const isProtectedCard = isProtectedBuilding(b.id);
       const researchLocked = entry.researchLocked;
       const limitBlocked = entry.limitBlocked;
       const terrain = getTerrainGroup(b.terrain);
       const terrainOk = entry.terrainOk;
       const affordable = entry.affordable;
-      const canPurchase = !isProtectedCard && !isBuilt && !researchLocked && !limitBlocked && terrainOk && affordable;
+      const canPurchase = !isProtectedCard && !isLandedBuilt && !isBuilt && !researchLocked && !limitBlocked && terrainOk && affordable;
 
       const card = document.createElement("button");
       card.type = "button";
@@ -1263,7 +1272,7 @@
         "build-card" +
         (isBuilt ? " is-built" : "") +
         (isSpentBuilt ? " is-spent" : "") +
-        (isProtectedCard ? " build-card--protected" : "") +
+        (isProtectedCard || isLandedBuilt ? " build-card--protected" : "") +
         (!isBuilt && researchLocked ? " is-research-locked" : "") +
         (!isBuilt && !researchLocked && limitBlocked ? " is-limit-blocked" : "") +
         (!isBuilt && !researchLocked && !limitBlocked && !terrainOk ? " is-terrain-blocked" : "") +
@@ -1342,7 +1351,17 @@
       info.appendChild(nameEl);
 
       const showInvalidTerrain = !isBuilt && !terrainOk;
-      if (isProtectedCard) {
+      if (isLandedBuilt && b.rocketCitizens > 0) {
+        info.appendChild(
+          createCardInfoChip(
+            "build-citizen-chip",
+            "build-citizen-icon",
+            STAT_ICONS.citizens,
+            "build-citizen-label",
+            formatCitizenGain(b.rocketCitizens)
+          )
+        );
+      } else if (isProtectedCard) {
         const multiWrap = document.createElement("span");
         multiWrap.className = "build-card-multi-chips";
         if (b.citizenSlots && b.citizenSlots > 0) {
@@ -1579,6 +1598,11 @@
         permLbl.className = "build-built-label";
         permLbl.textContent = t("build.permanent_badge");
         actionBtn.appendChild(permLbl);
+      } else if (isLandedBuilt) {
+        const landedLbl = document.createElement("span");
+        landedLbl.className = "build-built-label";
+        landedLbl.textContent = t("build.landed_badge");
+        actionBtn.appendChild(landedLbl);
       } else if (isBuilt) {
         const builtLbl = document.createElement("span");
         builtLbl.className = "build-built-label";
@@ -1600,6 +1624,10 @@
       card.addEventListener("click", function () {
         if (isProtectedCard) {
           showProtectedToast(b.id, "toast.cannot_replace_protected");
+          return;
+        }
+        if (isLandedBuilt || currentPlacedLanded) {
+          showProtectedToast(currentPlacedId || b.id, "toast.cannot_replace_landed");
           return;
         }
         if (isBuilt) return;
@@ -1662,6 +1690,10 @@
   function openConfirmScene(buildingId) {
     if (isProtectedBuilding(currentPlacedId)) {
       showProtectedToast(currentPlacedId, "toast.cannot_replace_protected");
+      return;
+    }
+    if (currentPlacedLanded && currentPlacedId) {
+      showProtectedToast(currentPlacedId, "toast.cannot_replace_landed");
       return;
     }
     const b = getBuilding(buildingId);
@@ -2005,12 +2037,13 @@
     window.requestAnimationFrame(syncShelfScroll);
   }
 
-  function openForTile(planetId, tileId, placedBuildingId, biomeId, placedUsed) {
+  function openForTile(planetId, tileId, placedBuildingId, biomeId, placedUsed, placedLanded) {
     closeConfirmScene();
     currentPlanetId = planetId;
     currentTileId = tileId;
     currentPlacedId = placedBuildingId || null;
     currentPlacedUsed = Boolean(placedUsed);
+    currentPlacedLanded = Boolean(placedLanded);
 
     const biome = getBiome(biomeId);
     currentBiomeId = biome.id;
@@ -2041,7 +2074,7 @@
     menuOpen = true;
     if (drawerEl) {
       drawerEl.setAttribute("data-biome", biome.id);
-      drawerEl.classList.toggle("is-protected-tile", isProtectedBuilding(currentPlacedId));
+      drawerEl.classList.toggle("is-protected-tile", isProtectedBuilding(currentPlacedId) || currentPlacedLanded);
       drawerEl.classList.add("is-open");
       drawerEl.setAttribute("aria-hidden", "false");
     }
@@ -2054,6 +2087,10 @@
   function requestUpgradeForTile(planetId, tileId, placedBuildingId, biomeId, targetBuildingId) {
     if (isProtectedBuilding(placedBuildingId)) {
       showProtectedToast(placedBuildingId, "toast.cannot_replace_protected");
+      return false;
+    }
+    if (currentPlacedLanded && currentPlacedId === placedBuildingId) {
+      showProtectedToast(placedBuildingId, "toast.cannot_replace_landed");
       return false;
     }
     const nextDef = targetBuildingId
@@ -2070,21 +2107,26 @@
     return true;
   }
 
-  function updateCurrentBuilding(placedBuildingId, placedUsed) {
+  function updateCurrentBuilding(placedBuildingId, placedUsed, placedLanded) {
     currentPlacedId = placedBuildingId || null;
     currentPlacedUsed = Boolean(placedUsed);
+    currentPlacedLanded = Boolean(placedLanded);
+    if (drawerEl) {
+      drawerEl.classList.toggle("is-protected-tile", isProtectedBuilding(currentPlacedId) || currentPlacedLanded);
+    }
     syncRemoveButton();
     if (menuOpen) {
       renderBuildingCards();
     }
   }
 
-  function refreshTileState(planetId, tileId, placedBuildingId, biomeId, placedUsed) {
+  function refreshTileState(planetId, tileId, placedBuildingId, biomeId, placedUsed, placedLanded) {
     if (!menuOpen || currentPlanetId !== planetId || currentTileId !== tileId) {
       return;
     }
     currentPlacedId = placedBuildingId || null;
     currentPlacedUsed = Boolean(placedUsed);
+    currentPlacedLanded = Boolean(placedLanded);
     const biome = getBiome(biomeId);
     currentBiomeId = biome.id;
     if (biomeBadgeEl) {
@@ -2099,6 +2141,7 @@
     }
     if (drawerEl) {
       drawerEl.setAttribute("data-biome", biome.id);
+      drawerEl.classList.toggle("is-protected-tile", isProtectedBuilding(currentPlacedId) || currentPlacedLanded);
     }
     syncRemoveButton();
     renderBuildingCards();
@@ -2118,6 +2161,8 @@
     menuOpen = false;
     currentTileId = null;
     currentPlacedId = null;
+    currentPlacedUsed = false;
+    currentPlacedLanded = false;
     currentBiomeId = null;
     if (drawerEl) {
       drawerEl.classList.remove("is-open");
@@ -2178,6 +2223,11 @@
     confirmBuildBtn.addEventListener("click", function () {
       if (isProtectedBuilding(currentPlacedId)) {
         showProtectedToast(currentPlacedId, "toast.cannot_replace_protected");
+        closeConfirmScene();
+        return;
+      }
+      if (currentPlacedLanded && currentPlacedId) {
+        showProtectedToast(currentPlacedId, "toast.cannot_replace_landed");
         closeConfirmScene();
         return;
       }
@@ -3641,7 +3691,11 @@
     m.addBox(jx, -0.156, zAt(0.49), 0.055, 0.014, 0.055 * sz, [56, 189, 248], { emissive: 0.80 });
   }
 
-  function buildSpaceRocket1Model(m, time, phase, pxScale) {
+  function buildSpaceRocket1Model(m, time, phase, pxScale, opts) {
+    if (opts && opts.isLanded) {
+      buildSpaceRocket1Vessel3D(m, time, phase, pxScale, { zOffset: 0.0, thrust: 0 });
+      return;
+    }
     // Launchpad deck
     m.addPrism(0, 0, 0.0, 0.09, 0.60, 0.54, 8, Math.PI / 8, [71, 85, 105], { spec: 0.25 });
     m.addPrism(0, 0, 0.09, 0.12, 0.26, 0.22, 8, 0, [245, 158, 11], { emissive: 0.40 });
@@ -3659,7 +3713,11 @@
     m.addPrism(-0.28, 0.08, 0.76, 0.82, 0.035, 0.015, 6, 0, [251, 191, 36], { emissive: beacon });
   }
 
-  function buildSpaceRocket2Model(m, time, phase, pxScale) {
+  function buildSpaceRocket2Model(m, time, phase, pxScale, opts) {
+    if (opts && opts.isLanded) {
+      buildSpaceRocket2Vessel3D(m, time, phase, pxScale, { zOffset: 0.0, thrust: 0 });
+      return;
+    }
     // Heavy reinforced launchpad
     m.addPrism(0, 0, 0.0, 0.10, 0.66, 0.60, 8, Math.PI / 8, [51, 65, 85], { spec: 0.28 });
     m.addPrism(0, 0, 0.10, 0.13, 0.34, 0.30, 8, 0, [245, 158, 11], { emissive: 0.45 });
@@ -5247,9 +5305,9 @@
     } else if (buildingId === "solar_tower") {
       buildSolarTowerModel(collector, time, phase, pxScale);
     } else if (buildingId === "space_rocket_1") {
-      buildSpaceRocket1Model(collector, time, phase, pxScale);
+      buildSpaceRocket1Model(collector, time, phase, pxScale, opts);
     } else if (buildingId === "space_rocket_2") {
-      buildSpaceRocket2Model(collector, time, phase, pxScale);
+      buildSpaceRocket2Model(collector, time, phase, pxScale, opts);
     } else if (buildingId === "trade_rocket_1") {
       buildTradeRocket1Model(collector, time, phase, pxScale, opts);
     } else if (buildingId === "trade_rocket_2") {

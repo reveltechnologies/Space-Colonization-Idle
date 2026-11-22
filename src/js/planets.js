@@ -2388,7 +2388,8 @@
               const amp = 0.055 * (dp / 0.32);
               window.GameBuildings.renderBuilding3D(ctx, eff.buildingId, buildingFrame, time, 1, {
                 jitterX: Math.sin(dp * 110) * amp,
-                jitterY: Math.cos(dp * 95) * amp * 0.85
+                jitterY: Math.cos(dp * 95) * amp * 0.85,
+                isLanded: Boolean(eff.isLanded)
               });
             } else {
               const k = (dp - 0.32) / 0.15;
@@ -2396,7 +2397,8 @@
               const crushXY = 1 + Math.sin(k * Math.PI) * 0.34;
               window.GameBuildings.renderBuilding3D(ctx, eff.buildingId, buildingFrame, time, 1, {
                 scaleXY: crushXY,
-                scaleZ: crushZ
+                scaleZ: crushZ,
+                isLanded: Boolean(eff.isLanded)
               });
             }
           }
@@ -2433,7 +2435,9 @@
                 }
               : placedDef && placedDef.singleUseTerraformer
                 ? { used: Boolean(entry.placed.used) }
-                : undefined;
+                : entry.placed.isLanded
+                  ? { isLanded: true }
+                  : undefined;
 
           if (eff && eff.type === "build") {
             const bp = clamp((time - eff.startTime) / eff.duration, 0, 1);
@@ -3887,6 +3891,16 @@
 
     lastInteractionTime = time;
     updatePlanetStatsHud(true);
+    if (window.GameBuildings && typeof window.GameBuildings.refreshTileState === "function") {
+      window.GameBuildings.refreshTileState(
+        destIdx,
+        flight.destTileId,
+        flight.rocketId,
+        flight.destTile ? flight.destTile.biome : null,
+        false,
+        true
+      );
+    }
 
     const pImg = '<img class="game-toast-icon" src="' + destPlanet.iconSrc + '" alt="" draggable="false" />';
     const pStrong = '<strong class="game-toast-strong">' + destPlanet.name + "</strong>";
@@ -4954,7 +4968,7 @@
         selectionPulse = { planetId: hit.planetId, tileId: hit.hexId, startTime: now };
         if (window.GameBuildings) {
           const placed = buildingsByPlanet[hit.planetId][hit.hexId];
-          window.GameBuildings.openForTile(hit.planetId, hit.hexId, placed ? placed.id : null, tile ? tile.biome : null, Boolean(placed && placed.used));
+          window.GameBuildings.openForTile(hit.planetId, hit.hexId, placed ? placed.id : null, tile ? tile.biome : null, Boolean(placed && placed.used), Boolean(placed && placed.isLanded));
         }
       }
       lastTapTime = 0;
@@ -4984,7 +4998,7 @@
         selectionPulse = { planetId: hit.planetId, tileId: hit.hexId, startTime: now };
         if (window.GameBuildings) {
           const placed = buildingsByPlanet[hit.planetId][hit.hexId];
-          window.GameBuildings.openForTile(hit.planetId, hit.hexId, placed ? placed.id : null, tile ? tile.biome : null, Boolean(placed && placed.used));
+          window.GameBuildings.openForTile(hit.planetId, hit.hexId, placed ? placed.id : null, tile ? tile.biome : null, Boolean(placed && placed.used), Boolean(placed && placed.isLanded));
         }
       }
     } else if (!onPlanet) {
@@ -5633,7 +5647,7 @@
             existing && existing.id && window.GameBuildings
               ? window.GameBuildings.getBuilding(existing.id)
               : null;
-          if (existingDefCheck && existingDefCheck.unreplaceable) return;
+          if ((existingDefCheck && existingDefCheck.unreplaceable) || (existing && existing.isLanded)) return;
 
           const tile = planet.tileById[tileId];
           const bld = window.GameBuildings.getBuilding(buildingId);
@@ -5765,6 +5779,7 @@
           tileEffectsByPlanet[targetIndex][tileId] = {
             type: "demolish",
             buildingId: removed.id,
+            isLanded: Boolean(removed.isLanded),
             startTime: now,
             duration: DEMOLISH_VFX_MS,
             seed: tileId * 2.13 + (now % 97) * 0.017

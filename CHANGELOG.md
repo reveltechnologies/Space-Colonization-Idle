@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **Planet-Native Biome Restriction for Geo-Terraformer (`src/js/planets.js`)**:
   - Scoped Geo-Terraformer target terrain choices (`PLANET_TERRAFORM_BIOMES` / `getPlanetAllowedTerraformBiomes`) to biomes native to the current planet type (`rocky`: `glacier`, `mountains`, `highlands`, `crater`; `oceanic`: `glacier`, `mountains`, `forest`, `plains`, `ocean`; `volcanic`: `volcano`, `canyon`, `ashlands`, `lava`) in both the modal grid and `executeTerraform` validation.
+- **Plain Landed Rocket Model & Demolish-Required Build Menu (`src/js/buildings.js`, `src/js/planets.js`, `src/lang/en_us.js`)**:
+  - Rockets landing on another planet now render as a plain rocket vessel without the launchpad deck or gantry tower (`isLanded` in `buildSpaceRocket1Model` / `buildSpaceRocket2Model`).
+  - Selecting a landed rocket opens a focused single-card Building Menu (`LANDED` badge, citizen capacity info, and no category tabs) that requires using the **Demolish** button before another building can be placed on that tile.
 
 ### Fixed
 - **Reliable Single-Click Selection & Purchase in Research Menu (`src/js/research.js`)**:
