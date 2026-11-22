@@ -5,6 +5,28 @@ All notable changes to **Space Colonization: Idle** will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0-beta.1] - 2026-11-22 - Closed Beta Release Candidate 1
+
+> [!NOTE]
+> This milestone marks the start of the next major progression phase: the **Closed Beta Release**. Includes the complete Android App Bundle release pipeline, dedicated release signing keys, comprehensive progression rebalancing, softlock protection, and overhauled colony HUD telemetry.
+
+### Added
+- **Android App Bundle (.aab) Release Pipeline (`build/build_release_aab.py`, `build/README.md`)**:
+  - Implemented an automated release packaging script in `build/` that loads release keystore credentials, prepares and packages web assets, and builds a Google Play-compliant Android App Bundle (`build/release/app-release.aab`).
+  - Added support for both standalone asset bundle packaging and automatic delegation to Android Gradle (`android/gradlew.bat bundleRelease`) if an Android native wrapper exists.
+- **Fail-Safe Softlock Protection & Zero-Credit Startup (`src/economy/economy.js`, `src/js/buildings.js`)**:
+  - Seeded Planet 1 initial starting conditions with 1 Construction Brick so players can begin building immediately even if credits are depleted.
+  - Introduced `creditsBaseAfterFirst` scaling mechanic: the very first copy of the manual starter buildings (**Brick Press**, **Hand Crank**, and **Cargo Trampoline**) costs **0 Space Credits**, guaranteeing players can always produce bricks, generate emergency energy, and trade crates for credits to bootstrap their colony from nothing.
+- **Real-Time Citizen Growth Telemetry & General Resource Descriptions (`src/lang/en_us.js`, `src/js/planets.js`)**:
+  - Overhauled resource tooltips across the planet interface to provide general, universal descriptions rather than hyper-specific building associations.
+  - Added live citizen birth rate telemetry displaying the exact number of citizens being born per cycle and a real-time countdown timer to the next birth.
+
+### Changed
+- **Comprehensive Game Economy & Progression Rebalance (`src/economy/economy.js`, `src/js/buildings.js`, `src/js/research.js`)**:
+  - Overhauled cost scaling curves across automated production, housing, and research facilities to fix early progression pacing and prevent late-game snowballing.
+  - Extended research tree requirements up to 15,500 RP with progressive science tier gating.
+  - Rebalanced global and per-planet citizen growth curves to reward balanced habitat infrastructure.
+
 ## [0.2.0-pre.4] - 2026-11-22
 
 ### Added

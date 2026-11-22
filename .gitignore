@@ -15,10 +15,9 @@ desktop.ini
 # Node / Build Tooling
 node_modules/
 dist/
-build/
 .cache/
 
-# Android / Google Play App Bundle
+# Android / Google Play App Bundle & Artifacts
 android/
 *.apk
 *.aab
@@ -28,6 +27,12 @@ android/
 local.properties
 *.keystore
 *.jks
+
+# Secrets & Private Keystore Credentials
+build/*.properties
+*.properties
+build/release/
+build/dist/
 
 # Environment & Secrets
 .env
