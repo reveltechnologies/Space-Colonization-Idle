@@ -4084,13 +4084,25 @@
     m.addPrism(0, 0, 0.0, 0.075, 0.64, 0.58, 6, 0, [71, 85, 105], { spec: 0.26 });
     m.addPrism(0, 0, 0.075, 0.115, 0.48, 0.44, 6, 0, [251, 191, 36], { spec: 0.50 });
 
-    // Gimbal collar & 3 clean support struts
-    m.addPrism(0, 0, 0.115, 0.24, 0.12, 0.08, 6, 0, [148, 163, 184], { spec: 0.35 });
+    // Gimbal collar, central support mast & anchor struts connecting base to tilted mirror underside
+    m.addPrism(0, 0.04, 0.115, 0.24, 0.13, 0.095, 6, 0, [148, 163, 184], { spec: 0.35 });
+    m.addPrism(0, 0.05, 0.24, 0.40, 0.075, 0.062, 6, 0, [203, 213, 225], { spec: 0.42 });
+    m.addPrism(0, 0.06, 0.40, 0.45, 0.072, 0.055, 6, 0, [245, 158, 11], { spec: 0.52 });
     const postLW = Math.max(1.5, pxScale * 0.048);
     for (let i = 0; i < 3; i++) {
       const a = (Math.PI * 2 * i) / 3 + 0.35;
-      m.addLine([Math.cos(a) * 0.34, Math.sin(a) * 0.34, 0.08], [Math.cos(a) * 0.08, Math.sin(a) * 0.08, 0.23], "#e2e8f0", postLW);
+      m.addLine(
+        [Math.cos(a) * 0.34, Math.sin(a) * 0.34, 0.115],
+        [Math.cos(a) * 0.095, 0.04 + Math.sin(a) * 0.095, 0.235],
+        "#e2e8f0",
+        postLW
+      );
     }
+    const braceLW = Math.max(1.4, pxScale * 0.042);
+    m.addLine([-0.18, 0.16, 0.115], [-0.22, 0.20, 0.56], "#cbd5e1", braceLW);
+    m.addLine([0.18, 0.16, 0.115], [0.22, 0.20, 0.56], "#cbd5e1", braceLW);
+    m.addLine([-0.05, 0.05, 0.38], [-0.22, -0.14, 0.35], "#cbd5e1", braceLW);
+    m.addLine([0.05, 0.05, 0.38], [0.22, -0.14, 0.35], "#cbd5e1", braceLW);
 
     // Tilted parabolic concentrator mirror dish (gold backing + cobalt/cyan reflector face)
     const hw = 0.38;

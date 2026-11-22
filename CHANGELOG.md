@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Applied uniform X/Y/Z reload scaling (`easeOutCubic`) and separated overlapping fins, side boosters, portholes, gantry arms, and telemetry pylons across `buildTradeRocket1Vessel3D`–`3` and `buildTradeRocket1Model`–`3`.
 - **Uncut Tile Biome Icon Badge in Build Menu Header (`src/css/style.css`)**:
   - Removed clipping on `.build-title-stack` so `#build-biome-badge`'s bottom border and drop shadow render cleanly without being cut off by the purple header background.
+- **Helio Mirror 3D Pedestal & Support Strut Connection (`src/js/buildings.js`)**:
+  - Extended `buildHelioMirrorModel` with a central support mast, golden gimbal pivot head, and rear/lower brace struts connecting the ground pedestal cleanly to the underside of the tilted mirror dish.
 
 ## [0.2.0-pre.2] - 2026-11-21
 
