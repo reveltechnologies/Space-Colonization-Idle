@@ -2,7 +2,7 @@
 """
 Build & Release Script for Space Colonization: Idle
 Packages web assets and generates a release-ready Android App Bundle (.aab)
-signed with the generated release keystore.
+signed with the release keystore.
 """
 
 import os
