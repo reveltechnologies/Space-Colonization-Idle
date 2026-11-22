@@ -5,6 +5,44 @@ All notable changes to **Space Colonization: Idle** will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0-pre.4] - 2026-11-22
+
+### Added
+- **Manual Brick Production Building Line (`src/economy/economy.js`, `src/js/buildings.js`, `src/js/planets.js`)**:
+  - Introduced active manual brick production buildings across 3 tiers: **Brick Press** (`brick_press`), **Hydraulic Press** (`hydraulic_press`), and **Plasma Kiln** (`plasma_kiln`).
+  - Added on-click brick generation with an anti-spam cooldown indicator on the tile action panel (`.tile-action-btn--manual-brick`), scaling with colony research brick production multipliers.
+  - Designed 3 procedural 3D models with mechanical pistons and compression beds, paired with custom cel-shaded SVG icons (`bld-brick-press.svg`, `bld-hydraulic-press.svg`, `bld-plasma-kiln.svg`).
+- **Manual Energy Generation Building Line (`src/economy/economy.js`, `src/js/buildings.js`, `src/js/planets.js`)**:
+  - Introduced emergency/manual energy production across 3 tiers: **Hand Crank** (`hand_crank`), **Flywheel Dynamo** (`flywheel_dynamo`), and **Capacitor Core** (`capacitor_core`).
+  - Added click-to-activate mechanic that stacks active power runtime (+60s to +180s per click) up to a 1-hour maximum bank, complete with countdown chips and offline progress simulation.
+  - Designed 3 procedural 3D models featuring rotary cranks, flywheels, and electromagnetic core coils, paired with custom SVG icons (`bld-hand-crank.svg`, `bld-flywheel-dynamo.svg`, `bld-capacitor-core.svg`).
+- **Manual Space Cargo Trampoline Trading Line (`src/economy/economy.js`, `src/js/buildings.js`, `src/js/planets.js`)**:
+  - Added active space trading buildings across 3 tiers: **Cargo Trampoline** (`cargo_trampoline`), **Spring Catapult** (`spring_catapult`), and **Orbital Bouncer** (`orbital_bouncer`).
+  - On click with a short anti-spam cooldown, launches construction brick crates into space for immediate Space Credits, accompanied by floating "+Credits" income popups and a bouncing 3D elastic trampoline mat animation.
+  - Implemented 3D tumbling cargo crate rendering (`renderTradeCrate3D`) in `src/js/buildings.js` and `drawPlanet()` with hemisphere depth-sorting to ensure crates occlude behind or in front of the planet correctly.
+  - Designed 3 procedural 3D trampoline models and crate visuals, paired with custom SVG icons (`bld-cargo-trampoline.svg`, `bld-spring-catapult.svg`, `bld-orbital-bouncer.svg`).
+- **Crash Base Pioneer Character Renaming (`src/index.html`, `src/js/planets.js`, `src/css/style.css`, `src/lang/en_us.js`)**:
+  - Selecting the initial Crash Base structure on Planet 1 now provides a **Rename Pioneer** tile action button (`#btn-tile-rename-character`).
+  - Added a dedicated modal dialog (`#character-rename-modal`) with current name display, autofocus input field, real-time validation (1–24 characters), Enter key submission, success toast notification, and save persistence.
+- **Demolish Confirmation Scene (`src/js/buildings.js`, `src/js/planets.js`, `src/css/style.css`, `src/lang/en_us.js`)**:
+  - Clicking the Demolish button (`#btn-remove-building`) now navigates to a dedicated confirmation view (`openDemolishConfirmScene`) displaying building refund details and a demolition warning notice, preventing accidental building destruction.
+
+### Changed
+- **Early-Game Economy & Cost Rebalance (`src/economy/economy.js`)**:
+  - Positioned manual starter structures as the most affordable early-game options: **Hand Crank** (25 SC) and **Brick Press** (30 SC).
+  - Rebalanced base construction costs of existing buildings upward so early progression smoothly transitions from manual production into automated infrastructure.
+- **Manual Energy Button Active State Typography (`src/css/style.css`)**:
+  - Adjusted text styling for active and capped manual energy tile action buttons (`.tile-action-btn--manual-energy.is-active`, `.is-maxed`) to crisp white text with a dark text shadow for optimal contrast against bright amber and emerald gradients.
+
+### Fixed
+- **Real-Time Affordability Sync in Open Building Menu (`src/js/buildings.js`, `src/js/planets.js`)**:
+  - Fixed an issue where the Building Menu's purchase buttons and price deficit chips (`is-unaffordable`, `is-short`) did not update when manually generating bricks while the menu remained open.
+  - Added `refreshAffordability()` to `window.GameBuildings` and connected it to `updatePlanetBricksHud` to dynamically update card affordability states without rebuilding DOM nodes.
+- **Demolish Hammer & Debris 3D VFX Layering (`src/js/planets.js`)**:
+  - Deferred rendering of the demolish hammer and shatter debris in `drawPlanet()` so the animation consistently renders above all other 3D planet geometry, tiles, structures, and crates.
+- **3D Vector Rotation & Mesh Collector Math (`src/js/buildings.js`)**:
+  - Resolved 3D rendering visual issues by correcting the 3x3 rotation matrix formulation in `createRotator` and fixing projection coordinate calculation in `mcAddLine`.
+
 ## [0.2.0-pre.3] - 2026-11-22
 
 ### Changed
