@@ -389,6 +389,15 @@
       btn_cancel: "Cancel",
       btn_confirm: "Transform Tile"
     },
+    character_rename: {
+      action_btn: "Rename Character",
+      action_btn_named: "Rename: {name}",
+      modal_title: "Rename Character",
+      current_name: "Current: {name}",
+      input_label: "Pioneer Name",
+      btn_cancel: "Cancel",
+      btn_save: "Save Name"
+    },
     toast: {
       cannot_build_unbuildable: "Cannot build {building} on {biome} terrain.",
       cannot_build_terrain: "Cannot build {building} on {biome} — requires {terrain} terrain.",
@@ -419,7 +428,8 @@
       terraform_same_biome: "This tile is already {biome}. Pick a different terrain type.",
       terraform_success: "Tile transformed into {biome}! {building} is now spent — demolish or replace it.",
       manual_energy_max: "{building} is already at maximum charge (1 hour)!",
-      manual_trade_no_bricks: "Need at least 1 Construction Brick on {planet} to launch with {building}!"
+      manual_trade_no_bricks: "Need at least 1 Construction Brick on {planet} to launch with {building}!",
+      character_renamed: "Pioneer renamed to {name}!"
     },
     research: {
       title: "Research Tree",

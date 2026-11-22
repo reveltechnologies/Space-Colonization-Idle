@@ -45,6 +45,14 @@
   const terraformBiomeGridEl = document.getElementById("terraform-biome-grid");
   const terraformCancelBtn = document.getElementById("btn-terraform-cancel");
   const terraformConfirmBtn = document.getElementById("btn-terraform-confirm");
+  const characterRenameModalEl = document.getElementById("character-rename-modal");
+  const characterRenameBackdropEl = document.getElementById("character-rename-backdrop");
+  const characterRenameCurrentPillEl = document.getElementById("character-rename-current-pill");
+  const closeCharacterRenameBtn = document.getElementById("btn-close-character-rename");
+  const characterRenameInputEl = document.getElementById("character-rename-input");
+  const characterRenameCancelBtn = document.getElementById("btn-character-rename-cancel");
+  const characterRenameSaveBtn = document.getElementById("btn-character-rename-save");
+  let characterRenameModalOpen = false;
   const tileRocketActionsEl = document.getElementById("tile-rocket-actions");
   const tileRocketCargoBtn = document.getElementById("btn-tile-rocket-cargo");
   const tileRocketCargoLabelEl = document.getElementById("tile-rocket-cargo-label");
@@ -1734,6 +1742,9 @@
     if (terraformModalState.open) {
       closeTerraformModal();
     }
+    if (characterRenameModalOpen) {
+      closeCharacterRenameModal();
+    }
     if (window.GameBuildings) {
       window.GameBuildings.close(false);
     }
@@ -2604,13 +2615,14 @@
           const isManualBuilding = Boolean(
             placedBDef && (placedBDef.manualBrickPerClick > 0 || placedBDef.manualEnergySlots > 0 || placedBDef.manualTradeBricks > 0)
           );
+          const isCrashBase = entry.placed.id === "crash_base";
           const nextUpgradeDef =
             !entry.placed.isLanded &&
             window.GameBuildings &&
             typeof window.GameBuildings.getNextUpgradeBuilding === "function"
               ? window.GameBuildings.getNextUpgradeBuilding(entry.placed.id, tile.biome)
               : null;
-          const hasTradeOrUpgrade = isTradeBuilding || isManualBuilding || Boolean(nextUpgradeDef);
+          const hasTradeOrUpgrade = isTradeBuilding || isManualBuilding || isCrashBase || Boolean(nextUpgradeDef);
 
           if (isResearchCenter || isTerraformer || isLaunchRocket || hasTradeOrUpgrade) {
             const bBounds = computeSelectedBuildingScreenBounds(entry, buildingFrame, cx, cy, focalLength);
@@ -3866,7 +3878,7 @@
     if (!followRocketBtn) return;
     const researchOpen =
       window.GameResearch && typeof window.GameResearch.isOpen === "function" && window.GameResearch.isOpen();
-    if (activeFlights.length === 0 || researchOpen || cargoModalState.open || terraformModalState.open) {
+    if (activeFlights.length === 0 || researchOpen || cargoModalState.open || terraformModalState.open || characterRenameModalOpen) {
       followRocketBtn.classList.add("is-hidden");
       followRocketBtn.classList.remove("is-following");
       return;
@@ -4252,7 +4264,8 @@
     const modalBlocking =
       (window.GameResearch && typeof window.GameResearch.isOpen === "function" && window.GameResearch.isOpen()) ||
       cargoModalState.open ||
-      terraformModalState.open;
+      terraformModalState.open ||
+      characterRenameModalOpen;
     if (!rocketActionAnchor.visible || modalBlocking) {
       tileRocketActionsEl.classList.add("is-hidden");
       return;
@@ -4574,6 +4587,73 @@
     document.body.classList.remove("terraform-modal-open");
   }
 
+  function openCharacterRenameModal() {
+    if (!characterRenameModalEl) return;
+    characterRenameModalOpen = true;
+    if (characterRenameCurrentPillEl) {
+      const curName = playerName || t("intro.default_pioneer");
+      characterRenameCurrentPillEl.textContent = t("character_rename.current_name", { name: curName });
+    }
+    if (characterRenameInputEl) {
+      characterRenameInputEl.value = playerName || "";
+      characterRenameInputEl.classList.remove("is-invalid");
+    }
+    characterRenameModalEl.classList.remove("is-hidden");
+    characterRenameModalEl.classList.add("is-open");
+    characterRenameModalEl.setAttribute("aria-hidden", "false");
+    document.body.classList.add("character-rename-modal-open");
+    if (characterRenameInputEl) {
+      window.setTimeout(function () {
+        if (characterRenameModalOpen && characterRenameInputEl) {
+          characterRenameInputEl.focus();
+          characterRenameInputEl.select();
+        }
+      }, 20);
+    }
+  }
+
+  function closeCharacterRenameModal() {
+    if (!characterRenameModalOpen && (!characterRenameModalEl || !characterRenameModalEl.classList.contains("is-open"))) {
+      return;
+    }
+    characterRenameModalOpen = false;
+    if (characterRenameInputEl) {
+      characterRenameInputEl.classList.remove("is-invalid");
+      if (document.activeElement === characterRenameInputEl) {
+        characterRenameInputEl.blur();
+      }
+    }
+    if (characterRenameModalEl) {
+      characterRenameModalEl.classList.remove("is-open");
+      characterRenameModalEl.classList.add("is-hidden");
+      characterRenameModalEl.setAttribute("aria-hidden", "true");
+    }
+    document.body.classList.remove("character-rename-modal-open");
+  }
+
+  function submitCharacterRename() {
+    const raw = characterRenameInputEl ? characterRenameInputEl.value : "";
+    const clean = sanitizePlayerName(raw);
+    if (!clean) {
+      if (characterRenameInputEl) {
+        characterRenameInputEl.classList.remove("is-invalid");
+        void characterRenameInputEl.offsetWidth;
+        characterRenameInputEl.classList.add("is-invalid");
+        characterRenameInputEl.focus();
+      }
+      return;
+    }
+    setPlayerName(clean);
+    closeCharacterRenameModal();
+    updateTradeActionOverlay();
+    const iconImg = '<img class="game-toast-icon" src="./assets/ui/icon-citizen.svg" alt="" draggable="false" />';
+    showGameToast(
+      "<span>" + iconImg + t("toast.character_renamed", { name: '<strong class="game-toast-strong">' + escapeHtml(clean) + "</strong>" }) + "</span>",
+      "success"
+    );
+    notifySave("rename_player", true);
+  }
+
   function executeTerraform(planetId, tileId, targetBiomeId) {
     const planet = planets[planetId];
     const tile = planet && planet.tileById ? planet.tileById[tileId] : null;
@@ -4647,7 +4727,8 @@
     const modalBlocking =
       (window.GameResearch && typeof window.GameResearch.isOpen === "function" && window.GameResearch.isOpen()) ||
       cargoModalState.open ||
-      terraformModalState.open;
+      terraformModalState.open ||
+      characterRenameModalOpen;
     if (!terraformButtonAnchor.visible || modalBlocking) {
       tileTerraformBtn.classList.add("is-hidden");
       return;
@@ -4674,7 +4755,8 @@
     const modalBlocking =
       (window.GameResearch && typeof window.GameResearch.isOpen === "function" && window.GameResearch.isOpen()) ||
       cargoModalState.open ||
-      terraformModalState.open;
+      terraformModalState.open ||
+      characterRenameModalOpen;
     if (!tradeActionAnchor.visible || modalBlocking) {
       tileTradeActionsEl.classList.add("is-hidden");
       return;
@@ -4691,7 +4773,8 @@
     const isManualBrick = Boolean(bDef && bDef.manualBrickPerClick > 0);
     const isManualEnergy = Boolean(bDef && bDef.manualEnergySlots > 0);
     const isManualTrade = Boolean(bDef && bDef.manualTradeBricks > 0);
-    const hasPrimary = isTrade || isManualBrick || isManualEnergy || isManualTrade;
+    const isCrashBase = Boolean(placed && placed.id === "crash_base");
+    const hasPrimary = isTrade || isManualBrick || isManualEnergy || isManualTrade || isCrashBase;
     const nextDef =
       placed && !placed.isLanded && bDef && window.GameBuildings && typeof window.GameBuildings.getNextUpgradeBuilding === "function"
         ? window.GameBuildings.getNextUpgradeBuilding(bDef.id, biomeId)
@@ -4709,12 +4792,19 @@
         tileTradeToggleBtn.classList.toggle("tile-action-btn--manual-brick", isManualBrick);
         tileTradeToggleBtn.classList.toggle("tile-action-btn--manual-energy", isManualEnergy);
         tileTradeToggleBtn.classList.toggle("tile-action-btn--manual-trade", isManualTrade);
+        tileTradeToggleBtn.classList.toggle("tile-action-btn--rename-character", isCrashBase);
 
         let nextLabel = "";
         let nextIcon = "./assets/ui/icon-credits.svg";
         let cdPct = "";
 
-        if (isTrade) {
+        if (isCrashBase) {
+          tileTradeToggleBtn.classList.remove("is-active", "is-stopped", "is-cooldown", "is-capped", "is-empty-bricks");
+          nextIcon = "./assets/ui/icon-edit.svg";
+          nextLabel = playerName
+            ? t("character_rename.action_btn_named", { name: playerName })
+            : t("character_rename.action_btn");
+        } else if (isTrade) {
           const enabled = Boolean(placed.tradeEnabled);
           tileTradeToggleBtn.classList.toggle("is-active", enabled);
           tileTradeToggleBtn.classList.toggle("is-stopped", !enabled);
@@ -5048,7 +5138,8 @@
       const modalActive =
         (window.GameResearch && typeof window.GameResearch.isOpen === "function" && window.GameResearch.isOpen()) ||
         cargoModalState.open ||
-        terraformModalState.open;
+        terraformModalState.open ||
+        characterRenameModalOpen;
       if (researchButtonAnchor.visible && !modalActive) {
         tileResearchBtn.classList.remove("is-hidden");
         tileResearchBtn.classList.toggle("is-below", Boolean(researchButtonAnchor.isBelow));
@@ -5521,6 +5612,16 @@
       }
       return;
     }
+    if (characterRenameModalOpen) {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        closeCharacterRenameModal();
+      } else if (e.key === "Enter" && document.activeElement === characterRenameInputEl) {
+        e.preventDefault();
+        submitCharacterRename();
+      }
+      return;
+    }
     const activeTag = document.activeElement && document.activeElement.tagName;
     if (
       isRenamingPlanet ||
@@ -5667,6 +5768,24 @@
       });
     }
 
+    if (closeCharacterRenameBtn) {
+      closeCharacterRenameBtn.addEventListener("click", closeCharacterRenameModal);
+    }
+    if (characterRenameBackdropEl) {
+      characterRenameBackdropEl.addEventListener("click", closeCharacterRenameModal);
+    }
+    if (characterRenameCancelBtn) {
+      characterRenameCancelBtn.addEventListener("click", closeCharacterRenameModal);
+    }
+    if (characterRenameSaveBtn) {
+      characterRenameSaveBtn.addEventListener("click", submitCharacterRename);
+    }
+    if (characterRenameInputEl) {
+      characterRenameInputEl.addEventListener("input", function () {
+        characterRenameInputEl.classList.remove("is-invalid");
+      });
+    }
+
     if (tileRocketCargoBtn) {
       tileRocketCargoBtn.addEventListener("click", function (e) {
         e.stopPropagation();
@@ -5693,6 +5812,11 @@
         const placed = pId >= 0 && tId ? buildingsByPlanet[pId] && buildingsByPlanet[pId][tId] : null;
         const bDef = placed && window.GameBuildings ? window.GameBuildings.getBuilding(placed.id) : null;
         if (!placed || !bDef) return;
+
+        if (placed.id === "crash_base") {
+          openCharacterRenameModal();
+          return;
+        }
 
         if (bDef.manualBrickPerClick > 0) {
           const now = performance.now();

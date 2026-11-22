@@ -427,6 +427,51 @@
     </div>
   </div>
 
+  <!-- Character Rename Modal (Crash Base) -->
+  <div id="character-rename-modal" class="terraform-modal character-rename-modal is-hidden" role="dialog" aria-modal="true" aria-labelledby="character-rename-modal-title" aria-hidden="true">
+    <div id="character-rename-backdrop" class="terraform-modal-backdrop"></div>
+    <div class="terraform-modal-panel character-rename-panel" role="document">
+      <div class="terraform-modal-header">
+        <div class="terraform-modal-title-stack">
+          <div class="terraform-modal-emblem">
+            <img class="terraform-modal-icon" src="./assets/ui/icon-citizen.svg" alt="" draggable="false" />
+          </div>
+          <div class="terraform-modal-title-meta">
+            <h3 id="character-rename-modal-title" class="terraform-modal-title" data-i18n="character_rename.modal_title">Rename Character</h3>
+            <span id="character-rename-current-pill" class="terraform-current-biome-pill"></span>
+          </div>
+        </div>
+        <button id="btn-close-character-rename" class="build-close-btn" type="button" aria-label="Close Rename Character Modal">
+          <img class="btn-icon-md" src="./assets/ui/icon-close.svg" alt="" draggable="false" />
+        </button>
+      </div>
+
+      <div class="character-rename-body">
+        <label class="terraform-grid-label" for="character-rename-input" data-i18n="character_rename.input_label">Pioneer Name</label>
+        <div class="intro-name-input-wrap character-rename-input-wrap">
+          <img class="intro-name-icon" src="./assets/ui/icon-edit.svg" alt="" draggable="false" />
+          <input
+            id="character-rename-input"
+            class="intro-name-input character-rename-input"
+            type="text"
+            maxlength="20"
+            autocomplete="off"
+            autocorrect="off"
+            autocapitalize="words"
+            spellcheck="false"
+            placeholder="Type your name..."
+            data-i18n-placeholder="intro.name_placeholder"
+          />
+        </div>
+      </div>
+
+      <div class="terraform-modal-footer">
+        <button id="btn-character-rename-cancel" class="terraform-modal-btn terraform-modal-btn--cancel" type="button" data-i18n="character_rename.btn_cancel">Cancel</button>
+        <button id="btn-character-rename-save" class="terraform-modal-btn terraform-modal-btn--confirm" type="button" data-i18n="character_rename.btn_save">Save Name</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Opening Story Cinematic Overlay (Native Studio Command UI) -->
   <div id="intro-cinematic" class="intro-cinematic is-hidden" role="dialog" aria-modal="true" aria-label="Opening Story" data-i18n-aria-label="aria.intro_cinematic" aria-hidden="true">
     <canvas id="intro-canvas" aria-hidden="true"></canvas>
