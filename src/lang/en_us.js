@@ -122,6 +122,30 @@
       ashlands: { name: "Ashlands" }
     },
     buildings: {
+      brick_press: {
+        name: "Brick Press",
+        description: "Compact manual stone-molding press. Click its tile action button to stamp Construction Bricks with a short cooldown between presses."
+      },
+      hydraulic_press: {
+        name: "Hydraulic Press",
+        description: "Heavy twin-piston manual forge press that stamps larger batches of Construction Bricks per click with a faster cycle."
+      },
+      quantum_kiln: {
+        name: "Plasma Kiln",
+        description: "High-output plasma-sintering press that rapidly fuses massive batches of Construction Bricks on every click for late-game manual production."
+      },
+      hand_crank: {
+        name: "Crank Dynamo",
+        description: "Manual coil-wound dynamo. Click to wind +3m of emergency Energy (+2 Energy), stacking up to 1 hour max."
+      },
+      flywheel_dynamo: {
+        name: "Kinetic Flywheel",
+        description: "Upgraded vacuum-sealed flywheel generator. Click to spin up +5m of +8 Energy, stacking up to 1 hour max."
+      },
+      capacitor_core: {
+        name: "Overdrive Core",
+        description: "Late-game manual hyper-capacitor spire. Click to inject +7.5m of +25 Energy per click, stacking up to 1 hour max."
+      },
       crash_base: {
         name: "Crash Base",
         specialty: "Permanent Pioneer Shelter",
@@ -269,6 +293,20 @@
       speed_chip: "Every {sec}s (+{rate}/s)",
       floating_gain: "+{credits} SC (-{bricks})"
     },
+    manual: {
+      brick_chip: "+{amount}/click",
+      brick_cooldown_chip: "{sec}s Cooldown",
+      energy_chip: "+{energy} Energy ({mins}m)",
+      energy_stack_chip: "+{mins}m/click (Max 1h)",
+      btn_press: "Press +{amount}",
+      btn_cooldown: "Wait {sec}s",
+      btn_charge: "Charge +{energy}⚡",
+      btn_charge_active: "+{energy}⚡ • {time}",
+      btn_charge_max: "MAX 60:00 (+{energy}⚡)",
+      popup_brick: "+{amount} Bricks",
+      popup_energy: "+{mins}m ⚡",
+      popup_energy_max: "MAX 1h ⚡"
+    },
     rocket: {
       launch_btn: "LAUNCH!",
       cargo_btn: "Cargo",
@@ -363,7 +401,8 @@
       terraform_need_power: "{building} needs {energy} Energy before it can transform this tile.",
       terraform_already_used: "{building} has already been used — demolish or replace it with another building.",
       terraform_same_biome: "This tile is already {biome}. Pick a different terrain type.",
-      terraform_success: "Tile transformed into {biome}! {building} is now spent — demolish or replace it."
+      terraform_success: "Tile transformed into {biome}! {building} is now spent — demolish or replace it.",
+      manual_energy_max: "{building} is already at maximum charge (1 hour)!"
     },
     research: {
       title: "Research Tree",

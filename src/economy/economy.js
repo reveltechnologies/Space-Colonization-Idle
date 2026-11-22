@@ -47,21 +47,38 @@
         hiddenFromBuildMenu: true
       },
 
+      // Manual Brick Production (cheapest starter + late-game upgrades)
+      brick_press: {
+        cost: { credits: 30 },
+        manualBrickPerClick: 2,
+        manualBrickCooldownMs: 1500
+      },
+      hydraulic_press: {
+        cost: { credits: 260, bricks: 40 },
+        manualBrickPerClick: 10,
+        manualBrickCooldownMs: 1200
+      },
+      quantum_kiln: {
+        cost: { credits: 750, bricks: 150 },
+        manualBrickPerClick: 45,
+        manualBrickCooldownMs: 1000
+      },
+
       // Mining
       mine: {
-        cost: { credits: 80 },
+        cost: { credits: 140, bricks: 10 },
         bricksPerSec: 0.25,
         energyRequired: 1,
         citizensRequired: 1
       },
       deep_mine: {
-        cost: { credits: 180, bricks: 25 },
+        cost: { credits: 320, bricks: 45 },
         bricksPerSec: 0.85,
         energyRequired: 3,
         citizensRequired: 2
       },
       mega_quarry: {
-        cost: { credits: 420, bricks: 70 },
+        cost: { credits: 720, bricks: 120 },
         bricksPerSec: 2.4,
         energyRequired: 7,
         citizensRequired: 4
@@ -69,7 +86,7 @@
 
       // Automated Trade Rockets
       trade_rocket_1: {
-        cost: { bricks: 25 },
+        cost: { credits: 90, bricks: 40 },
         bricksPerLaunch: 5,
         creditsPerBrick: 4,
         tradeIntervalSec: 6.0,
@@ -78,7 +95,7 @@
         citizensRequired: 1
       },
       trade_rocket_2: {
-        cost: { credits: 260, bricks: 45 },
+        cost: { credits: 420, bricks: 80 },
         bricksPerLaunch: 12,
         creditsPerBrick: 5,
         tradeIntervalSec: 4.0,
@@ -87,7 +104,7 @@
         citizensRequired: 2
       },
       trade_rocket_3: {
-        cost: { credits: 450, bricks: 100 },
+        cost: { credits: 780, bricks: 170 },
         bricksPerLaunch: 25,
         creditsPerBrick: 6,
         tradeIntervalSec: 2.5,
@@ -98,32 +115,32 @@
 
       // Science
       research_center: {
-        cost: { credits: 140, bricks: 20 },
+        cost: { credits: 220, bricks: 35 },
         researchPerSec: 0.3,
         maxPerPlanet: 1,
         energyRequired: 1,
         citizensRequired: 1
       },
       research_lab: {
-        cost: { credits: 220, bricks: 40 },
+        cost: { credits: 360, bricks: 65 },
         researchPerSec: 0.7,
         energyRequired: 2,
         citizensRequired: 2
       },
       observatory: {
-        cost: { credits: 380, bricks: 75 },
+        cost: { credits: 620, bricks: 125 },
         researchPerSec: 1.6,
         energyRequired: 5,
         citizensRequired: 3
       },
       quantum_array: {
-        cost: { credits: 550, bricks: 120 },
+        cost: { credits: 900, bricks: 200 },
         researchPerSec: 3.8,
         energyRequired: 10,
         citizensRequired: 5
       },
       ore_research_station: {
-        cost: { credits: 2500, bricks: 400 },
+        cost: { credits: 3600, bricks: 600 },
         costScaling: {
           creditsMult: 1.8,
           bricksMult: 1.6,
@@ -137,72 +154,95 @@
 
       // Colony Housing
       small_house: {
-        cost: { bricks: 25 },
+        cost: { credits: 60, bricks: 35 },
         citizenSlots: 2
       },
       big_house: {
-        cost: { credits: 160, bricks: 35 },
+        cost: { credits: 260, bricks: 60 },
         citizenSlots: 6
       },
       villa: {
-        cost: { credits: 360, bricks: 80 },
+        cost: { credits: 580, bricks: 135 },
         citizenSlots: 15
       },
 
       // Self-Sustaining Solar Homes
       solar_cabin: {
-        cost: { credits: 130, bricks: 20 },
+        cost: { credits: 220, bricks: 35 },
         citizenSlots: 3,
         energySlots: 2,
         isSolar: true
       },
       eco_dome: {
-        cost: { credits: 310, bricks: 65 },
+        cost: { credits: 520, bricks: 110 },
         citizenSlots: 8,
         energySlots: 6,
         isSolar: true
       },
       eco_arcology: {
-        cost: { credits: 620, bricks: 140 },
+        cost: { credits: 1000, bricks: 230 },
         citizenSlots: 20,
         energySlots: 15,
         isSolar: true
       },
 
+      // Manual Energy Production (cheapest starter + late-game upgrades, stacks up to 1 hour)
+      hand_crank: {
+        cost: { credits: 25 },
+        manualEnergySlots: 2,
+        manualEnergyClickSec: 180,
+        manualEnergyMaxSec: 3600,
+        manualEnergyCooldownMs: 350
+      },
+      flywheel_dynamo: {
+        cost: { credits: 220, bricks: 35 },
+        manualEnergySlots: 8,
+        manualEnergyClickSec: 300,
+        manualEnergyMaxSec: 3600,
+        manualEnergyCooldownMs: 350
+      },
+      capacitor_core: {
+        cost: { credits: 680, bricks: 130 },
+        manualEnergySlots: 25,
+        manualEnergyClickSec: 450,
+        manualEnergyMaxSec: 3600,
+        manualEnergyCooldownMs: 350
+      },
+
       // Solar Power
       solar_panel: {
-        cost: { credits: 50 },
+        cost: { credits: 110, bricks: 8 },
         energySlots: 3,
         isSolar: true
       },
       solar_array: {
-        cost: { credits: 150, bricks: 25 },
+        cost: { credits: 280, bricks: 45 },
         energySlots: 8,
         isSolar: true
       },
       solar_tower: {
-        cost: { credits: 360, bricks: 65 },
+        cost: { credits: 640, bricks: 115 },
         energySlots: 20,
         isSolar: true
       },
 
       // Decorations (Cosmetic & Purposeful Colony Utility)
       starlight_monument: {
-        cost: { credits: 45, bricks: 5 },
+        cost: { credits: 85, bricks: 12 },
         isCosmetic: true
       },
       helio_mirror: {
-        cost: { credits: 220, bricks: 35 },
+        cost: { credits: 360, bricks: 60 },
         maxPerPlanet: 3,
         solarEnergyBonus: 0.25
       },
       botanical_garden: {
-        cost: { credits: 160, bricks: 25 },
+        cost: { credits: 260, bricks: 45 },
         maxPerPlanet: 3,
         citizenGrowthBonus: 0.50
       },
       builders_plaza: {
-        cost: { credits: 280, bricks: 55 },
+        cost: { credits: 460, bricks: 90 },
         maxPerPlanet: 2,
         costDiscount: 0.15,
         discountCategories: ["colony", "power", "mining"]
@@ -210,34 +250,34 @@
 
       // Terraforming
       geo_terraformer: {
-        cost: { credits: 180, bricks: 40 },
+        cost: { credits: 300, bricks: 70 },
         energyRequired: 2,
         singleUseTerraformer: true
       },
 
       // Wind Power
       windmill: {
-        cost: { credits: 100, bricks: 15 },
+        cost: { credits: 185, bricks: 28 },
         energySlots: 6
       },
       wind_turbine: {
-        cost: { credits: 240, bricks: 45 },
+        cost: { credits: 420, bricks: 80 },
         energySlots: 16
       },
       wind_farm: {
-        cost: { credits: 460, bricks: 95 },
+        cost: { credits: 780, bricks: 160 },
         energySlots: 35
       },
 
       // Interplanetary Space Rockets
       space_rocket_1: {
-        cost: { credits: 400, bricks: 80 },
+        cost: { credits: 650, bricks: 135 },
         rocketTier: 1,
         rocketCitizens: 4,
         rocketMaxBricks: 200
       },
       space_rocket_2: {
-        cost: { credits: 550, bricks: 160 },
+        cost: { credits: 920, bricks: 260 },
         rocketTier: 2,
         rocketCitizens: 10,
         rocketMaxBricks: 600

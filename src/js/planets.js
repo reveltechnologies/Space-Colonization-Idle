@@ -54,6 +54,9 @@
   const tileTradeToggleBtn = document.getElementById("btn-tile-trade-toggle");
   const tileTradeToggleIconEl = document.getElementById("tile-trade-toggle-icon");
   const tileTradeToggleLabelEl = document.getElementById("tile-trade-toggle-label");
+  let lastPrimaryActionText = "";
+  let lastPrimaryActionIcon = "";
+  let lastPrimaryActionCdPct = "";
   const tileTradeUpgradeBtn = document.getElementById("btn-tile-trade-upgrade");
   const tileTradeUpgradeIconEl = document.getElementById("tile-trade-upgrade-icon");
   const tileTradeUpgradeLabelEl = document.getElementById("tile-trade-upgrade-label");
@@ -1072,6 +1075,7 @@
     const researchProducers = [];
     const oreProducers = [];
     const tradeCandidates = [];
+    const activeManualEnergyEntries = [];
 
     let nonSolarEnergy = 0;
     let solarEnergy = 0;
@@ -1111,6 +1115,10 @@
             } else {
               nonSolarEnergy += bDef.energySlots;
             }
+          }
+          if (bDef.manualEnergySlots > 0 && (bInfo.manualEnergyTimer || 0) > 0) {
+            nonSolarEnergy += bDef.manualEnergySlots;
+            activeManualEnergyEntries.push({ tileId: tileId, bInfo: bInfo, bDef: bDef });
           }
           if (bDef.solarEnergyBonus > 0) solarBonus += bDef.solarEnergyBonus;
           if (bDef.citizenGrowthBonus > 0) citizenGrowthBonus += bDef.citizenGrowthBonus;
@@ -1252,7 +1260,8 @@
       brickDemandRate: brickDemandRate,
       researchRate: researchRate,
       oreRate: oreRate,
-      activeTradeEntries: activeTradeEntries
+      activeTradeEntries: activeTradeEntries,
+      activeManualEnergyEntries: activeManualEnergyEntries
     };
     planetSnapshots[planetIdx] = snap;
     return snap;
@@ -2452,11 +2461,16 @@
                       : 0,
                   flightProgress: activeFp !== null ? activeFp : undefined
                 }
-              : placedDef && placedDef.singleUseTerraformer
-                ? { used: Boolean(entry.placed.used) }
-                : entry.placed.isLanded
-                  ? { isLanded: true }
-                  : undefined;
+              : placedDef && (placedDef.manualBrickPerClick > 0 || placedDef.manualEnergySlots > 0)
+                ? {
+                    manualActive: Boolean((entry.placed.manualEnergyTimer || 0) > 0),
+                    manualPulse: clamp01(1 - (time - (entry.placed.manualPulseAt || -9999)) / 420)
+                  }
+                : placedDef && placedDef.singleUseTerraformer
+                  ? { used: Boolean(entry.placed.used) }
+                  : entry.placed.isLanded
+                    ? { isLanded: true }
+                    : undefined;
 
           if (eff && eff.type === "build") {
             const bp = clamp((time - eff.startTime) / eff.duration, 0, 1);
@@ -2530,13 +2544,14 @@
             (entry.placed.id === "space_rocket_1" || entry.placed.id === "space_rocket_2") &&
             planet.id + 1 < PLANET_COUNT;
           const isTradeBuilding = Boolean(placedBDef && placedBDef.tradeVariant);
+          const isManualBuilding = Boolean(placedBDef && (placedBDef.manualBrickPerClick > 0 || placedBDef.manualEnergySlots > 0));
           const nextUpgradeDef =
             !entry.placed.isLanded &&
             window.GameBuildings &&
             typeof window.GameBuildings.getNextUpgradeBuilding === "function"
               ? window.GameBuildings.getNextUpgradeBuilding(entry.placed.id, tile.biome)
               : null;
-          const hasTradeOrUpgrade = isTradeBuilding || Boolean(nextUpgradeDef);
+          const hasTradeOrUpgrade = isTradeBuilding || isManualBuilding || Boolean(nextUpgradeDef);
 
           if (isResearchCenter || isTerraformer || isLaunchRocket || hasTradeOrUpgrade) {
             const bBounds = computeSelectedBuildingScreenBounds(entry, buildingFrame, cx, cy, focalLength);
@@ -4175,6 +4190,85 @@
     });
   }
 
+  const floatingTilePopups = [];
+
+  function formatManualDuration(sec) {
+    const s = Math.max(0, Math.ceil(sec || 0));
+    const m = Math.floor(s / 60);
+    const rem = s % 60;
+    return (m < 10 ? "0" : "") + m + ":" + (rem < 10 ? "0" : "") + rem;
+  }
+
+  function getManualBrickYield(bDef) {
+    if (!bDef || !bDef.manualBrickPerClick) return 0;
+    const mult =
+      window.GameResearch && typeof window.GameResearch.getBrickMultiplier === "function"
+        ? window.GameResearch.getBrickMultiplier(bDef.id)
+        : 1;
+    return Math.max(1, Math.round(bDef.manualBrickPerClick * mult));
+  }
+
+  function spawnFloatingTilePopup(x, y, text, color, time) {
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+    floatingTilePopups.push({
+      x: x,
+      y: y,
+      text: text,
+      color: color || "#fde047",
+      startTime: time,
+      duration: 850
+    });
+    if (floatingTilePopups.length > 24) {
+      floatingTilePopups.shift();
+    }
+  }
+
+  function drawFloatingTilePopups(time) {
+    if (floatingTilePopups.length === 0 || !ctx) return;
+    ctx.save();
+    ctx.font = "800 14px system-ui, -apple-system, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    for (let i = floatingTilePopups.length - 1; i >= 0; i--) {
+      const pop = floatingTilePopups[i];
+      const p = (time - pop.startTime) / pop.duration;
+      if (p >= 1) {
+        floatingTilePopups.splice(i, 1);
+        continue;
+      }
+      const alpha = p < 0.7 ? 1 : 1 - (p - 0.7) / 0.3;
+      const py = pop.y - p * 34;
+      ctx.globalAlpha = clamp01(alpha);
+      ctx.lineWidth = 3.5;
+      ctx.strokeStyle = "#1b1147";
+      ctx.strokeText(pop.text, pop.x, py);
+      ctx.fillStyle = pop.color;
+      ctx.fillText(pop.text, pop.x, py);
+    }
+    ctx.restore();
+  }
+
+  function tickManualEnergy(dtSec) {
+    for (let pIdx = 0; pIdx < PLANET_COUNT; pIdx++) {
+      const active = getPlanetSnapshot(pIdx).activeManualEnergyEntries;
+      if (active.length === 0) continue;
+      let expired = false;
+      for (let i = 0; i < active.length; i++) {
+        const bInfo = active[i].bInfo;
+        bInfo.manualEnergyTimer = Math.max(0, (bInfo.manualEnergyTimer || 0) - dtSec);
+        if (bInfo.manualEnergyTimer <= 0) {
+          bInfo.manualEnergyTimer = 0;
+          expired = true;
+        }
+      }
+      if (expired) {
+        invalidatePlanetStats(pIdx);
+        updatePlanetEnergyHud(true);
+        updatePlanetBricksHud(true);
+      }
+    }
+  }
+
   function tickTradeRockets(time, dtSec) {
     let totalActiveCreditsPerSec = 0;
 
@@ -4469,24 +4563,81 @@
     const tile = planet && planet.tileById ? planet.tileById[tradeActionAnchor.tileId] : null;
     const biomeId = tile ? tile.biome : null;
     const isTrade = Boolean(bDef && bDef.tradeVariant);
+    const isManualBrick = Boolean(bDef && bDef.manualBrickPerClick > 0);
+    const isManualEnergy = Boolean(bDef && bDef.manualEnergySlots > 0);
+    const hasPrimary = isTrade || isManualBrick || isManualEnergy;
     const nextDef =
       placed && !placed.isLanded && bDef && window.GameBuildings && typeof window.GameBuildings.getNextUpgradeBuilding === "function"
         ? window.GameBuildings.getNextUpgradeBuilding(bDef.id, biomeId)
         : null;
 
-    if (!placed || !bDef || (!isTrade && !nextDef)) {
+    if (!placed || !bDef || (!hasPrimary && !nextDef)) {
       tileTradeActionsEl.classList.add("is-hidden");
       return;
     }
 
     if (tileTradeToggleBtn) {
-      if (isTrade) {
-        const enabled = Boolean(placed.tradeEnabled);
+      if (hasPrimary) {
+        const now = performance.now();
         tileTradeToggleBtn.classList.remove("is-hidden");
-        tileTradeToggleBtn.classList.toggle("is-active", enabled);
-        tileTradeToggleBtn.classList.toggle("is-stopped", !enabled);
-        if (tileTradeToggleLabelEl) {
-          tileTradeToggleLabelEl.textContent = t(enabled ? "trade.btn_stop" : "trade.btn_enable");
+        tileTradeToggleBtn.classList.toggle("tile-action-btn--manual-brick", isManualBrick);
+        tileTradeToggleBtn.classList.toggle("tile-action-btn--manual-energy", isManualEnergy);
+
+        let nextLabel = "";
+        let nextIcon = "./assets/ui/icon-credits.svg";
+        let cdPct = "";
+
+        if (isTrade) {
+          const enabled = Boolean(placed.tradeEnabled);
+          tileTradeToggleBtn.classList.toggle("is-active", enabled);
+          tileTradeToggleBtn.classList.toggle("is-stopped", !enabled);
+          tileTradeToggleBtn.classList.remove("is-cooldown", "is-capped");
+          nextLabel = t(enabled ? "trade.btn_stop" : "trade.btn_enable");
+        } else if (isManualBrick) {
+          const cdTotal = bDef.manualBrickCooldownMs || 1500;
+          const remMs = Math.max(0, (placed.manualCooldownUntil || 0) - now);
+          const onCd = remMs > 0;
+          tileTradeToggleBtn.classList.remove("is-active", "is-stopped", "is-capped");
+          tileTradeToggleBtn.classList.toggle("is-cooldown", onCd);
+          nextIcon = "./assets/ui/icon-bricks.svg";
+          if (onCd) {
+            cdPct = Math.round(((cdTotal - remMs) / cdTotal) * 100) + "%";
+            nextLabel = t("manual.btn_cooldown", { sec: (remMs / 1000).toFixed(1) });
+          } else {
+            nextLabel = t("manual.btn_press", { amount: formatPlanetStat(getManualBrickYield(bDef)) });
+          }
+        } else if (isManualEnergy) {
+          const timer = placed.manualEnergyTimer || 0;
+          const maxSec = bDef.manualEnergyMaxSec || 3600;
+          const isActive = timer > 0;
+          const isCapped = timer >= maxSec - 0.5;
+          tileTradeToggleBtn.classList.remove("is-stopped", "is-cooldown");
+          tileTradeToggleBtn.classList.toggle("is-active", isActive && !isCapped);
+          tileTradeToggleBtn.classList.toggle("is-capped", isCapped);
+          nextIcon = "./assets/ui/icon-energy.svg";
+          if (isCapped) {
+            nextLabel = t("manual.btn_charge_max", { energy: formatPlanetStat(bDef.manualEnergySlots) });
+          } else if (isActive) {
+            nextLabel = t("manual.btn_charge_active", {
+              energy: formatPlanetStat(bDef.manualEnergySlots),
+              time: formatManualDuration(timer)
+            });
+          } else {
+            nextLabel = t("manual.btn_charge", { energy: formatPlanetStat(bDef.manualEnergySlots) });
+          }
+        }
+
+        if (cdPct !== lastPrimaryActionCdPct) {
+          lastPrimaryActionCdPct = cdPct;
+          tileTradeToggleBtn.style.setProperty("--cd-pct", cdPct || "0%");
+        }
+        if (tileTradeToggleIconEl && nextIcon !== lastPrimaryActionIcon) {
+          lastPrimaryActionIcon = nextIcon;
+          tileTradeToggleIconEl.src = nextIcon;
+        }
+        if (tileTradeToggleLabelEl && nextLabel !== lastPrimaryActionText) {
+          lastPrimaryActionText = nextLabel;
+          tileTradeToggleLabelEl.textContent = nextLabel;
         }
       } else {
         tileTradeToggleBtn.classList.add("is-hidden");
@@ -4517,7 +4668,7 @@
     }
 
     tileTradeActionsEl.classList.remove("is-hidden");
-    positionActionGroupAroundBuilding(tileTradeActionsEl, tradeActionAnchor, !(isTrade && nextDef), 14);
+    positionActionGroupAroundBuilding(tileTradeActionsEl, tradeActionAnchor, !(hasPrimary && nextDef), 14);
   }
 
   // --- Main Render Loop ---
@@ -4561,6 +4712,7 @@
         }
       }
     }
+    tickManualEnergy(dtSec);
     tickTradeRockets(time, dtSec);
     updatePlanetBricksHud(false);
     updatePlanetCitizenHud(false);
@@ -4740,6 +4892,7 @@
 
     updateAndDrawActiveFlights(time);
     updateAndDrawTradeFlights(time);
+    drawFloatingTilePopups(time);
 
     if (isCrashShaking) {
       ctx.restore();
@@ -5393,7 +5546,74 @@
         const tId = tradeActionAnchor.tileId;
         const placed = pId >= 0 && tId ? buildingsByPlanet[pId] && buildingsByPlanet[pId][tId] : null;
         const bDef = placed && window.GameBuildings ? window.GameBuildings.getBuilding(placed.id) : null;
-        if (!placed || !bDef || !bDef.tradeVariant) return;
+        if (!placed || !bDef) return;
+
+        if (bDef.manualBrickPerClick > 0) {
+          const now = performance.now();
+          if (now < (placed.manualCooldownUntil || 0)) {
+            tileTradeToggleBtn.classList.remove("is-shake");
+            void tileTradeToggleBtn.offsetWidth;
+            tileTradeToggleBtn.classList.add("is-shake");
+            window.setTimeout(function () { tileTradeToggleBtn.classList.remove("is-shake"); }, 280);
+            return;
+          }
+          const gained = getManualBrickYield(bDef);
+          bricksByPlanet[pId] = (bricksByPlanet[pId] || 0) + gained;
+          placed.manualCooldownUntil = now + (bDef.manualBrickCooldownMs || 1500);
+          placed.manualPulseAt = now;
+          spawnFloatingTilePopup(
+            tradeActionAnchor.cx,
+            tradeActionAnchor.minY - 8,
+            t("manual.popup_brick", { amount: formatPlanetStat(gained) }),
+            "#fbbf24",
+            now
+          );
+          updatePlanetBricksHud(true);
+          updateTradeActionOverlay();
+          notifySave("manual_brick", false);
+          return;
+        }
+
+        if (bDef.manualEnergySlots > 0) {
+          const now = performance.now();
+          if (now < (placed.manualCooldownUntil || 0)) {
+            return;
+          }
+          const maxSec = bDef.manualEnergyMaxSec || 3600;
+          const curTimer = placed.manualEnergyTimer || 0;
+          if (curTimer >= maxSec - 0.5) {
+            tileTradeToggleBtn.classList.remove("is-shake");
+            void tileTradeToggleBtn.offsetWidth;
+            tileTradeToggleBtn.classList.add("is-shake");
+            window.setTimeout(function () { tileTradeToggleBtn.classList.remove("is-shake"); }, 280);
+            const iconImg = '<img class="game-toast-icon" src="' + bDef.iconSrc + '" alt="" draggable="false" />';
+            showGameToast("<span>" + iconImg + t("toast.manual_energy_max", { building: '<strong class="game-toast-strong">' + bDef.name + "</strong>" }) + "</span>");
+            return;
+          }
+          const wasInactive = curTimer <= 0;
+          const addSec = bDef.manualEnergyClickSec || 180;
+          placed.manualEnergyTimer = Math.min(maxSec, curTimer + addSec);
+          placed.manualCooldownUntil = now + (bDef.manualEnergyCooldownMs || 350);
+          placed.manualPulseAt = now;
+          if (wasInactive) {
+            invalidatePlanetStats(pId);
+            updatePlanetEnergyHud(true);
+          }
+          spawnFloatingTilePopup(
+            tradeActionAnchor.cx,
+            tradeActionAnchor.minY - 8,
+            placed.manualEnergyTimer >= maxSec - 0.5
+              ? t("manual.popup_energy_max")
+              : t("manual.popup_energy", { mins: Math.round((addSec / 60) * 10) / 10 }),
+            "#fde047",
+            now
+          );
+          updateTradeActionOverlay();
+          notifySave("manual_energy", false);
+          return;
+        }
+
+        if (!bDef.tradeVariant) return;
 
         if (placed.tradeEnabled) {
           placed.tradeEnabled = false;
@@ -5739,6 +5959,10 @@
                 ? Boolean(existing.tradeEnabled)
                 : true
               : false;
+          const preservedManualEnergyTimer =
+            existingDef && existingDef.manualEnergySlots > 0 && bld.manualEnergySlots > 0
+              ? Math.min(existing.manualEnergyTimer || 0, bld.manualEnergyMaxSec || 3600)
+              : 0;
           buildingsByPlanet[targetIndex][tileId] = {
             id: buildingId,
             placedAt: now,
@@ -5747,7 +5971,8 @@
             loadedBricks: preservedLoadedBricks,
             landedCitizens: 0,
             tradeEnabled: initialTradeEnabled,
-            tradeTimer: 0
+            tradeTimer: 0,
+            manualEnergyTimer: preservedManualEnergyTimer
           };
           invalidatePlanetStats(targetIndex);
           const minCit = getPlanetBaseCitizenCount(targetIndex);
@@ -6201,6 +6426,9 @@
         if (bInfo.used) {
           entry.used = true;
         }
+        if (bDef && bDef.manualEnergySlots > 0 && (bInfo.manualEnergyTimer || 0) > 0) {
+          entry.manualEnergyTimer = roundDecimals(bInfo.manualEnergyTimer, 2);
+        }
         outBuildings[tileId] = entry;
       }
 
@@ -6333,6 +6561,10 @@
           tradeTimer:
             bDef.tradeVariant && Number.isFinite(Number(bData.tradeTimer))
               ? clamp(Number(bData.tradeTimer), 0, bDef.tradeIntervalSec || 60)
+              : 0,
+          manualEnergyTimer:
+            bDef.manualEnergySlots > 0 && Number.isFinite(Number(bData.manualEnergyTimer))
+              ? clamp(Number(bData.manualEnergyTimer), 0, bDef.manualEnergyMaxSec || 3600)
               : 0,
           used: Boolean(bDef.singleUseTerraformer && bData.used)
         };
@@ -6585,6 +6817,22 @@
 
           gainedRp += calculatePlanetResearchRate(pIdx) * chunkSec;
           gainedOre += calculatePlanetOreRate(pIdx) * chunkSec;
+
+          const activeManual = getPlanetSnapshot(pIdx).activeManualEnergyEntries;
+          if (activeManual.length > 0) {
+            let expiredManual = false;
+            for (let m = 0; m < activeManual.length; m++) {
+              const mb = activeManual[m].bInfo;
+              mb.manualEnergyTimer = Math.max(0, (mb.manualEnergyTimer || 0) - chunkSec);
+              if (mb.manualEnergyTimer <= 0) {
+                mb.manualEnergyTimer = 0;
+                expiredManual = true;
+              }
+            }
+            if (expiredManual) {
+              invalidatePlanetStats(pIdx);
+            }
+          }
         }
 
         gainedOre += BASE_ORE_RATE_PER_SEC * chunkSec;

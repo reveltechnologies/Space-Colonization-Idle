@@ -80,6 +80,48 @@
 
   const BUILDINGS = [
     {
+      id: "brick_press",
+      name: t("buildings.brick_press.name"),
+      category: "mining",
+      tag: t("categories.mining"),
+      terrain: "solid",
+      nextVariantId: "hydraulic_press",
+      manualBrickPerClick: 2,
+      manualBrickCooldownMs: 1500,
+      description: t("buildings.brick_press.description"),
+      cost: { credits: 30 },
+      accent: "#f59e0b",
+      iconSrc: "./assets/ui/bld-brick-press.svg"
+    },
+    {
+      id: "hydraulic_press",
+      name: t("buildings.hydraulic_press.name"),
+      category: "mining",
+      tag: t("categories.mining"),
+      terrain: "solid",
+      nextVariantId: "quantum_kiln",
+      manualBrickPerClick: 10,
+      manualBrickCooldownMs: 1200,
+      description: t("buildings.hydraulic_press.description"),
+      cost: { credits: 260, bricks: 40 },
+      accent: "#f97316",
+      iconSrc: "./assets/ui/bld-hydraulic-press.svg"
+    },
+    {
+      id: "quantum_kiln",
+      name: t("buildings.quantum_kiln.name"),
+      category: "mining",
+      tag: t("categories.mining"),
+      terrain: "solid",
+      nextVariantId: null,
+      manualBrickPerClick: 45,
+      manualBrickCooldownMs: 1000,
+      description: t("buildings.quantum_kiln.description"),
+      cost: { credits: 750, bricks: 150 },
+      accent: "#ef4444",
+      iconSrc: "./assets/ui/bld-plasma-kiln.svg"
+    },
+    {
       id: "mine",
       name: t("buildings.mine.name"),
       category: "mining",
@@ -362,6 +404,54 @@
       cost: { credits: 620, bricks: 140 },
       accent: "#10b981",
       iconSrc: "./assets/ui/bld-eco-arcology.svg"
+    },
+    {
+      id: "hand_crank",
+      name: t("buildings.hand_crank.name"),
+      category: "power",
+      tag: t("categories.power"),
+      terrain: "solid",
+      nextVariantId: "flywheel_dynamo",
+      manualEnergySlots: 2,
+      manualEnergyClickSec: 180,
+      manualEnergyMaxSec: 3600,
+      manualEnergyCooldownMs: 350,
+      description: t("buildings.hand_crank.description"),
+      cost: { credits: 25 },
+      accent: "#facc15",
+      iconSrc: "./assets/ui/bld-hand-crank.svg"
+    },
+    {
+      id: "flywheel_dynamo",
+      name: t("buildings.flywheel_dynamo.name"),
+      category: "power",
+      tag: t("categories.power"),
+      terrain: "solid",
+      nextVariantId: "capacitor_core",
+      manualEnergySlots: 8,
+      manualEnergyClickSec: 300,
+      manualEnergyMaxSec: 3600,
+      manualEnergyCooldownMs: 350,
+      description: t("buildings.flywheel_dynamo.description"),
+      cost: { credits: 220, bricks: 35 },
+      accent: "#38bdf8",
+      iconSrc: "./assets/ui/bld-flywheel-dynamo.svg"
+    },
+    {
+      id: "capacitor_core",
+      name: t("buildings.capacitor_core.name"),
+      category: "power",
+      tag: t("categories.power"),
+      terrain: "solid",
+      nextVariantId: null,
+      manualEnergySlots: 25,
+      manualEnergyClickSec: 450,
+      manualEnergyMaxSec: 3600,
+      manualEnergyCooldownMs: 350,
+      description: t("buildings.capacitor_core.description"),
+      cost: { credits: 680, bricks: 130 },
+      accent: "#a855f7",
+      iconSrc: "./assets/ui/bld-capacitor-core.svg"
     },
     {
       id: "solar_panel",
@@ -1484,6 +1574,29 @@
             b.bricksPerSec
           )
         );
+      } else if (!showInvalidTerrain && b.manualBrickPerClick && b.manualBrickPerClick > 0) {
+        info.appendChild(
+          createCardInfoChip(
+            "build-bricks-chip",
+            "build-bricks-icon",
+            STAT_ICONS.bricks,
+            "build-bricks-label",
+            t("manual.brick_chip", { amount: formatCostValue(b.manualBrickPerClick) })
+          )
+        );
+      } else if (!showInvalidTerrain && b.manualEnergySlots && b.manualEnergySlots > 0) {
+        info.appendChild(
+          createCardInfoChip(
+            "build-energy-chip",
+            "build-energy-icon",
+            STAT_ICONS.energy,
+            "build-energy-label",
+            t("manual.energy_chip", {
+              energy: formatCostValue(b.manualEnergySlots),
+              mins: formatRateNumber((b.manualEnergyClickSec || 180) / 60)
+            })
+          )
+        );
       } else if (!showInvalidTerrain && b.researchPerSec && b.researchPerSec > 0) {
         info.appendChild(
           createCardInfoChip(
@@ -1905,6 +2018,44 @@
             formatProductionRate(b.bricksPerSec),
             "data-bricks-rate",
             b.bricksPerSec
+          )
+        );
+      } else if (b.manualBrickPerClick && b.manualBrickPerClick > 0) {
+        confirmBadgesEl.appendChild(
+          createCardInfoChip(
+            "build-bricks-chip",
+            "build-bricks-icon",
+            STAT_ICONS.bricks,
+            "build-bricks-label",
+            t("manual.brick_chip", { amount: formatCostValue(b.manualBrickPerClick) })
+          )
+        );
+        confirmBadgesEl.appendChild(
+          createCardInfoChip(
+            "build-specialty-chip",
+            "build-terrain-icon",
+            b.iconSrc,
+            "build-terrain-label",
+            t("manual.brick_cooldown_chip", { sec: formatRateNumber((b.manualBrickCooldownMs || 1500) / 1000) })
+          )
+        );
+      } else if (b.manualEnergySlots && b.manualEnergySlots > 0) {
+        confirmBadgesEl.appendChild(
+          createCardInfoChip(
+            "build-energy-chip",
+            "build-energy-icon",
+            STAT_ICONS.energy,
+            "build-energy-label",
+            formatEnergyGain(b.manualEnergySlots)
+          )
+        );
+        confirmBadgesEl.appendChild(
+          createCardInfoChip(
+            "build-specialty-chip",
+            "build-terrain-icon",
+            b.iconSrc,
+            "build-terrain-label",
+            t("manual.energy_stack_chip", { mins: formatRateNumber((b.manualEnergyClickSec || 180) / 60) })
           )
         );
       } else if (b.researchPerSec && b.researchPerSec > 0) {
@@ -5617,6 +5768,84 @@
     m.addPrism(0, 0, hoverZ, hoverZ + 0.22, 0.14, 0.015, 6, spin, [254, 240, 138], { emissive: 0.78, spec: 0.85 });
   }
 
+  function buildBrickPressModel(m, time, phase, pxScale, opts) {
+    const pulse = opts && opts.manualPulse ? opts.manualPulse : 0;
+    const stampDown = Math.sin(pulse * Math.PI) * 0.16;
+    m.addPrism(0, 0, 0.0, 0.09, 0.56, 0.51, 8, Math.PI / 8, [71, 85, 105], { spec: 0.24 });
+    m.addBox(-0.26, 0, 0.36, 0.06, 0.07, 0.28, [148, 163, 184], { spec: 0.32 });
+    m.addBox(0.26, 0, 0.36, 0.06, 0.07, 0.28, [148, 163, 184], { spec: 0.32 });
+    m.addBox(0, 0, 0.64, 0.35, 0.12, 0.06, [203, 213, 225], { spec: 0.38 });
+    m.addBox(0, 0, 0.16, 0.16, 0.12, 0.07, [232, 93, 63], { spec: 0.22 });
+    m.addBox(0, 0, 0.40 - stampDown, 0.18, 0.14, 0.055, [245, 158, 11], { spec: 0.45, emissive: 0.18 + pulse * 0.55 });
+    m.addPrism(0, 0, 0.455 - stampDown, 0.60, 0.05, 0.05, 6, 0, [251, 191, 36], { spec: 0.42 });
+  }
+
+  function buildHydraulicPressModel(m, time, phase, pxScale, opts) {
+    const pulse = opts && opts.manualPulse ? opts.manualPulse : 0;
+    const stampDown = Math.sin(pulse * Math.PI) * 0.19;
+    m.addPrism(0, 0, 0.0, 0.10, 0.62, 0.56, 8, Math.PI / 8, [51, 65, 85], { spec: 0.28 });
+    m.addBox(-0.32, 0, 0.42, 0.07, 0.09, 0.32, [100, 116, 139], { spec: 0.35 });
+    m.addBox(0.32, 0, 0.42, 0.07, 0.09, 0.32, [100, 116, 139], { spec: 0.35 });
+    m.addBox(0, 0, 0.74, 0.42, 0.15, 0.07, [148, 163, 184], { spec: 0.40 });
+    m.addPrism(-0.14, 0, 0.44 - stampDown, 0.68, 0.055, 0.055, 6, 0, [56, 189, 248], { spec: 0.60, emissive: 0.22 + pulse * 0.45 });
+    m.addPrism(0.14, 0, 0.44 - stampDown, 0.68, 0.055, 0.055, 6, 0, [56, 189, 248], { spec: 0.60, emissive: 0.22 + pulse * 0.45 });
+    m.addBox(0, 0, 0.39 - stampDown, 0.24, 0.16, 0.06, [249, 115, 22], { spec: 0.45, emissive: 0.25 + pulse * 0.55 });
+    m.addBox(-0.11, 0, 0.16, 0.09, 0.12, 0.06, [234, 88, 12], { spec: 0.25 });
+    m.addBox(0.11, 0, 0.16, 0.09, 0.12, 0.06, [251, 146, 60], { spec: 0.25 });
+  }
+
+  function buildPlasmaKilnModel(m, time, phase, pxScale, opts) {
+    const pulse = opts && opts.manualPulse ? opts.manualPulse : 0;
+    const glow = 0.48 + 0.16 * Math.sin(time * 0.006 + phase) + pulse * 0.42;
+    m.addPrism(0, 0, 0.0, 0.11, 0.66, 0.60, 8, Math.PI / 8, [30, 41, 59], { spec: 0.30 });
+    m.addPrism(0, 0, 0.11, 0.56, 0.40, 0.28, 6, Math.PI / 6, [71, 85, 105], { spec: 0.36 });
+    m.addPrism(-0.28, 0, 0.52, 0.86, 0.08, 0.05, 6, 0, [239, 68, 68], { emissive: glow, spec: 0.45 });
+    m.addPrism(0.28, 0, 0.52, 0.86, 0.08, 0.05, 6, 0, [239, 68, 68], { emissive: glow, spec: 0.45 });
+    const lw = Math.max(1.5, pxScale * 0.05);
+    m.addLine([-0.24, 0, 0.78], [0.24, 0, 0.78], "#fbbf24", lw * (1 + pulse * 0.6));
+    m.addPrism(0, 0, 0.14, 0.42 + pulse * 0.12, 0.20, 0.12, 6, time * 0.005, [251, 191, 36], { emissive: glow, spec: 0.65 });
+  }
+
+  function buildHandCrankModel(m, time, phase, pxScale, opts) {
+    const active = Boolean(opts && opts.manualActive);
+    const pulse = opts && opts.manualPulse ? opts.manualPulse : 0;
+    const spin = active ? time * 0.007 + phase : phase + pulse * 2.5;
+    m.addPrism(0, 0, 0.0, 0.09, 0.54, 0.49, 8, Math.PI / 8, [71, 85, 105], { spec: 0.24 });
+    m.addBox(-0.10, 0, 0.27, 0.20, 0.17, 0.18, [100, 116, 139], { spec: 0.35 });
+    m.addBox(-0.10, 0, 0.27, 0.13, 0.19, 0.10, [245, 158, 11], { emissive: active ? 0.55 + pulse * 0.35 : 0.12 });
+    m.addPrism(0.24, 0, 0.22, 0.36, 0.14, 0.14, 8, spin, [250, 204, 21], { spec: 0.48, emissive: active ? 0.30 : 0.05 });
+    const lw = Math.max(1.4, pxScale * 0.055);
+    const armX = 0.24 + Math.cos(spin) * 0.12;
+    const armY = Math.sin(spin) * 0.12;
+    m.addLine([0.24, 0, 0.36], [armX, armY, 0.52], "#e2e8f0", lw);
+    m.addBox(armX, armY, 0.53, 0.045, 0.045, 0.035, [239, 68, 68], { spec: 0.4 });
+    m.addPrism(-0.10, 0, 0.45, 0.60, 0.045, 0.015, 6, 0, [253, 224, 71], { emissive: active ? 0.85 : 0.18 });
+  }
+
+  function buildFlywheelDynamoModel(m, time, phase, pxScale, opts) {
+    const active = Boolean(opts && opts.manualActive);
+    const pulse = opts && opts.manualPulse ? opts.manualPulse : 0;
+    const spin = active ? time * 0.011 + phase : phase + pulse * 3.0;
+    m.addPrism(0, 0, 0.0, 0.10, 0.60, 0.55, 8, Math.PI / 8, [51, 65, 85], { spec: 0.28 });
+    m.addBox(-0.24, 0, 0.26, 0.06, 0.14, 0.16, [100, 116, 139], { spec: 0.35 });
+    m.addBox(0.24, 0, 0.26, 0.06, 0.14, 0.16, [100, 116, 139], { spec: 0.35 });
+    m.addPrism(0, 0, 0.20, 0.44, 0.24, 0.24, 10, spin, [2, 132, 199], { spec: 0.55, emissive: active ? 0.32 + pulse * 0.35 : 0.08 });
+    m.addPrism(0, 0, 0.44, 0.54, 0.16, 0.08, 8, -spin, [56, 189, 248], { spec: 0.65, emissive: active ? 0.62 : 0.15 });
+    m.addPrism(0, 0, 0.54, 0.72, 0.05, 0.015, 6, 0, [253, 224, 71], { emissive: active ? 0.90 : 0.20 });
+  }
+
+  function buildCapacitorCoreModel(m, time, phase, pxScale, opts) {
+    const active = Boolean(opts && opts.manualActive);
+    const pulse = opts && opts.manualPulse ? opts.manualPulse : 0;
+    const spin = active ? time * 0.008 + phase : phase + pulse * 2.5;
+    const glow = active ? 0.68 + 0.22 * Math.sin(time * 0.008 + phase) + pulse * 0.25 : 0.20;
+    m.addPrism(0, 0, 0.0, 0.11, 0.64, 0.58, 8, Math.PI / 8, [49, 46, 129], { spec: 0.35 });
+    m.addPrism(0, 0, 0.11, 0.64, 0.22, 0.18, 8, spin * 0.4, [109, 40, 217], { spec: 0.55, emissive: glow * 0.65 });
+    m.addPrism(0, 0, 0.28, 0.34, 0.34, 0.34, 8, spin, [56, 189, 248], { emissive: glow, spec: 0.70 });
+    m.addPrism(0, 0, 0.48, 0.54, 0.30, 0.30, 8, -spin, [168, 85, 247], { emissive: glow, spec: 0.70 });
+    m.addDome(0, 0, 0.64, 0.16, 0.16, 0.18, 3, 8, [253, 224, 71], { emissive: active ? 0.92 : 0.28, spec: 0.80 });
+  }
+
   function buildUtopiaSpireFast(m, time, phase) {
     // Lean ~14-face utopian sky spire for silky 60fps Nova-7 metropolis rendering
     m.addPrism(0, 0, 0.0, 0.10, 0.62, 0.56, 6, 0, [251, 191, 36], { spec: 0.55 });
@@ -5939,7 +6168,19 @@
     const pxScale = frame.scale * (frame.focalLength / 3.8);
     const phase = frame.phase || 0;
 
-    if (buildingId === "mine") {
+    if (buildingId === "brick_press") {
+      buildBrickPressModel(collector, time, phase, pxScale, opts);
+    } else if (buildingId === "hydraulic_press") {
+      buildHydraulicPressModel(collector, time, phase, pxScale, opts);
+    } else if (buildingId === "quantum_kiln") {
+      buildPlasmaKilnModel(collector, time, phase, pxScale, opts);
+    } else if (buildingId === "hand_crank") {
+      buildHandCrankModel(collector, time, phase, pxScale, opts);
+    } else if (buildingId === "flywheel_dynamo") {
+      buildFlywheelDynamoModel(collector, time, phase, pxScale, opts);
+    } else if (buildingId === "capacitor_core") {
+      buildCapacitorCoreModel(collector, time, phase, pxScale, opts);
+    } else if (buildingId === "mine") {
       buildMineModel(collector, time, phase, pxScale);
     } else if (buildingId === "deep_mine") {
       buildDeepMineModel(collector, time, phase, pxScale);

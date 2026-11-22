@@ -3470,6 +3470,42 @@ body.terraform-modal-open .tile-action-group {
   --b: linear-gradient(180deg, #34d399 0%, #059669 100%);
 }
 
+.tile-action-btn--manual-brick {
+  --b: linear-gradient(180deg, #ffb13b 0%, #ea580c 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.tile-action-btn--manual-brick.is-cooldown {
+  --b: linear-gradient(180deg, #64748b 0%, #334155 100%);
+  color: #e2e8f0;
+}
+
+.tile-action-btn--manual-brick.is-cooldown::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: var(--cd-pct, 0%);
+  background: rgba(251, 191, 36, 0.28);
+  pointer-events: none;
+}
+
+.tile-action-btn--manual-energy {
+  --b: linear-gradient(180deg, #38bdf8 0%, #0284c7 100%);
+}
+
+.tile-action-btn--manual-energy.is-active {
+  --b: linear-gradient(180deg, #facc15 0%, #d97706 100%);
+  color: #ffffff;
+}
+
+.tile-action-btn--manual-energy.is-capped {
+  --b: linear-gradient(180deg, #a855f7 0%, #6d28d9 100%);
+  color: #ffffff;
+}
+
 .tile-action-btn--trade-upgrade {
   --b: linear-gradient(180deg, #fbbf24 0%, #d97706 100%);
 }
