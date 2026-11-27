@@ -17,6 +17,7 @@ This Privacy Policy describes how **Space Colonization: Idle** (`net.reveltechno
 
 - **No Personal Data Collected:** We do not collect your name, email address, phone number, device identifiers, IP address, location data, usage telemetry, crash logs, or payment information.
 - **No Network or Device Permissions:** The Android application requests **no special or standard device permissions** (including no `INTERNET`, location, camera, microphone, contacts, storage, or advertising ID permissions).
+- **Google Play In-App Updates API:** On launch and resume, the Android app queries the official Google Play In-App Updates API (`com.google.android.play:app-update`) through Google Play Services/Play Store to check whether a required app update is available. No personal user data is collected, stored, or transmitted to Revel Technologies as part of this check.
 - **No Third-Party SDKs:** The app contains **no** third-party advertising networks, analytics tools, social SDKs, or tracking libraries.
 
 ---

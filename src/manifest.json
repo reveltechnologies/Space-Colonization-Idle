@@ -1,6 +1,8 @@
 {
   "name": "Space Colonization: Idle",
   "short_name": "Space Colony",
+  "version": "0.3.1-beta.1",
+  "version_code": 2,
   "description": "Mobile sci-fi incremental and idle colony building game.",
   "start_url": "./index.html",
   "display": "standalone",

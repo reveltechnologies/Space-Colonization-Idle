@@ -5,6 +5,22 @@ All notable changes to **Space Colonization: Idle** will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1-beta.1] - 2026-11-27
+
+### Added
+- **Google Play In-App Update Checker (`src/android/app/build.gradle`, `src/android/app/src/main/java/net/reveltechnologies/spacecolonizationidle/MainActivity.java`, `src/android/app/src/main/AndroidManifest.xml`)**:
+  - Moved the native Android wrapper sources into `src/android/` so all application code lives cleanly inside `src/` while `build/android/` remains a gitignored build workspace.
+  - Added `com.google.android.play:app-update:2.1.0` to check Google Play on app launch and resume, enforcing a required `IMMEDIATE` update when a newer version is available, resuming interrupted updates, offering a non-bypassable Update Required fallback dialog (with Play Store redirect), and continuing seamlessly offline when Google Play is unreachable.
+- **Pre-Update Save Protection (`src/js/save.js`)**:
+  - Added `GameSave.prepareForUpdate()` and `GameSave.flush()` plus a boot-state guard in `saveNow()` so active colony progression and offline idle earnings timestamps are safely preserved across mandatory app updates without overwriting un-hydrated saves.
+
+### Changed
+- **Release Version Bump & Self-Bootstrapping AAB Pipeline (`src/manifest.json`, `build/build_release_aab.py`, `build/README.md`, `.gitignore`)**:
+  - Added `"version": "0.3.1-beta.1"` and `"version_code": 2` in `src/manifest.json`, consumed automatically by `build/build_release_aab.py` and `src/android/app/build.gradle`.
+  - Updated `build/build_release_aab.py` to bootstrap `build/android/` directly from `src/android/`, generate launcher PNG mipmaps with Python stdlib, sync web assets (excluding `src/android/`), and auto-detect Gradle/SDK/JDK without requiring committed build binaries.
+- **Privacy Policy (`PRIVACY_POLICY.md`)**:
+  - Disclosed usage of the Google Play In-App Updates API for launch-time update checks.
+
 ## [0.3.0-beta.2] - 2026-11-27
 
 ### Added

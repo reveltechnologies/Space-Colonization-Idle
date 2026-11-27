@@ -1,0 +1,103 @@
+plugins {
+    id 'com.android.application'
+}
+
+def fallbackProps = new Properties()
+def fallbackPropsFile = file('../../spacecolonizationidle.properties')
+if (fallbackPropsFile.exists()) {
+    fallbackPropsFile.withInputStream { stream ->
+        fallbackProps.load(stream)
+    }
+}
+
+def resolveSigningProp = { String envKey, String propKey ->
+    def envVal = System.getenv(envKey)
+    if (envVal != null && !envVal.trim().isEmpty()) {
+        return envVal.trim()
+    }
+    def propVal = fallbackProps.getProperty(propKey)
+    return propVal != null ? propVal.trim() : ''
+}
+
+def releaseStorePath = resolveSigningProp('RELEASE_STORE_FILE', 'KEYSTORE_FILE')
+def releaseStorePassword = resolveSigningProp('RELEASE_STORE_PASSWORD', 'KEYSTORE_PASSWORD')
+def releaseKeyAlias = resolveSigningProp('RELEASE_KEY_ALIAS', 'KEY_ALIAS')
+def releaseKeyPassword = resolveSigningProp('RELEASE_KEY_PASSWORD', 'KEY_PASSWORD')
+if (releaseKeyPassword.isEmpty()) {
+    releaseKeyPassword = releaseStorePassword
+}
+
+File resolvedStoreFile = null
+if (!releaseStorePath.isEmpty()) {
+    def candidate = new File(releaseStorePath)
+    resolvedStoreFile = candidate.isAbsolute() ? candidate : new File(rootProject.file('..'), releaseStorePath)
+}
+
+def resolvedVersionCode = project.hasProperty('appVersionCode')
+    ? Integer.parseInt(project.property('appVersionCode').toString().trim())
+    : 2
+def resolvedVersionName = project.hasProperty('appVersionName')
+    ? project.property('appVersionName').toString().trim()
+    : '0.3.1-beta.1'
+
+android {
+    namespace 'net.reveltechnologies.spacecolonizationidle'
+    compileSdk 36
+    buildToolsVersion '35.0.0'
+
+    defaultConfig {
+        applicationId 'net.reveltechnologies.spacecolonizationidle'
+        minSdk 24
+        targetSdk 36
+        versionCode resolvedVersionCode
+        versionName resolvedVersionName
+    }
+
+    signingConfigs {
+        release {
+            if (resolvedStoreFile != null) {
+                storeFile resolvedStoreFile
+            }
+            if (!releaseStorePassword.isEmpty()) {
+                storePassword releaseStorePassword
+            }
+            if (!releaseKeyAlias.isEmpty()) {
+                keyAlias releaseKeyAlias
+            }
+            if (!releaseKeyPassword.isEmpty()) {
+                keyPassword releaseKeyPassword
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    bundle {
+        language {
+            enableSplit = false
+        }
+        density {
+            enableSplit = false
+        }
+        abi {
+            enableSplit = false
+        }
+    }
+}
+
+dependencies {
+    implementation 'androidx.webkit:webkit:1.14.0'
+    implementation 'com.google.android.play:app-update:2.1.0'
+}

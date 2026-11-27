@@ -908,7 +908,7 @@
   }
 
   function saveNow(reason, forceImmediateWrite) {
-    if (isHydrating) return false;
+    if (!booted || isHydrating) return false;
     if (!canPersistCurrentState(reason)) return false;
     if (debounceTimer) {
       window.clearTimeout(debounceTimer);
@@ -1255,6 +1255,20 @@
     boot: boot,
     saveNow: function (reason) {
       return saveNow(reason || "manual", true);
+    },
+    flush: function (reason) {
+      return saveNow(reason || "flush", true);
+    },
+    prepareForUpdate: function () {
+      if (!booted || isHydrating) return false;
+      if (!canPersistCurrentState("pre_update")) return false;
+      if (!hiddenAt) {
+        hiddenAt = Date.now();
+      }
+      if (window.GamePlanets && typeof window.GamePlanets.onBackground === "function") {
+        window.GamePlanets.onBackground();
+      }
+      return saveNow("pre_update", true);
     },
     requestSave: requestSave,
     exportSaveString: exportSaveString,
