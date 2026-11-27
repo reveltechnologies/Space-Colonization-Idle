@@ -18,7 +18,12 @@ dist/
 .cache/
 
 # Android / Google Play App Bundle & Artifacts
-android/
+/android/
+build/android/.gradle/
+build/android/app/build/
+build/android/build/
+build/android/app/src/main/assets/public/
+build/android/local.properties
 *.apk
 *.aab
 *.ap_
@@ -31,6 +36,8 @@ local.properties
 # Secrets & Private Keystore Credentials
 build/*.properties
 *.properties
+!build/android/gradle.properties
+!build/android/gradle/wrapper/gradle-wrapper.properties
 build/release/
 build/dist/
 
@@ -38,3 +45,4 @@ build/dist/
 .env
 .env.local
 *.log
+/build/android

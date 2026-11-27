@@ -5,6 +5,27 @@ All notable changes to **Space Colonization: Idle** will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0-beta.2] - 2026-11-27
+
+### Added
+- **Native Android Gradle Wrapper for Google Play (`build/android/`)**:
+  - Added a complete Android Gradle (`8.14.3` / AGP `8.13.0`) WebView application wrapper (`net.reveltechnologies.spacecolonizationidle`, `minSdk 24`, `targetSdk 36`, `compileSdk 36`) that compiles a Play Store-compliant `.aab` with `BundleConfig.pb`, protobuf `AndroidManifest.xml`, `resources.pb`, and `classes.dex`.
+  - Implemented `MainActivity.java` hosting the game offline via `WebViewAssetLoader` (`https://appassets.androidplatform.net/assets/public/index.html`) in immersive landscape fullscreen with automatic save flushing on pause/stop and zero runtime or `INTERNET` permissions.
+  - Implemented `AndroidSaveBridge.java` (`window.AndroidSave`) for atomic file-backed persistence under `filesDir/sci_saves` with Android Auto Backup rules (`backup_rules.xml`, `data_extraction_rules.xml`) and R8/ProGuard keep rules.
+  - Added adaptive vector launcher icons and `mdpi`–`xxxhdpi` legacy PNG mipmap icons.
+- **Privacy Policy (`PRIVACY_POLICY.md`)**:
+  - Added a Google Play-compliant privacy policy in the repository root covering zero personal data collection, zero device permissions, offline local storage, Android Auto Backup disclosure, user deletion controls, and developer contact details.
+
+### Changed
+- **Release AAB Builder & Documentation (`build/build_release_aab.py`, `build/README.md`, `.gitignore`)**:
+  - Updated `build/build_release_aab.py` to sync `src/` into `build/android/app/src/main/assets/public/`, auto-detect the Android SDK and JDK 17+, run Gradle `:app:bundleRelease` with release keystore credentials, and output `build/release/app-release.aab`.
+  - Updated `build/README.md` with JDK 17+ and Android SDK prerequisites.
+  - Scoped root `/android/` ignore rules in `.gitignore`, ignored generated `build/android/` artifacts (`local.properties`, `.gradle/`, `app/build/`, `assets/public/`), and kept `gradle.properties` and `gradle-wrapper.properties` tracked.
+
+### Fixed
+- **Google Play App Bundle Upload Rejection (`build/build_release_aab.py`)**:
+  - Removed the standalone raw-ZIP fallback that produced bundles rejected by Google Play Console, replacing it with genuine Gradle-compiled and signed Android App Bundles validated with `bundletool`.
+
 ## [0.3.0-beta.1] - 2026-11-22 - Closed Beta Release Candidate 1
 
 > [!NOTE]

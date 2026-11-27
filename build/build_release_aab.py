@@ -1,26 +1,25 @@
 #!/usr/bin/env python3
 """
 Build & Release Script for Space Colonization: Idle
-Packages web assets and generates a release-ready Android App Bundle (.aab)
-signed with the release keystore.
+Packages web assets into the Android Gradle wrapper project and builds a
+Google Play-compliant signed Android App Bundle (.aab).
 """
 
 import os
 import sys
-import json
 import shutil
-import zipfile
 import subprocess
 from pathlib import Path
 
 BUILD_DIR = Path(__file__).resolve().parent
 ROOT_DIR = BUILD_DIR.parent
 SRC_DIR = ROOT_DIR / "src"
-DIST_DIR = BUILD_DIR / "dist"
 OUTPUT_DIR = BUILD_DIR / "release"
+OUTPUT_AAB = OUTPUT_DIR / "app-release.aab"
 
 PROPERTIES_FILE = BUILD_DIR / "spacecolonizationidle.properties"
-KEYSTORE_FILE = BUILD_DIR / "spacecolonizationidle.keystore"
+APP_ID = "net.reveltechnologies.spacecolonizationidle"
+
 
 def load_keystore_config():
     """Loads keystore configuration and password from properties file."""
@@ -28,10 +27,9 @@ def load_keystore_config():
         "keystore_file": "spacecolonizationidle.keystore",
         "keystore_password": "",
         "key_alias": "spacecolonization",
-        "key_password": ""
+        "key_password": "",
     }
 
-    # Support new or legacy properties file names
     props_file = PROPERTIES_FILE
     if not props_file.exists():
         legacy = BUILD_DIR / "keystore.properties"
@@ -60,130 +58,153 @@ def load_keystore_config():
     if not config["key_password"]:
         config["key_password"] = config["keystore_password"]
 
-    keystore_path = BUILD_DIR / config["keystore_file"]
+    keystore_path = Path(config["keystore_file"])
+    if not keystore_path.is_absolute():
+        keystore_path = BUILD_DIR / keystore_path
+
     if not keystore_path.exists():
         raise FileNotFoundError(f"Keystore file not found: {keystore_path}")
 
     if not config["keystore_password"]:
-        raise ValueError("Keystore password could not be loaded from keystore.properties.")
+        raise ValueError(
+            "Keystore password could not be loaded from spacecolonizationidle.properties."
+        )
 
-    return config, keystore_path
+    return config, keystore_path.resolve()
 
-def find_executable(name, extra_paths=None):
-    """Finds an executable in PATH or known fallback locations."""
-    path = shutil.which(name)
-    if path:
-        return path
 
-    extra_paths = extra_paths or []
-    for ep in extra_paths:
-        candidate = Path(ep) / (f"{name}.exe" if sys.platform == "win32" else name)
-        if candidate.is_file():
-            return str(candidate)
+def find_android_project():
+    """Finds the Android Gradle wrapper project directory."""
+    for candidate in (BUILD_DIR / "android", ROOT_DIR / "android"):
+        if (candidate / "settings.gradle").exists() or (candidate / "settings.gradle.kts").exists():
+            return candidate
+    raise FileNotFoundError(
+        f"Android Gradle project not found in {BUILD_DIR / 'android'} or {ROOT_DIR / 'android'}."
+    )
 
-    return None
 
-def find_jarsigner():
-    """Finds jarsigner executable in JDK locations."""
-    extra_paths = [
-        r"C:\Program Files\Akia\jre\bin",
-        r"C:\Program Files\Java\jdk*\bin",
-        r"C:\Program Files\Android\Android Studio\jbr\bin",
-        os.path.join(os.environ.get("JAVA_HOME", ""), "bin")
-    ]
-    return find_executable("jarsigner", extra_paths)
+def find_android_sdk():
+    """Locates an installed Android SDK directory."""
+    candidates = []
+    for env_var in ("ANDROID_HOME", "ANDROID_SDK_ROOT"):
+        val = os.environ.get(env_var)
+        if val:
+            candidates.append(Path(val))
 
-def find_bundletool():
-    """Finds bundletool jar or cli executable."""
-    bundletool_exec = find_executable("bundletool")
-    if bundletool_exec:
-        return ["bundletool"]
-
-    jars = list(BUILD_DIR.glob("bundletool*.jar")) + list(ROOT_DIR.glob("bundletool*.jar"))
-    if jars:
-        java = find_executable("java", [r"C:\Program Files\Akia\jre\bin"]) or "java"
-        return [java, "-jar", str(jars[0])]
-
-    return None
-
-def prepare_dist():
-    """Copies web assets from src into build/dist ready for packaging."""
-    print("-> Preparing web assets...")
-    if DIST_DIR.exists():
-        shutil.rmtree(DIST_DIR)
-    shutil.copytree(SRC_DIR, DIST_DIR)
-    print(f"   Assets copied to: {DIST_DIR}")
-
-def create_raw_bundle(config, keystore_path):
-    """
-    Creates an app bundle archive structure and signs it.
-    If an Android Gradle wrapper exists, it delegates to Gradle.
-    Otherwise, builds a packaged bundle archive with assets, manifest, and signatures.
-    """
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    android_gradle = ROOT_DIR / "android" / "gradlew"
-    android_gradle_bat = ROOT_DIR / "android" / "gradlew.bat"
-
-    if sys.platform == "win32" and android_gradle_bat.exists():
-        print("-> Android project detected. Building release bundle with Gradle...")
-        env = os.environ.copy()
-        env["RELEASE_STORE_FILE"] = str(keystore_path)
-        env["RELEASE_STORE_PASSWORD"] = config["keystore_password"]
-        env["RELEASE_KEY_ALIAS"] = config["key_alias"]
-        env["RELEASE_KEY_PASSWORD"] = config["key_password"]
-        subprocess.check_call([str(android_gradle_bat), "bundleRelease"], cwd=str(ROOT_DIR / "android"), env=env)
-        return
-
-    # Standalone App Bundle packaging mode for Web / PWA Wrapper:
-    aab_path = OUTPUT_DIR / "app-release.aab"
-    print(f"-> Packaging web app bundle into: {aab_path}")
-
-    # Build the AAB ZIP structure
-    with zipfile.ZipFile(aab_path, "w", compression=zipfile.ZIP_DEFLATED) as aab:
-        # Base module asset directory
-        for root, _, files in os.walk(DIST_DIR):
-            for file in files:
-                file_path = Path(root) / file
-                rel_path = file_path.relative_to(DIST_DIR)
-                aab.write(file_path, arcname=f"base/assets/public/{rel_path.as_posix()}")
-
-        # Include Manifest & Bundle Metadata
-        manifest_path = DIST_DIR / "manifest.json"
-        if manifest_path.exists():
-            aab.write(manifest_path, arcname="base/manifest/manifest.json")
-            aab.write(manifest_path, arcname="BUNDLE-METADATA/com.android.tools.build.libraries/manifest.json")
-
-    print(f"   AAB package created: {aab_path}")
-
-    # Sign the bundle with jarsigner if available
-    jarsigner = find_jarsigner()
-    if jarsigner:
-        print(f"-> Signing bundle with keystore '{keystore_path.name}' (alias: {config['key_alias']})...")
-        cmd = [
-            jarsigner,
-            "-sigalg", "SHA384withRSA",
-            "-digestalg", "SHA-256",
-            "-keystore", str(keystore_path),
-            "-storepass", config["keystore_password"],
-            "-keypass", config["key_password"],
-            str(aab_path),
-            config["key_alias"]
-        ]
-        res = subprocess.run(cmd, capture_output=True, text=True)
-        if res.returncode == 0:
-            print("   Bundle successfully signed with release key!")
-        else:
-            print(f"   Signing warning/notice: {res.stderr or res.stdout}")
+    if sys.platform == "win32":
+        local_app_data = os.environ.get("LOCALAPPDATA")
+        if local_app_data:
+            candidates.append(Path(local_app_data) / "Android" / "Sdk")
+        candidates.append(Path("C:/Android/Sdk"))
+    elif sys.platform == "darwin":
+        candidates.append(Path.home() / "Library" / "Android" / "sdk")
     else:
-        print("-> Notice: jarsigner not in system PATH. Keystore credentials are ready for signing step.")
+        candidates.append(Path.home() / "Android" / "Sdk")
+
+    for sdk in candidates:
+        if sdk.is_dir() and (sdk / "platforms").is_dir():
+            return sdk.resolve()
+
+    raise FileNotFoundError(
+        "Android SDK not found. Set ANDROID_HOME or ANDROID_SDK_ROOT to a valid Android SDK path."
+    )
+
+
+def find_java_home():
+    """Locates a JDK 17+ installation directory for running Gradle and AGP."""
+    candidates = []
+    env_java = os.environ.get("JAVA_HOME")
+    if env_java:
+        candidates.append(Path(env_java))
+
+    if sys.platform == "win32":
+        candidates.extend([
+            Path(r"C:\Program Files\Eclipse Adoptium\jdk-21.0.11.10-hotspot"),
+            Path(r"C:\Program Files\Java\jdk-17"),
+            Path(r"C:\Program Files\Android\Android Studio\jbr"),
+        ])
+        for base in (Path(r"C:\Program Files\Eclipse Adoptium"), Path(r"C:\Program Files\Java")):
+            if base.is_dir():
+                for child in sorted(base.iterdir(), reverse=True):
+                    if child.is_dir():
+                        candidates.append(child)
+    else:
+        java_bin = shutil.which("java")
+        if java_bin:
+            candidates.append(Path(java_bin).resolve().parent.parent)
+
+    exe_name = "java.exe" if sys.platform == "win32" else "java"
+    seen = set()
+    for cand in candidates:
+        resolved = str(cand)
+        if resolved in seen:
+            continue
+        seen.add(resolved)
+        java_exe = cand / "bin" / exe_name
+        if java_exe.is_file():
+            return cand.resolve()
+
+    return None
+
+
+def sync_web_assets(android_dir):
+    """Copies web assets from src/ into the Android assets/public directory."""
+    assets_public = android_dir / "app" / "src" / "main" / "assets" / "public"
+    print("-> Syncing web assets into Android project...")
+    if assets_public.exists():
+        shutil.rmtree(assets_public)
+    assets_public.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(SRC_DIR, assets_public)
+    print(f"   Web assets synced to: {assets_public}")
+
+
+def write_local_properties(android_dir, sdk_dir):
+    """Writes build/android/local.properties pointing to the detected Android SDK."""
+    local_props = android_dir / "local.properties"
+    sdk_line = f"sdk.dir={sdk_dir.as_posix()}\n"
+    local_props.write_text(sdk_line, encoding="utf-8")
+    print(f"-> Configured Android SDK: {sdk_dir}")
+
+
+def build_gradle_bundle(android_dir, config, keystore_path, sdk_dir):
+    """Builds the signed release .aab using the Android Gradle wrapper."""
+    gradlew = android_dir / ("gradlew.bat" if sys.platform == "win32" else "gradlew")
+    if not gradlew.is_file():
+        raise FileNotFoundError(f"Gradle wrapper script not found: {gradlew}")
+
+    env = os.environ.copy()
+    env["ANDROID_HOME"] = str(sdk_dir)
+    env["ANDROID_SDK_ROOT"] = str(sdk_dir)
+    env["RELEASE_STORE_FILE"] = str(keystore_path)
+    env["RELEASE_STORE_PASSWORD"] = config["keystore_password"]
+    env["RELEASE_KEY_ALIAS"] = config["key_alias"]
+    env["RELEASE_KEY_PASSWORD"] = config["key_password"]
+
+    java_home = find_java_home()
+    if java_home is not None:
+        env["JAVA_HOME"] = str(java_home)
+        env["PATH"] = f"{java_home / 'bin'}{os.pathsep}{env.get('PATH', '')}"
+        print(f"-> Using JDK: {java_home}")
+
+    print("-> Running Gradle :app:bundleRelease...")
+    subprocess.check_call([str(gradlew), "bundleRelease"], cwd=str(android_dir), env=env)
+
+    gradle_aab = android_dir / "app" / "build" / "outputs" / "bundle" / "release" / "app-release.aab"
+    if not gradle_aab.is_file():
+        raise FileNotFoundError(f"Expected Gradle bundle output not found: {gradle_aab}")
+
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(gradle_aab, OUTPUT_AAB)
 
     print("\n==========================================")
     print(" RELEASE APP BUNDLE CREATED SUCCESSFULLY! ")
     print("==========================================")
-    print(f"Output AAB: {aab_path}")
+    print(f"Output AAB: {OUTPUT_AAB}")
+    print(f"Package:    {APP_ID}")
     print(f"Keystore:   {keystore_path}")
     print(f"Alias:      {config['key_alias']}")
-    print(f"Password:   [PROTECTED] (stored in build/keystore.properties)")
+    print("Password:   [PROTECTED] (stored in build/spacecolonizationidle.properties)")
+
 
 def main():
     print("==========================================")
@@ -193,11 +214,17 @@ def main():
         config, keystore_path = load_keystore_config()
         print(f"-> Keystore found: {keystore_path.name}")
         print(f"-> Key Alias: {config['key_alias']}")
-        prepare_dist()
-        create_raw_bundle(config, keystore_path)
+
+        android_dir = find_android_project()
+        sdk_dir = find_android_sdk()
+
+        sync_web_assets(android_dir)
+        write_local_properties(android_dir, sdk_dir)
+        build_gradle_bundle(android_dir, config, keystore_path, sdk_dir)
     except Exception as e:
         print(f"Error during bundle creation: {e}", file=sys.stderr)
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()
